@@ -39,7 +39,7 @@ node --test test/*.test.mjs            # 全部离线，用临时目录，不碰
 
 - `specs/` —— 规范正本：`ADD-SPEC.md`（实体/关系/公理）· `command-contract.md`（命令契约与错误码附录 A）· `atlas-layout.md`（数据根版式）· `snapshot-policy.md`
 - `lib/` + `bin/` —— 实现（零依赖 ESM）；`test/` —— 契约级回归测试（把已定的行为钉住，防改着改着跑偏）
-- `docs/` —— `USAGE.md`（怎么用）· `QUICKSTART-NONCODER.md`（不写代码的人）· `DEFENSIVE.md`（防过拟合/防失真的十一条纪律）
+- `docs/` —— `USAGE.md`（怎么用）· `QUICKSTART-NONCODER.md`（不写代码的人）· `DEFENSIVE.md`（防过拟合/防失真的十一条纪律）· `HISTORY.md`（完整版本沿革）
 - `scripts/` —— 门禁脚本（`verify-contract-freshness` 保证 --help/契约/错误码三向一致；`check-public-privacy` 保证公开面无内部残留）
 
 ## 质量与约束
