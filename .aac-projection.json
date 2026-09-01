@@ -21,15 +21,15 @@
     },
     {
       "path": "README.md",
-      "sha256": "af2ec2512399d608"
+      "sha256": "b4c71781b8f10557"
     },
     {
       "path": "RELEASES.md",
-      "sha256": "4515bc97ec9cb565"
+      "sha256": "ca01e4c92925a553"
     },
     {
       "path": "SECURITY.md",
-      "sha256": "6024eb11e415e51a"
+      "sha256": "e7dfd7d558cbfa4e"
     },
     {
       "path": "bin/atlas-engine.mjs",
@@ -149,7 +149,7 @@
     },
     {
       "path": "scripts/check-public-privacy.mjs",
-      "sha256": "e1193063351f4a25"
+      "sha256": "a0e5b393bd9a94b4"
     },
     {
       "path": "scripts/reanchor-moved.mjs",

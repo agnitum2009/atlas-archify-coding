@@ -22,7 +22,7 @@
 
 ### Added
 
-- `scripts/export-public.mjs`（泄压区，非命令面）：净室投影器。排除为缺省、收录需显式白名单；
+- `scripts/export-public.mjs（内部件，未随本版发布）`（泄压区，非命令面）：净室投影器。排除为缺省、收录需显式白名单；
   源码内 `// aac-cut:start/end` 切除标记（不配对即报错）；标识符级中性化用**合法 ASCII 占位名**
   （踩坑：换中文词会污染「把名字当真数据用」的校验，造出公开版假失败）；生成 README/RELEASES/
   CONTRIBUTING/SECURITY/package.json（包名 aac + 双命令别名 atlas-engine·aac + 去 private）/ci.yml。
@@ -32,9 +32,17 @@
   规则失效会响亮报错，而不是静默产出死链或漏脱敏产物。
 - **PR 保护**：投影记录管辖文件哈希；再投影时若外部 PR 改过管辖文件 → exit 1 点名并要求先回流本仓；
   非管辖文件（外部新增）保留且显式报告。永不 force-push、永不覆盖他人内容。
-- `test/public-projection.test.mjs` 6 条回归钉（幂等/排除面/身份别名/扫描器一致/冲突拒绝/外来文件保留）；
+- `test/public-projection.test.mjs（内部件，未随本版发布）` 6 条回归钉（幂等/排除面/身份别名/扫描器一致/冲突拒绝/外来文件保留）；
   本仓 CI 在 node 24 上加 `--selfcheck` 步骤。
-- `docs/PUBLIC-PROJECTION.md`（内部协议档，不导出）。
+- `docs/PUBLIC-PROJECTION.md（内部件，未随本版发布）`（内部协议档，不导出）。
+- `docs/PUBLIC-PROJECTION.md（内部件，未随本版发布）`（内部协议档，不导出）。
+- 安全联系人经 `安全联系人常量` 常量注入生成物（公开版是投影产物，手工编辑会被判为外来改动）。
+- **生成物完整性校验** `checkGenerated`：必备七件（README/RELEASES/CONTRIBUTING/SECURITY/package.json/ci.yml/LICENSE）
+  必须存在、非空、且不含未填模板痕迹（中文填空尖括号、TBD/TODO、未替换常量名）。
+  立法来自本轮自曝的两个缺陷：SECURITY.md 的写入行被误删而自证仍报绿（校验只看内容不看存在）；
+  README 曾带着 `<owner>` 占位符通过全部检查。**宁可不投影，也不把占位符发给公众**。
+- 隐私规则收窄：禁的是**内部仓 URL 与硬编码第三方远端**，不禁账号本身（账号随公开仓必然可见，
+  禁它只会逼生成物写假地址）。
 
 ### 记录
 
@@ -145,7 +153,7 @@ evidence_near_duplicate；sidecar_missing 为既有码扩发射路径）。
 
 - 0.9.0 废弃 lessons hit 时引用的「0/49 零命中」读数，录得期间注入块缺 --sidecar（P0-1），
   可见性受损为死因**嫌疑**（非定论）；「无任何消费者」判据独立于可见性成立，移除结论不翻案。
-  同步见 docs/ADOPTION-BASELINE-2026-08-17.md 更正行。
+  同步见 docs/ADOPTION-BASELINE-2026-08-17.md（内部件，未随本版发布） 更正行。
 
 ### 记录不做（理由经交叉验证校正）
 
@@ -198,7 +206,7 @@ evidence_near_duplicate；sidecar_missing 为既有码扩发射路径）。
   自行硬编码了 `<宿主注入块>`，而仓内**早已存在**四级路径解析
   （`verify-deploy-injection.mjs`，且其头注明写「harness 专属候选路径只落本文件，绝不入 lib」）。
   同一份 harness 知识出现在两处 = 重复实现 + 边界外泄。
-  现抽出**单一实现** `scripts/deploy-injection-path.mjs`，两个门禁均从此处取；
+  现抽出**单一实现** `scripts/deploy-injection-path.mjs（内部件，未随本版发布）`，两个门禁均从此处取；
   实测收敛：全仓除注释外，`.一线席位` 路径只出现在该唯一文件。
 
 ### Added
@@ -308,7 +316,7 @@ settlement-center / task-strategy-change / third-party-vertical / training-trial
 
 ### Added
 
-- `scripts/unowned-oversize-scan.mjs`：找出「体量超硬限 **且** 账本无节点负责」的文件。
+- `scripts/unowned-oversize-scan.mjs（内部件，未随本版发布）`：找出「体量超硬限 **且** 账本无节点负责」的文件。
   **阈值不自造**——取自开发规范 charter-final 原则3 / CI 门禁 G1（自写源文件 ≤400 行且 ≤20KB），
   并支持开发规范的豁免约定（`@third-party-audited` 头注释）。始终 exit 0（报告非门禁），
   只处理显式传入路径、绝不触碰固定目录（与 backfill 脚本同式）。
@@ -338,7 +346,7 @@ vacuous green**，与 0.11.2 修掉的「零锚说全部可解析」同病，只
 
 ### Added
 
-- **第七道门禁 `scripts/verify-size-budgets.mjs`**（已接入 CI）。
+- **第七道门禁 `scripts/verify-size-budgets.mjs（内部件，未随本版发布）`**（已接入 CI）。
   立此门禁的实测理由：契约与 SKILL 里写了四类行数预算——specs 单件 ≤250、docs 单件 ≤120、
   部署注入块 ≤60、SKILL 核心纪律 ≤10 条且单条 ≤6 行——而 `rg 'budget|250|120' scripts/verify-*.mjs`
   **返回空：全仓没有任何门禁在校验它们**。0.11.2 里「预算当场拦下我」的说法因此只是半真——
@@ -375,7 +383,7 @@ vacuous green**，与 0.11.2 修掉的「零锚说全部可解析」同病，只
 
 ### Added
 
-- `docs/METHODOLOGY-TEARDOWN-ARCHITEC-2026-08-18.md`（82 行）：以第一性原理拆出 8 层
+- `docs/METHODOLOGY-TEARDOWN-ARCHITEC-2026-08-18.md（内部件，未随本版发布）`（82 行）：以第一性原理拆出 8 层
   （观测/断言/标识/呈现/权威/反馈/时间/经济），MECE 自检并**如实标注 ④⑤ 的一处交叉**；
   逐层对照 Google SWE Book ch20（Tricorder 四判据、<10% effective FP、not-useful 闭环终点是
   **停用分析器**、删除用户级自定义）、Johnson ICSE 2013、SARIF partialFingerprints、
@@ -565,7 +573,7 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 ### Breaking
 
-- **移除 evidence 顶层命令（类型 (a)：拒绝了昨天接受的输入）**：两段式废弃第二阶段（0.9.0 标记 → 本版物理移除）。理由 = 功能重复：locator lint 写时由 state evidence-add 内嵌格式校验、读时由 doctor evidence-resolvability 全量覆盖（判据与实测口径见 docs/ADOPTION-BASELINE-2026-08-17.md）。迁移指引：写侧换 `state evidence-add --node <id> --locator <文件:行号>`（格式校验同款 parseLocator 正则）；读侧换 `doctor --sidecar <path>`（evidence-resolvability 检查）或 `report --spec` 的 A1 对账。移除后调用 = exit 1 / rule=unknown_subcommand。连带退役：deprecated_command 诊断码（不再有发射方）、bad_file 错误码（evidence lint --file 的唯一发射方随之移除）——两码从契约附录 A 清理，旧回执数据中的该两码按 0.9.0 条目释义。
+- **移除 evidence 顶层命令（类型 (a)：拒绝了昨天接受的输入）**：两段式废弃第二阶段（0.9.0 标记 → 本版物理移除）。理由 = 功能重复：locator lint 写时由 state evidence-add 内嵌格式校验、读时由 doctor evidence-resolvability 全量覆盖（判据与实测口径见 docs/ADOPTION-BASELINE-2026-08-17.md（内部件，未随本版发布））。迁移指引：写侧换 `state evidence-add --node <id> --locator <文件:行号>`（格式校验同款 parseLocator 正则）；读侧换 `doctor --sidecar <path>`（evidence-resolvability 检查）或 `report --spec` 的 A1 对账。移除后调用 = exit 1 / rule=unknown_subcommand。连带退役：deprecated_command 诊断码（不再有发射方）、bad_file 错误码（evidence lint --file 的唯一发射方随之移除）——两码从契约附录 A 清理，旧回执数据中的该两码按 0.9.0 条目释义。
 - **移除 lessons hit 子命令（类型 (a)：拒绝了昨天接受的输入）**：同上第二阶段。理由 = 0/49 采用率且无任何消费者（无门禁依赖、无报表依赖）。**hits 字段与既有数据保留为存量只读计数**（只删 CLI 写入口；lib 层 hitLesson 保留供宿主程序调用），lessons list 照带 hits。移除后调用 = exit 1 / rule=unknown_subcommand。
 - **未知顶层命令 exit 2 → exit 1（类型 (b)：改变既有退出码语义）**：bin 薄壳对未注册命令名此前抛错落顶层 catch = exit 2 / rule=internal——用户拼错被归「内部错误」属归类错误（holdout #2 P2b 实测）；现归位 exit 1 / rule=unknown_subcommand（复用既有码，消息列出当前支持命令）。影响面：只涉未注册命令名路径；已注册命令组的未知子命令本就是 exit 1 / unknown_subcommand，不变。
 
@@ -578,12 +586,12 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 ### Changed
 
-- **预算：命令数 11→10，硬顶保持 ≤11**（腾出 1 个名额）。退役的目的是为增长让路（负责人 2026-08-17 令）：硬顶若随实数回落，减法成果即纯装饰，且永久冻结能力面、违反 Lehman 法则 6「功能内容须持续增长以维持适用性」。占用该名额仍须过能力准入五问 + 出具采用率基线（docs/ADOPTION-BASELINE-2026-08-17.md）。
+- **预算：命令数 11→10，硬顶保持 ≤11**（腾出 1 个名额）。退役的目的是为增长让路（负责人 2026-08-17 令）：硬顶若随实数回落，减法成果即纯装饰，且永久冻结能力面、违反 Lehman 法则 6「功能内容须持续增长以维持适用性」。占用该名额仍须过能力准入五问 + 出具采用率基线（docs/ADOPTION-BASELINE-2026-08-17.md（内部件，未随本版发布））。
 - **注入通道同步**：SKILL.md 命令速查改十命令 + 移除注记（evidence / lessons hit 行删除，经验池纪律的 hit 写入口描述移除）；ADAPTER.md 宽检命令数改动态值（verify-injection-freshness 对账脚本同步改注册表动态计数，防硬编码「十一」腐烂成假绿/假红）；契约附录 A 的 unknown_subcommand 行来源扩写为「未知顶层命令 / 各命令组未知子命令」。部署侧 <宿主注入块> 由编排线同步（其属地，本批不碰）。
 
 ## [0.9.0] - 2026-08-17
 
-来源：减法批——首次真正动用两段式废弃政策（契约「治理」节已成文）+ Lehman 法则2 复杂度做功（Sculley 死分支处方）。实测口径：docs/ADOPTION-BASELINE-2026-08-17.md。
+来源：减法批——首次真正动用两段式废弃政策（契约「治理」节已成文）+ Lehman 法则2 复杂度做功（Sculley 死分支处方）。实测口径：docs/ADOPTION-BASELINE-2026-08-17.md（内部件，未随本版发布）。
 
 **版本位理由（成文）**：本批新增 `deprecated_command` 规则码入契约附录 A——按本仓 semver 规则（契约「治理」节：错误码/退出码/旗标语义/迁移表/侧车结构任一变更，含新增规则码入附录 A = 必升 minor；先例：0.4.0 增 a1-evidence-drifted、0.8.0 增 anchor-empty-line/anchor-binary），故为 minor。**无破坏性**：废弃仅加 warning 不改退出码（三定义 (a)(b)(c) 皆不涉——未拒任何昨天接受的输入、未改既有字段/退出码语义、未改缺省行为路径；成功回执 diagnostics 为纯增）；v1 平铺仍 warning 级 exit 0 不判死。
 
@@ -599,7 +607,7 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 ### Added
 
-- **docs/ADOPTION-BASELINE-2026-08-17.md**：能力使用率与纪律遵守率两表（活账本实测口径）、只读命令测量盲区声明（不引入遥测的理由）、退役判据优先级（①功能重复 > ②零采用且无消费者 > ③投机性泛化未兑现冻结不删；频率对保险类/公理类不适用）、下次新增能力的前置（先出本表，遵守率为 0 先退役或改门禁）。
+- **docs/ADOPTION-BASELINE-2026-08-17.md（内部件，未随本版发布）**：能力使用率与纪律遵守率两表（活账本实测口径）、只读命令测量盲区声明（不引入遥测的理由）、退役判据优先级（①功能重复 > ②零采用且无消费者 > ③投机性泛化未兑现冻结不删；频率对保险类/公理类不适用）、下次新增能力的前置（先出本表，遵守率为 0 先退役或改门禁）。
 - **`deprecated_command` 规则码**（契约附录 A）：两段式废弃第一阶段的提示诊断码，warning 级不阻断，只附在成功回执 diagnostics。
 
 ## [0.8.0] - 2026-08-17
@@ -656,8 +664,8 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 ### Added
 
-- **ready-check 开工成熟度闸纪律入三通道 + 门禁词表**：SKILL.md 核心纪律新增第 9 条（动手前六项须显式——①范围 ②方案 ③影响面 ④验收标准 ⑤验证路径 ⑥风险；缺任一退回澄清，禁「边写边想」核心决策，六项齐备才进实施；方向类问题走呈报单由负责人裁定，技术战术自决但六项仍须写清，落进切片节点 reason 或 trace decision）；ADAPTER.md 加指针行；scripts/injection-terms.mjs 的 CORE_TERMS 增 'ready-check'（登记前已对 SKILL.md 与部署侧 <宿主注入块> 双侧 grep + termPresent 实证，两道注入门禁对漏写当场红）。部署侧注入块由编排线先行同步，本批只读验证。纯纪律/文档增量——按破坏性三定义（拒输入/改语义/改默认）皆不涉，patch 位正确（与 0.3.1 codegraph 纪律先例同理）。
-- **plan-tree 评估存档**：docs/PLAN-TREE-EVALUATION-2026-08-17.md——对象与读法、机器面近零判定、与 ADD 五维对照表、不引入包判定与两条吸收（(A) ready-check 六判据本批落地；(B) handoff 文档注册表与 active/history 分离编排线另行处置）、三处硬冲突、Rule 17 供应链结论、零退出成本。
+- **ready-check 开工成熟度闸纪律入三通道 + 门禁词表**：SKILL.md 核心纪律新增第 9 条（动手前六项须显式——①范围 ②方案 ③影响面 ④验收标准 ⑤验证路径 ⑥风险；缺任一退回澄清，禁「边写边想」核心决策，六项齐备才进实施；方向类问题走呈报单由负责人裁定，技术战术自决但六项仍须写清，落进切片节点 reason 或 trace decision）；ADAPTER.md 加指针行；scripts/injection-terms.mjs（内部件，未随本版发布） 的 CORE_TERMS 增 'ready-check'（登记前已对 SKILL.md 与部署侧 <宿主注入块> 双侧 grep + termPresent 实证，两道注入门禁对漏写当场红）。部署侧注入块由编排线先行同步，本批只读验证。纯纪律/文档增量——按破坏性三定义（拒输入/改语义/改默认）皆不涉，patch 位正确（与 0.3.1 codegraph 纪律先例同理）。
+- **plan-tree 评估存档**：docs/PLAN-TREE-EVALUATION-2026-08-17.md（内部件，未随本版发布）——对象与读法、机器面近零判定、与 ADD 五维对照表、不引入包判定与两条吸收（(A) ready-check 六判据本批落地；(B) handoff 文档注册表与 active/history 分离编排线另行处置）、三处硬冲突、Rule 17 供应链结论、零退出成本。
 
 ## [0.6.3] - 2026-08-16
 
@@ -724,8 +732,8 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 ### Added
 
-- **部署侧注入块门禁 scripts/verify-deploy-injection.mjs（门禁五件→六件；reviewer-B 督导 F3 缺口机器化）**：三条纪律注入通道中部署侧 <宿主注入块> 在引擎仓外，此前无任何门禁——v2 版式与 v0.4.0 三态升级时漏同步两块知识靠人工比对才发现。校验：CORE_TERMS ∪ DEPLOY_TERMS 逐词必含 + 注册表动态 import 十一命令名逐一词界必含（与 injection-freshness 同法，缺任一 exit 1 列名）；路径四级解析（--path > ADD_DEPLOY_INJECTION 环境变量 > ~/.一线席位 与 ~/.pi 候选存在即取 > 无）；文件不存在（CI runner）exit 0 skipped 优雅跳过不假红——对账真实战场是本地部署机。已入 CI（verify-injection-freshness 之后一行）。harness 中立铁律：一线席位/pi 专属候选路径只落 scripts/ 适配器层，不入 lib/。实跑当前真实部署文件：如实 exit 1 报缺 init/diff 两命令名提及（部署块存量缺口实锤，修复属编排线属地）。纯增门禁与文档，不改引擎语义。
-- **公共词表 scripts/injection-terms.mjs**：CORE_TERMS（三通道共同必含，自 KEY_TERMS 迁入 8 词，逐词 grep 实证 SKILL.md 与部署侧文件双侧齐备）+ DEPLOY_TERMS（部署块额外必含：drifted/build-portal/版式/纯生成物，分别钉 v0.4.0 三态、v2 门户重生成、v2 版式落位、门户禁手改四块知识）；verify-injection-freshness.mjs 改 import 公共词表 ∪ SKILL 专属词（未知旗标/--stats，部署块无对应文本不入公共表），行为与输出不变，两门禁间词表抄写漂移面消灭；维护约定成文：新增纪律块必须来此登记关键词，否则门禁不咬。
+- **部署侧注入块门禁 scripts/verify-deploy-injection.mjs（内部件，未随本版发布）（门禁五件→六件；reviewer-B 督导 F3 缺口机器化）**：三条纪律注入通道中部署侧 <宿主注入块> 在引擎仓外，此前无任何门禁——v2 版式与 v0.4.0 三态升级时漏同步两块知识靠人工比对才发现。校验：CORE_TERMS ∪ DEPLOY_TERMS 逐词必含 + 注册表动态 import 十一命令名逐一词界必含（与 injection-freshness 同法，缺任一 exit 1 列名）；路径四级解析（--path > ADD_DEPLOY_INJECTION 环境变量 > ~/.一线席位 与 ~/.pi 候选存在即取 > 无）；文件不存在（CI runner）exit 0 skipped 优雅跳过不假红——对账真实战场是本地部署机。已入 CI（verify-injection-freshness 之后一行）。harness 中立铁律：一线席位/pi 专属候选路径只落 scripts/ 适配器层，不入 lib/。实跑当前真实部署文件：如实 exit 1 报缺 init/diff 两命令名提及（部署块存量缺口实锤，修复属编排线属地）。纯增门禁与文档，不改引擎语义。
+- **公共词表 scripts/injection-terms.mjs（内部件，未随本版发布）**：CORE_TERMS（三通道共同必含，自 KEY_TERMS 迁入 8 词，逐词 grep 实证 SKILL.md 与部署侧文件双侧齐备）+ DEPLOY_TERMS（部署块额外必含：drifted/build-portal/版式/纯生成物，分别钉 v0.4.0 三态、v2 门户重生成、v2 版式落位、门户禁手改四块知识）；verify-injection-freshness.mjs 改 import 公共词表 ∪ SKILL 专属词（未知旗标/--stats，部署块无对应文本不入公共表），行为与输出不变，两门禁间词表抄写漂移面消灭；维护约定成文：新增纪律块必须来此登记关键词，否则门禁不咬。
 
 ### Fixed
 
@@ -759,8 +767,8 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 ### Added
 
-- **codegraph 协作纪律入三通道 + 门禁关键词**：SKILL.md 新增「codegraph 调用纪律」节（①新鲜度门 ②查询姿势 ③证据分级 ④边界——读码省 token，引擎零耦合纯纪律，不入运行时依赖）；ADAPTER.md 加指针行；scripts/verify-injection-freshness.mjs 的 KEY_TERMS 增 'codegraph' 与 'sync'（SKILL.md 漏写即 CI 红）。纯纪律/文档增量——按破坏性三定义（拒输入/改语义/改默认）皆不涉，patch 位正确。
-- **采纳决策存档**：docs/CODEGRAPH-ADOPTION-2026-08-15.md——角色钉死（读码加速器 + 图谱提名层，非裁决依据）、纪律 v2 三条硬化全文、四组实测数字（边精确率 18/20、召回率 14/15、同名串边 3/3、status 判 git 不判索引库 + 读码 token 3415→230 十五倍压缩）、准入五问逐问结论、供应链处置（遥测关停带备份/钉 1.5.0/升级重测约定/MIT/单维护者对策）、负面清单 A/B/C 三级摘要、退出成本（删纪律块即零残留）。
+- **codegraph 协作纪律入三通道 + 门禁关键词**：SKILL.md 新增「codegraph 调用纪律」节（①新鲜度门 ②查询姿势 ③证据分级 ④边界——读码省 token，引擎零耦合纯纪律，不入运行时依赖）；ADAPTER.md 加指针行；scripts/verify-injection-freshness.mjs（内部件，未随本版发布） 的 KEY_TERMS 增 'codegraph' 与 'sync'（SKILL.md 漏写即 CI 红）。纯纪律/文档增量——按破坏性三定义（拒输入/改语义/改默认）皆不涉，patch 位正确。
+- **采纳决策存档**：docs/CODEGRAPH-ADOPTION-2026-08-15.md（内部件，未随本版发布）——角色钉死（读码加速器 + 图谱提名层，非裁决依据）、纪律 v2 三条硬化全文、四组实测数字（边精确率 18/20、召回率 14/15、同名串边 3/3、status 判 git 不判索引库 + 读码 token 3415→230 十五倍压缩）、准入五问逐问结论、供应链处置（遥测关停带备份/钉 1.5.0/升级重测约定/MIT/单维护者对策）、负面清单 A/B/C 三级摘要、退出成本（删纪律块即零残留）。
 
 ## [0.3.0] - 2026-08-15
 

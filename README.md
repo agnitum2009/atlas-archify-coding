@@ -20,7 +20,7 @@
 ## 60 秒上手
 
 ```bash
-git clone https://github.com/<owner>/atlas-archify-coding.git && cd atlas-archify-coding
+git clone https://github.com/agnitum2009/atlas-archify-coding.git && cd atlas-archify-coding
 node bin/atlas-engine.mjs --help
 node --test test/*.test.mjs            # 全部离线，用临时目录，不碰任何真实账本
 ```
