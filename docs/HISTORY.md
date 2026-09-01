@@ -3,6 +3,35 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.15.0] - 2026-09-01
+
+codegraph × archify 协同补齐批（负责人令 2026-09-01 逐项裁：P-0 落 / P-1 加 / P-2 落 / P-3 做）。
+**内核零 codegraph 引用不变**（lib/test/specs 零引用，可退出=删纪律文本即零残留）；archify 源码不动。
+
+### Added
+
+- **`state set --kind meta`**（边入账正规通道）：建号时把节点标为账务/元节点——此前活账里的 meta 节点全是
+  手工写侧车（绕过 CLI = 绕过 CAS/锁/公理），此旗标补上 CLI 入口；kind 不可改（已存在节点传 --kind
+  即 exit 1 bad_args）；A1 的 a1-unmatched-account 对 kind='meta' 的既有豁免通道由此被 CLI 真正接上。
+- `scripts/check-codegraph-freshness.mjs`：codegraph 索引新鲜度门禁——分母=注册表∪账本锚指向的仓（现算），
+  判据=索引 mtime vs 末次提交；>1 天 warning、>3 天红；无索引仓=提名能力缺失 warning；分母空=N/A 不报 0；
+  停放仓 --exempt 显式豁免。立法依据：实测 29 索引仓 19 个陈旧（最狠 69 天），陈旧提名=看着权威的错细节。
+- `scripts/reconcile-graph-edges.mjs`：边级三方对账（图 connection ↔ codegraph 边 ↔ 真码）——图的边在
+  archify schema 里没有证据槽（connections 仅 from/id/label/to/variant），故对账走账本锚+只读 codegraph.db
+  （node:sqlite，Node≥22，更低版本 N/A 降级）。输出：无端点/无据边/漏边三类清单，先 warning 不阻断，
+  --strict 时 exit 1。
+- `docs/CODEGRAPH-ARCHIFY-PIPELINE.md`：协同管线四步与精度红线（提名→实读→校验→锚）。
+
+### Fixed
+
+- SKILL 纪律节 ③ 条纠错：原文写「符号/位置/结构=M 级事实可引用」与经验池"行号偏移"教训矛盾——
+  位置/行号改为 I 级提名（锚坐标只认实读真文件），注入块同行扩展（行数不变，预算零腾挪）。
+  三个副本（pi/demo-harness/部署 pi）同步。
+
+### 验证
+
+  specs/command-contract.md 245 行（≤250）。公开投影两个新脚本随白名单进入公开版（隐私门禁通过）。
+
 ## [0.14.4] - 2026-08-28
 
 公开版版本沿革拆分为"首屏 + 全量档案"（负责人裁丙案：**不删一行**，只搬家）。
@@ -867,4 +896,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 36 个版本全量保留；派生时丢弃 14 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 37 个版本全量保留；派生时丢弃 15 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

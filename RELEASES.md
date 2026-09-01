@@ -3,6 +3,35 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.15.0] - 2026-09-01
+
+codegraph × archify 协同补齐批（负责人令 2026-09-01 逐项裁：P-0 落 / P-1 加 / P-2 落 / P-3 做）。
+**内核零 codegraph 引用不变**（lib/test/specs 零引用，可退出=删纪律文本即零残留）；archify 源码不动。
+
+### Added
+
+- **`state set --kind meta`**（边入账正规通道）：建号时把节点标为账务/元节点——此前活账里的 meta 节点全是
+  手工写侧车（绕过 CLI = 绕过 CAS/锁/公理），此旗标补上 CLI 入口；kind 不可改（已存在节点传 --kind
+  即 exit 1 bad_args）；A1 的 a1-unmatched-account 对 kind='meta' 的既有豁免通道由此被 CLI 真正接上。
+- `scripts/check-codegraph-freshness.mjs`：codegraph 索引新鲜度门禁——分母=注册表∪账本锚指向的仓（现算），
+  判据=索引 mtime vs 末次提交；>1 天 warning、>3 天红；无索引仓=提名能力缺失 warning；分母空=N/A 不报 0；
+  停放仓 --exempt 显式豁免。立法依据：实测 29 索引仓 19 个陈旧（最狠 69 天），陈旧提名=看着权威的错细节。
+- `scripts/reconcile-graph-edges.mjs`：边级三方对账（图 connection ↔ codegraph 边 ↔ 真码）——图的边在
+  archify schema 里没有证据槽（connections 仅 from/id/label/to/variant），故对账走账本锚+只读 codegraph.db
+  （node:sqlite，Node≥22，更低版本 N/A 降级）。输出：无端点/无据边/漏边三类清单，先 warning 不阻断，
+  --strict 时 exit 1。
+- `docs/CODEGRAPH-ARCHIFY-PIPELINE.md`：协同管线四步与精度红线（提名→实读→校验→锚）。
+
+### Fixed
+
+- SKILL 纪律节 ③ 条纠错：原文写「符号/位置/结构=M 级事实可引用」与经验池"行号偏移"教训矛盾——
+  位置/行号改为 I 级提名（锚坐标只认实读真文件），注入块同行扩展（行数不变，预算零腾挪）。
+  三个副本（pi/demo-harness/部署 pi）同步。
+
+### 验证
+
+  specs/command-contract.md 245 行（≤250）。公开投影两个新脚本随白名单进入公开版（隐私门禁通过）。
+
 ## [0.14.4] - 2026-08-28
 
 公开版版本沿革拆分为"首屏 + 全量档案"（负责人裁丙案：**不删一行**，只搬家）。
@@ -97,47 +126,11 @@
 - 记债不修：gate spawnSync 无 timeout（挂死内核阻塞 gate，预存债）；低于基线仅 doctor
   warning 不入 gate（基线漂移与闸行为之间无联动防线，可作后续债）。
 
-## [0.14.0] - 2026-08-27
-
-archify 内核升级适配批（2.14.0 → 上游 HEAD v2.16.0-dev.0，skill 侧 2026-08-27 已同步）。
-三面耦合契约（validate / deliver --quality showcase --json / visual-check --json）接口形状零变化；
-新守卫（composition/desktop-readability 投影字号下限、layout/constraint 标签重叠收紧）由此批的
-gate 诊断摘要面可见。
-
-### Added
-
-- doctor 版本机检（关闭 2026-08-17 评估记录的「纸面钉版无机器验证」缺口）：archify-kernel 检查
-  现探测实际版本（`probeArchifyVersion`，零依赖零 spawn，读 bin 旁 package.json）并在 detail 报
-  `version=`；低于耦合基线 v2.14.0 或版本不可探 → 追加提示级 warning（不改 ok/exit——环境漂移
-  信号不是环境损坏，与 fallback 可移植提示同语义级）。新导出：`ARCHIFY_BASELINE`、
-  `probeArchifyVersion`、`isBelowBaseline`（只比 major.minor，prerelease 后缀忽略）。
-- gate 失败尾结构化诊断摘要：三闸失败且内核 stdout 可解析为回执时，失败尾追加
-  `内核诊断[code] message + supportedFixes 首条`（archify 2.16 新守卫的处置建议——如
-  labelAt/labelDx/labelDy 移标签、缩短文案/拆图——不再淹没在截断 JSON 里）。纯增：解析失败或
-  无 code 诊断返回空串，stub 文本内核零影响，无新规则码不改退出语义。
-
-### Changed
-
-- 版本钉版语义：「固定版本 v2.14.0」→「耦合基线 v2.14.0 + doctor 机检实际版本」（specs 两处）。
-  运行时实测 v2.16.0-dev.0。
-
-### 记录不做（能力五问否决）
-
-- `archify brands`（107 商标矢量 + digest 钉定采集）、Viewer `meta.locale` 本地化、sequence
-  `meta.column_fit`：服务图表美化与阅读体验，不服务「中后期项目进度掌控」——本体第 0 问不符，
-  且扩耦合面违背三面契约最小化。 Brands 若未来用于治理图谱的品牌标识需求再单独立项。
-
-### 实证附记
-
-- 上轮（2026-08-23）移交的 demo-c 图集 12 张在新守卫下的失败，一线席位 已于 08-27 全部修复
-  （13 张含此前 schema 坏的 fb 系 2 张，升级后 validate 全绿）——新守卫暴露的是真实排版债，
-  旧版通过属假阴性。
-
 ---
 
-更早的 31 个版本（0.1.0 → 0.13.0）：
+更早的 32 个版本（0.1.0 → 0.14.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 派生时丢弃 14 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 派生时丢弃 15 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

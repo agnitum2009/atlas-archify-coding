@@ -41,7 +41,7 @@ export const FORBIDDEN = [
 export const FORBIDDEN_PATHS = [
   /^integrations\//, /^docs\/FIELD-REPORT/, /^docs\/INCIDENT-/, /^docs\/AUDIT-SUMMARY/,
   /^docs\/PROPOSALS-/, /^docs\/PENDING-/, /^docs\/OMP-/, /^docs\/ADOPTION-BASELINE/,
-  /^docs\/METHODOLOGY-/, /^docs\/PLAN-TREE-/, /^docs\/CODEGRAPH-/, /^docs\/ADD-PROJECT/,
+  /^docs\/METHODOLOGY-/, /^docs\/PLAN-TREE-/, /^docs\/CODEGRAPH-ADOPTION-/, /^docs\/ADD-PROJECT/,
   /^REVIEW\.md$/, /^CHANGELOG\.md$/, /^scripts\/(verify-injection-freshness|verify-deploy-injection|injection-terms|deploy-injection-path|verify-size-budgets|verify-doc-test-count|unowned-oversize-scan|export-public)\.mjs$/,
   /^test\/(injection-freshness|deploy-injection|public-projection)\.test\.mjs$/,
 ];

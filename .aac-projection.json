@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.14.4",
+  "sourceVersion": "0.15.0",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "eac7bf641d9a5347"
+      "sha256": "e15b2bbadc611db1"
     },
     {
       "path": "SECURITY.md",
@@ -36,12 +36,16 @@
       "sha256": "ff966426bc67cce8"
     },
     {
+      "path": "docs/CODEGRAPH-ARCHIFY-PIPELINE.md",
+      "sha256": "a4d4ab8805ecfe83"
+    },
+    {
       "path": "docs/DEFENSIVE.md",
       "sha256": "c375dd3be259a873"
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "b5d9489ac50f2498"
+      "sha256": "1b7d311da8f960ee"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -65,7 +69,7 @@
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "0324507fcddc8903"
+      "sha256": "6969e69d7aebe41d"
     },
     {
       "path": "lib/compile.mjs",
@@ -141,7 +145,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "24126c11b8e31ef3"
+      "sha256": "1c5ceb91376acedc"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -152,12 +156,20 @@
       "sha256": "3e145708938334d4"
     },
     {
+      "path": "scripts/check-codegraph-freshness.mjs",
+      "sha256": "090bd900a04895a5"
+    },
+    {
       "path": "scripts/check-public-privacy.mjs",
-      "sha256": "a0e5b393bd9a94b4"
+      "sha256": "15f89e40f35bb614"
     },
     {
       "path": "scripts/reanchor-moved.mjs",
       "sha256": "17f201650d03a254"
+    },
+    {
+      "path": "scripts/reconcile-graph-edges.mjs",
+      "sha256": "ac7a0883b9538568"
     },
     {
       "path": "scripts/verify-contract-freshness.mjs",
@@ -181,7 +193,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "2185ecbb41f60f14"
+      "sha256": "f0f355913e94b0ad"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -206,6 +218,10 @@
     {
       "path": "test/cli-error-codes.test.mjs",
       "sha256": "03b0645d71e110d2"
+    },
+    {
+      "path": "test/codegraph-freshness.test.mjs",
+      "sha256": "1228ea60d1746e5d"
     },
     {
       "path": "test/compile.test.mjs",
@@ -276,6 +292,10 @@
       "sha256": "71f69693cd450778"
     },
     {
+      "path": "test/meta-node.test.mjs",
+      "sha256": "053ae5a202b7a3d6"
+    },
+    {
       "path": "test/notice.test.mjs",
       "sha256": "f1ea9a63d1202d92"
     },
@@ -286,6 +306,10 @@
     {
       "path": "test/project-gate.test.mjs",
       "sha256": "ebbbe2743d3bf6c0"
+    },
+    {
+      "path": "test/reconcile-graph-edges.test.mjs",
+      "sha256": "00f886ee5047413d"
     },
     {
       "path": "test/report-a1.test.mjs",
