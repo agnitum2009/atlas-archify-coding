@@ -46,9 +46,10 @@
 
 ### 记录
 
-- P4（`notice` + `seats` 是否从公开面切除）**重新呈裁**：需共享文件内分支手术（commands.mjs 8 处触点、
-  doctor stats、侧车 schema、specs 17 处、--help/旗标对账测试），且「收外部 PR」使多人协作价值前提改变。
-- 度量对象不存在的三道内部门禁（size-budgets / doc-test-count / unowned-oversize-scan）不随公开版导出。
+- **P4 已裁（2026-08-28，保留不切除）**：`notice` 命令族与 `--seat` 席位语义原样进入公开面。
+  切除需共享文件内分支手术（`lib/commands.mjs` 8 处触点、`doctor --stats`、侧车 schema、`specs/` 17 处、
+  help↔契约对账测试），会造出与内部不同的第二份实现，直接违背"投影只做文件级取舍、本体只维护一处"；
+  且本仓改为接收外部 PR 后公开场景本身即多人协作，该能力的前提价值成立。故零改动，代价为零。
 
 ## [0.14.1] - 2026-08-27
 
