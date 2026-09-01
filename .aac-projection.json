@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.14.2",
+  "sourceVersion": "0.14.3",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -13,7 +13,7 @@
     },
     {
       "path": "CONTRIBUTING.md",
-      "sha256": "2e503cda759aad3f"
+      "sha256": "bceac887686c82e7"
     },
     {
       "path": "LICENSE",
@@ -21,15 +21,15 @@
     },
     {
       "path": "README.md",
-      "sha256": "b4c71781b8f10557"
+      "sha256": "7803880fc8cd20de"
     },
     {
       "path": "RELEASES.md",
-      "sha256": "f3ac1492a61456ec"
+      "sha256": "454924dcd3d315f4"
     },
     {
       "path": "SECURITY.md",
-      "sha256": "e7dfd7d558cbfa4e"
+      "sha256": "48e9a00d864b6f4f"
     },
     {
       "path": "bin/atlas-engine.mjs",
@@ -137,7 +137,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "80884fa5b39d5f39"
+      "sha256": "fe647bf9de0d5c0b"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
