@@ -1,0 +1,331 @@
+{
+  "schemaVersion": 1,
+  "generator": "export-public",
+  "sourceVersion": "0.14.2",
+  "files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "09c2543b23d241ac"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "295aa1f18923880a"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "2e503cda759aad3f"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "36a8afad02b7e111"
+    },
+    {
+      "path": "README.md",
+      "sha256": "af2ec2512399d608"
+    },
+    {
+      "path": "RELEASES.md",
+      "sha256": "4515bc97ec9cb565"
+    },
+    {
+      "path": "SECURITY.md",
+      "sha256": "6024eb11e415e51a"
+    },
+    {
+      "path": "bin/atlas-engine.mjs",
+      "sha256": "ff966426bc67cce8"
+    },
+    {
+      "path": "docs/DEFENSIVE.md",
+      "sha256": "c375dd3be259a873"
+    },
+    {
+      "path": "docs/QUICKSTART-NONCODER.md",
+      "sha256": "68d4dbe114296837"
+    },
+    {
+      "path": "docs/USAGE.md",
+      "sha256": "42a20e2b83250391"
+    },
+    {
+      "path": "fixtures/atlas-seed/add-state-axes.json",
+      "sha256": "c5ef25c262946dc9"
+    },
+    {
+      "path": "fixtures/atlas-seed/add-system.json",
+      "sha256": "5e7580acb78eb765"
+    },
+    {
+      "path": "lib/cli-util.mjs",
+      "sha256": "5532c30ee4af5400"
+    },
+    {
+      "path": "lib/commands.mjs",
+      "sha256": "0324507fcddc8903"
+    },
+    {
+      "path": "lib/compile.mjs",
+      "sha256": "9f998a2d37efe788"
+    },
+    {
+      "path": "lib/diff.mjs",
+      "sha256": "fb2f541531d55855"
+    },
+    {
+      "path": "lib/doctor.mjs",
+      "sha256": "58a7aa081d88ab0d"
+    },
+    {
+      "path": "lib/envelope.mjs",
+      "sha256": "1e62b7f58cc5208e"
+    },
+    {
+      "path": "lib/evidence.mjs",
+      "sha256": "3a2bb8e20bf247dd"
+    },
+    {
+      "path": "lib/gate.mjs",
+      "sha256": "1c3edbede85a0a61"
+    },
+    {
+      "path": "lib/init.mjs",
+      "sha256": "42bc62df83f20a7a"
+    },
+    {
+      "path": "lib/layout.mjs",
+      "sha256": "fdea736bd7cee6db"
+    },
+    {
+      "path": "lib/lessons.mjs",
+      "sha256": "2f085a837547ab32"
+    },
+    {
+      "path": "lib/notice.mjs",
+      "sha256": "9870e6feeff1c4cd"
+    },
+    {
+      "path": "lib/project-gate.mjs",
+      "sha256": "a2454af0f943c1f2"
+    },
+    {
+      "path": "lib/report.mjs",
+      "sha256": "8aa4399874e33746"
+    },
+    {
+      "path": "lib/resolve-archify.mjs",
+      "sha256": "1ccbdaf8ef442bda"
+    },
+    {
+      "path": "lib/state-machine.mjs",
+      "sha256": "b9e1fc9160b7311d"
+    },
+    {
+      "path": "lib/store.mjs",
+      "sha256": "32ed8169de212b19"
+    },
+    {
+      "path": "lib/trace.mjs",
+      "sha256": "42a63d4ba157862c"
+    },
+    {
+      "path": "lib/truth-receipt.mjs",
+      "sha256": "1d5f2b9325473681"
+    },
+    {
+      "path": "lib/version.mjs",
+      "sha256": "aaced570759f9c77"
+    },
+    {
+      "path": "package.json",
+      "sha256": "80884fa5b39d5f39"
+    },
+    {
+      "path": "scripts/backfill-evidence-hashes.mjs",
+      "sha256": "86488e1fabfe8534"
+    },
+    {
+      "path": "scripts/build-portal.mjs",
+      "sha256": "3e145708938334d4"
+    },
+    {
+      "path": "scripts/check-public-privacy.mjs",
+      "sha256": "e1193063351f4a25"
+    },
+    {
+      "path": "scripts/reanchor-moved.mjs",
+      "sha256": "17f201650d03a254"
+    },
+    {
+      "path": "scripts/verify-contract-freshness.mjs",
+      "sha256": "ca9b94e5cc88ad2f"
+    },
+    {
+      "path": "scripts/verify-plugin-bundle.cjs",
+      "sha256": "3d368f97ca3a7d33"
+    },
+    {
+      "path": "scripts/verify-release-version.mjs",
+      "sha256": "192724e5fb56645a"
+    },
+    {
+      "path": "specs/ADD-SPEC.md",
+      "sha256": "e06a4dd2c0c0e745"
+    },
+    {
+      "path": "specs/atlas-layout.md",
+      "sha256": "aebbd58e4b6ad7c2"
+    },
+    {
+      "path": "specs/command-contract.md",
+      "sha256": "2185ecbb41f60f14"
+    },
+    {
+      "path": "specs/snapshot-policy.md",
+      "sha256": "3fa1647f75824793"
+    },
+    {
+      "path": "test/a1a2a3d3.test.mjs",
+      "sha256": "503faf1b2d6ba8b3"
+    },
+    {
+      "path": "test/archify-adapt.test.mjs",
+      "sha256": "925e3a6cee450df3"
+    },
+    {
+      "path": "test/auto-trace.test.mjs",
+      "sha256": "495f42aa2a600fe3"
+    },
+    {
+      "path": "test/build-portal.test.mjs",
+      "sha256": "7b6bdfd4d5647d51"
+    },
+    {
+      "path": "test/cli-error-codes.test.mjs",
+      "sha256": "03b0645d71e110d2"
+    },
+    {
+      "path": "test/compile.test.mjs",
+      "sha256": "d3f21fa8235f676a"
+    },
+    {
+      "path": "test/deprecated.test.mjs",
+      "sha256": "4df8d75ed39f52a0"
+    },
+    {
+      "path": "test/diff-cli.test.mjs",
+      "sha256": "d8c2c8afb2ce497c"
+    },
+    {
+      "path": "test/diff.test.mjs",
+      "sha256": "63c474e48b22c6f7"
+    },
+    {
+      "path": "test/doctor.test.mjs",
+      "sha256": "56f279e00dd24a5f"
+    },
+    {
+      "path": "test/evidence-cli.test.mjs",
+      "sha256": "bf9f021b9d806c89"
+    },
+    {
+      "path": "test/evidence-hash.test.mjs",
+      "sha256": "f6dce4cdde5eeefe"
+    },
+    {
+      "path": "test/evidence-lifecycle.test.mjs",
+      "sha256": "2b64f53dee3d5572"
+    },
+    {
+      "path": "test/evidence.test.mjs",
+      "sha256": "186c76d79ba60ed9"
+    },
+    {
+      "path": "test/field-2026-08-23.test.mjs",
+      "sha256": "3bcb0816d4b545e4"
+    },
+    {
+      "path": "test/flag-guard.test.mjs",
+      "sha256": "d01c40544e2e7f99"
+    },
+    {
+      "path": "test/help-cli.test.mjs",
+      "sha256": "0cb738bce893224b"
+    },
+    {
+      "path": "test/init-cli.test.mjs",
+      "sha256": "0560fe37e636df25"
+    },
+    {
+      "path": "test/layout-v2.test.mjs",
+      "sha256": "adbeb5cca73aa934"
+    },
+    {
+      "path": "test/layout-v3.test.mjs",
+      "sha256": "5b775c68a4328bcb"
+    },
+    {
+      "path": "test/layout.test.mjs",
+      "sha256": "7c3fbb6969ec01d7"
+    },
+    {
+      "path": "test/lessons-hit.test.mjs",
+      "sha256": "71f69693cd450778"
+    },
+    {
+      "path": "test/notice.test.mjs",
+      "sha256": "f1ea9a63d1202d92"
+    },
+    {
+      "path": "test/p5-sha.test.mjs",
+      "sha256": "26bead895343b7db"
+    },
+    {
+      "path": "test/project-gate.test.mjs",
+      "sha256": "ebbbe2743d3bf6c0"
+    },
+    {
+      "path": "test/report-a1.test.mjs",
+      "sha256": "35f1bba14f588f09"
+    },
+    {
+      "path": "test/report-gate.test.mjs",
+      "sha256": "8c5f096b96aa4da1"
+    },
+    {
+      "path": "test/report-replay.test.mjs",
+      "sha256": "f6ae7998d473fd52"
+    },
+    {
+      "path": "test/resolve-archify.test.mjs",
+      "sha256": "6f780605d8de50b1"
+    },
+    {
+      "path": "test/set-a2.test.mjs",
+      "sha256": "0a7b5a3024cde734"
+    },
+    {
+      "path": "test/state-cli.test.mjs",
+      "sha256": "634f72ad7c781147"
+    },
+    {
+      "path": "test/state-machine.test.mjs",
+      "sha256": "7b57db71a10fc2c8"
+    },
+    {
+      "path": "test/store.test.mjs",
+      "sha256": "2fccf876c6f644a5"
+    },
+    {
+      "path": "test/trace-lessons.test.mjs",
+      "sha256": "1b2caa718cc06393"
+    },
+    {
+      "path": "test/truth-receipt.test.mjs",
+      "sha256": "9f670dd1cd940018"
+    },
+    {
+      "path": "test/version-stamp.test.mjs",
+      "sha256": "a45dcd5122057e6d"
+    }
+  ]
+}

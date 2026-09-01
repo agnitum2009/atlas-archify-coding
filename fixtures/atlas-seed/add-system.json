@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ADD 图谱驱动研发体系 · 系统架构",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1100,
+      600
+    ],
+    "views": [
+      {
+        "id": "current-focus",
+        "label": "当前焦点（在途 1）",
+        "focus": [
+          "atlas-l3"
+        ],
+        "note": "开发正在推进的节点；完整图保持默认全览"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "atlas-l1",
+      "type": "backend",
+      "label": "L1 图谱层",
+      "sublabel": "typed spec · 视图 · 证据资产",
+      "pos": [
+        80,
+        240
+      ],
+      "size": [
+        150,
+        70
+      ],
+      "tag": "✅ 已销账"
+    },
+    {
+      "id": "atlas-l2",
+      "type": "backend",
+      "label": "L2 状态机层",
+      "sublabel": "三轴状态 · 五公理 · 销账双写",
+      "pos": [
+        350,
+        240
+      ],
+      "size": [
+        160,
+        70
+      ],
+      "tag": "✅ 已销账"
+    },
+    {
+      "id": "atlas-l3",
+      "type": "backend",
+      "label": "L3 编排层",
+      "sublabel": "对话+轨迹 · atlas 工具集",
+      "pos": [
+        630,
+        240
+      ],
+      "size": [
+        150,
+        70
+      ],
+      "tag": "▶ 进行中"
+    },
+    {
+      "id": "archify",
+      "type": "external",
+      "label": "archify 内核",
+      "sublabel": "validate · deliver · visual-check",
+      "pos": [
+        350,
+        60
+      ],
+      "size": [
+        160,
+        60
+      ]
+    },
+    {
+      "id": "harness",
+      "type": "external",
+      "label": "demo-harness",
+      "sublabel": "对话 · 轨迹 · 工具",
+      "pos": [
+        630,
+        60
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "vault",
+      "type": "database",
+      "label": "vault 知识库",
+      "sublabel": "裁定源 · 台账同步",
+      "pos": [
+        80,
+        60
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "demo-atlas",
+      "type": "database",
+      "label": "示例项目图集",
+      "sublabel": "参考语料 · 快照只读",
+      "pos": [
+        80,
+        430
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "owner",
+      "type": "external",
+      "label": "负责人裁定",
+      "sublabel": "Ruling 节点 + 回执",
+      "pos": [
+        630,
+        430
+      ],
+      "size": [
+        150,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "ADD 内核",
+      "wraps": [
+        "atlas-l1",
+        "atlas-l2",
+        "atlas-l3"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "atlas-l1",
+      "to": "atlas-l2",
+      "label": "spec 状态",
+      "labelDx": -80,
+      "labelDy": -34
+    },
+    {
+      "from": "atlas-l2",
+      "to": "atlas-l3",
+      "label": "状态事件"
+    },
+    {
+      "from": "atlas-l3",
+      "to": "atlas-l1",
+      "label": "销账反哺",
+      "via": [
+        [
+          705,
+          180
+        ],
+        [
+          90,
+          180
+        ],
+        [
+          90,
+          275
+        ]
+      ],
+      "labelDy": -24,
+      "fromSide": "top"
+    },
+    {
+      "from": "archify",
+      "to": "atlas-l1",
+      "label": "三闸校验"
+    },
+    {
+      "from": "harness",
+      "to": "atlas-l3",
+      "label": "轨迹锚定",
+      "labelDy": 60
+    },
+    {
+      "from": "vault",
+      "to": "atlas-l1",
+      "label": "裁定同步",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "demo-atlas",
+      "to": "atlas-l1",
+      "label": "快照只读"
+    },
+    {
+      "from": "owner",
+      "to": "atlas-l3",
+      "label": "裁定驱动"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "P2 进度与方法论基座",
+      "items": [
+        "state/evidence/init/diff 完成，17 测试全绿",
+        "第一性：意图/实相/对齐 · MECE 状态三轴 · Ontology 五公理 · Owner 裁定即节点"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "对示例项目的赋能实证",
+      "items": [
+        "试点=外部图集快照；首个缺失显化发现（数据源 CSV 磁盘缺失）",
+        "恢复序① P5a 复核 PASS（memp 75cb2a4）"
+      ]
+    }
+  ]
+}

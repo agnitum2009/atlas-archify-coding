@@ -1,0 +1,27 @@
+name: ci
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # 零依赖仓：无 lockfile，直接跑测试。
+      - run: npm test
+      - run: node scripts/verify-contract-freshness.mjs
+      - run: node scripts/verify-release-version.mjs
+      # 公开面自证：本仓任何提交都不应引入内部专属标识。
+      - run: node scripts/check-public-privacy.mjs .

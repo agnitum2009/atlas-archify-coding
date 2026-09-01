@@ -1,0 +1,26 @@
+{
+  "name": "atlas-archify-coding",
+  "version": "0.14.2",
+  "type": "module",
+  "description": "Atlas-Archify-Coding (aac) — 图谱驱动研发（ADD）L2 状态机层：三轴账本 + 证据锚 + 图账交叉对账 + 门禁执法；零运行时依赖。",
+  "license": "MIT",
+  "bin": {
+    "atlas-engine": "./bin/atlas-engine.mjs",
+    "aac": "./bin/atlas-engine.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "keywords": [
+    "atlas-driven-development",
+    "add",
+    "ledger",
+    "evidence",
+    "state-machine",
+    "gates",
+    "cli"
+  ]
+}

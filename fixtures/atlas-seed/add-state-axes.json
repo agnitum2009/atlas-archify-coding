@@ -1,0 +1,311 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ADD 状态三轴 · 可执行语义",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1120,
+      680
+    ]
+  },
+  "components": [
+    {
+      "id": "t-candidate",
+      "type": "backend",
+      "label": "候选",
+      "sublabel": "candidate",
+      "pos": [
+        70,
+        90
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "t-pending",
+      "type": "backend",
+      "label": "待平台确认",
+      "sublabel": "pending_confirmation",
+      "pos": [
+        280,
+        90
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "t-effective",
+      "type": "backend",
+      "label": "生效",
+      "sublabel": "effective",
+      "pos": [
+        490,
+        90
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "t-closed",
+      "type": "backend",
+      "label": "关闭",
+      "sublabel": "closed（终态）",
+      "pos": [
+        700,
+        90
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "p-planned",
+      "type": "backend",
+      "label": "计划",
+      "sublabel": "planned",
+      "pos": [
+        70,
+        270
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "p-inprogress",
+      "type": "backend",
+      "label": "进行中",
+      "sublabel": "in_progress",
+      "pos": [
+        280,
+        270
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "p-verified",
+      "type": "backend",
+      "label": "已验证",
+      "sublabel": "verified（A3 必带证据）",
+      "pos": [
+        490,
+        270
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "p-blocked",
+      "type": "backend",
+      "label": "阻塞",
+      "sublabel": "blocked（可恢复）",
+      "pos": [
+        280,
+        390
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "p-cancelled",
+      "type": "backend",
+      "label": "取消",
+      "sublabel": "cancelled（终态）",
+      "pos": [
+        70,
+        390
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "l-clean",
+      "type": "backend",
+      "label": "无欠账",
+      "sublabel": "clean",
+      "pos": [
+        70,
+        500
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "l-backlog",
+      "type": "backend",
+      "label": "欠账",
+      "sublabel": "backlog",
+      "pos": [
+        280,
+        500
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "l-settled",
+      "type": "backend",
+      "label": "已销账",
+      "sublabel": "settled（终态）",
+      "pos": [
+        490,
+        500
+      ],
+      "size": [
+        130,
+        56
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "真相轴 truth · 业务事实生效程度（单向单调）",
+      "wraps": [
+        "t-candidate",
+        "t-pending",
+        "t-effective",
+        "t-closed"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "执行轴 progress · 开发工作流位置",
+      "wraps": [
+        "p-planned",
+        "p-inprogress",
+        "p-verified",
+        "p-blocked",
+        "p-cancelled"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "账务轴 ledger · 闭环账状态",
+      "wraps": [
+        "l-clean",
+        "l-backlog",
+        "l-settled"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "t-candidate",
+      "to": "t-pending",
+      "label": "提交"
+    },
+    {
+      "from": "t-pending",
+      "to": "t-effective",
+      "label": "平台确认"
+    },
+    {
+      "from": "t-effective",
+      "to": "t-closed",
+      "label": "关闭"
+    },
+    {
+      "from": "p-planned",
+      "to": "p-inprogress",
+      "label": "开工"
+    },
+    {
+      "from": "p-inprogress",
+      "to": "p-verified",
+      "label": "销账",
+      "variant": "security"
+    },
+    {
+      "from": "p-inprogress",
+      "to": "p-blocked",
+      "variant": "security"
+    },
+    {
+      "from": "p-blocked",
+      "to": "p-inprogress",
+      "label": "恢复",
+      "labelDx": -45
+    },
+    {
+      "from": "p-planned",
+      "to": "p-cancelled",
+      "label": "取消",
+      "labelDy": 60
+    },
+    {
+      "from": "l-clean",
+      "to": "l-backlog",
+      "label": "登记欠账"
+    },
+    {
+      "from": "l-backlog",
+      "to": "l-settled",
+      "label": "销账"
+    },
+    {
+      "from": "p-inprogress",
+      "to": "l-backlog",
+      "label": "block 双写登记欠账",
+      "variant": "dashed",
+      "fromSide": "right",
+      "via": [
+        [
+          430,
+          298
+        ],
+        [
+          430,
+          500
+        ]
+      ],
+      "labelDy": 80
+    },
+    {
+      "from": "p-verified",
+      "to": "l-settled",
+      "label": "settle 双写（同回执）",
+      "variant": "dashed",
+      "labelDy": 40
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "公理硬门禁",
+      "items": [
+        "A2 迁移表硬校验 · A3 verified 必带证据 · A4 单一真相拥有者"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "跨轴事件",
+      "items": [
+        "虚线 = 跨轴双写：block（执行→账务登记欠账）/ settle（销账联动账务）",
+        "已由 atlas-engine state 命令实现（17 测试牙齿）"
+      ]
+    }
+  ]
+}
