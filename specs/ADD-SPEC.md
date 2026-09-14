@@ -60,7 +60,7 @@
 ### 2.4 跨轴事件（唯一合法的跨轴写）
 
 - 销账事件 settle：ledger backlog→settled 与 progress →verified 必须同回执双写，缺一即违反 A2。
-- 阻塞事件 block：progress →blocked 可伴随 ledger clean→backlog（登记欠账条目）。
+- 导入事件 import（0.17.0，路线一裁定）：历史/迁移事实的 ledger →settled 与 progress →verified 同事件双写，必须携带 ≥1 条 Evidence 及 source/cutoff 溯源；与 settle 并列为仅有的两条合法 settled 写入路径——set 直达（含 init 首写）一律非法（纠错通道 --correction 除外，须留痕）。
 
 ### 2.5 真相轴启用协议（2026-08-15 负责人裁定，提案③）
 

@@ -48,8 +48,13 @@ test('P1-4 建号校验：畸形 id 拒绝、合法 id 通过、既存畸形节�
   const good = run(['state', 'set', '--node', 'demo-a-a.b_c-1', '--axis', 'ledger', '--value', 'clean', '--reason', 'r', '--owner', 'o', '--sidecar', sc], dir);
   assert.equal(good.code, 0, '点/下划线/连字符合法');
   // 既存畸形 id（历史遗留）仍可被改——只拦新建，否则存量清理都做不了
+  // （2026-09-14 A3-cancelled 守卫：progress→cancelled 须先 evidence-add，与 verified 同构）
   const legacy = { schemaVersion: 1, nodes: { 'bad|legacy': { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [], history: [] } }, revision: 1 };
   fs.writeFileSync(sc, JSON.stringify(legacy));
+  const evFile = path.join(dir, 'legacy-reason.ts');
+  fs.writeFileSync(evFile, '// legacy cleanup anchor — 畸形 id 存量节点作废依据\n');
+  const ev = run(['state', 'evidence-add', '--node', 'bad|legacy', '--locator', evFile + ':1', '--sidecar', sc], dir);
+  assert.equal(ev.code, 0, '畸形 id 节点应可加证据锚');
   const mut = run(['state', 'set', '--node', 'bad|legacy', '--axis', 'progress', '--value', 'cancelled', '--reason', '清理', '--owner', 'o', '--sidecar', sc], dir);
   assert.equal(mut.code, 0, '既存畸形节点须可改（此处作废清理）');
   fs.rmSync(dir, { recursive: true, force: true });

@@ -3,6 +3,49 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.17.0] - 2026-09-14
+
+路线一裁定落地（2026-09-14 负责人裁定：`settled` 闭环语义只能由带证据的跨轴事件产生；判据 = Lamport 归纳不变量 Init ⇒ Inv、DbC 创建过程不豁免类不变量、Temporal/Kubernetes/Git/Liquibase/ISA 510/IFRS 1 等十二来源交叉验证，无一允许终态经普通初始化获得第二种含义）。
+
+### Breaking（set 终态守卫：拒绝直达终态）
+
+- **`state set --axis progress --value verified`**：无证据被拒（`verified_requires_evidence`），**init 首写不再豁免**——昨天合法的无证据直达 verified（含新建节点）今天被拒；`--correction` 为唯一显式出口（history corrected:true 留痕）。属破坏性变更 (a)。
+- **`state set --axis ledger --value settled`**：一律被拒（`settled_requires_event`），含 init 首写与表内 backlog→settled——ledger→settled 只能经 `state settle`（执行闭环）或 `state import`（历史导入）跨轴事件写入（A2 §2.4 双写不变量）；同值原地写不拦；`--correction` 放行并留痕。属破坏性变更 (a)。
+
+### Added
+
+- **`state import --node <id> --reason --owner --locator <文件:行号> [--source <来源系统>] [--cutoff <截止日期>]`**：历史/迁移导入的唯一合法跨轴写（蓝本 = Liquibase `MARK_RAN` 独立 EXECTYPE，绝非 settle 别名）——原子双写 progress=verified + ledger=settled + 证据锚（evidence-add 同款校验/绝对化/锚行哈希）+ history kind='import'（含 source/cutoff 溯源字段）+ 自动 notice（kind=settled，summary 带 [import] 前缀）。只登记新节点或零执行史节点（progress=planned 且 ledger=clean），已有执行史 = `import_conflict`；建号校验（id 白名单/L1 前缀门/L2 席位门）与 set 同则。回执 rule=`A2-cross-axis-import`、dualWrite:true、provenance='imported'，与执行闭环永久可区分。
+- **report 存量清洗 `import_unmarked`**（warning 不阻断，常开不依赖 --spec）：ledger=settled 但 history 无 settle/import 事件的节点逐条列出——0.16.x 及更早 init 漏洞的直达赋值遗存/手工写账由此可机检；补救 = state import 补登或 --correction 修正。
+- set 纠错留痕补全：守卫命中但 A2 表合法（backlog→settled 本在迁移表内）时 admittedCorrection 不覆盖 corrected 标记，0.17.0 起由终态守卫自身打标。
+
+### 验证
+
+- 新增 test/state-import.test.mjs 六例（happy path 全落账含 notice/缺参零写入/冲突与属主与桩节点/双守卫+correction 留痕/同值原地写不拦/report 清洗消解）；
+- set-a2 ②③ 改钉新契约（init 免表改用非终态 blocked 验证；首写 verified 带证据放行）；report-gate 种子 bad 节点改钉 import_unmarked；
+- 契约附录 A 登记 settled_requires_event / import_conflict / import_unmarked 三新码 + verified_requires_evidence 扩至 set；verify-contract-freshness 全绿。
+
+## [0.16.0] - 2026-09-14
+
+A3-cancelled 守卫 + state get 语义 + doctor 完整性检查（负责人令 2026-09-14：防智能体读不全整体项目）。
+
+### Breaking（A3-cancelled 守卫：拒绝无证据取消）
+
+- **`state set --axis progress --value cancelled`**（`set` 路径）：对已存在节点，无 `--correction` 且 evidence 为空时被拒，新错误码 `cancelled_requires_evidence`（A3：取消是终态声明，须锚定被取代/退役依据）。属破坏性变更 (a)——无证据取消昨天合法、今天被拒。
+- **`state transition --axis progress --to cancelled`**（`transition` 路径）：同上，`cancelled_requires_evidence`。
+
+### Added
+
+- **`state get` 输出语义增强**：新增 `lastHistory` 字段（kind/at/reason，最近一次事件）——读节点时直接看到"为什么"，防止只看 progress 不看语义。
+- **doctor 新增 `cancelled-evidence` 检查**（warning 级不阻断）：progress=cancelled 但零证据的节点列为数据债，消息附前 5 个节点+全量汇总（nodeSample 体例）——无依据取消在操作面可闻。
+
+### Fixed
+
+- **A3 守卫补全**：此前 `settle`/`transition→verified` 有证据守卫但 `set→cancelled` 无——本次补上，与 verified 同构。
+
+### 验证
+
+- 新增错误码已入 `specs/command-contract.md` 附录 A（契约保鲜测试拦截未登记）；
+
 ## [0.15.0] - 2026-09-01
 
 codegraph × archify 协同补齐批（负责人令 2026-09-01 逐项裁：P-0 落 / P-1 加 / P-2 落 / P-3 做）。
@@ -69,68 +112,11 @@ codegraph × archify 协同补齐批（负责人令 2026-09-01 逐项裁：P-0 �
   "近 N 版 + 首个公开版说明"属**减法**，按负责人令先征询，本次**未删任何内容行**。
 - GitHub Release 说明为面向公众另写，不复用该长文。
 
-## [0.14.2] - 2026-08-28
-
-公开版投影机制（负责人两令：①「以后不单独维护公开仓，只关心本体更新」②「公开仓要能收别人的 PR」）。
-公开版 `atlas-archify-coding`（简称 aac）自此是**本仓的派生投影**，不是第二份代码。
-
-### Added
-
-- `scripts/export-public.mjs（内部件，未随本版发布）`（泄压区，非命令面）：净室投影器。排除为缺省、收录需显式白名单；
-  源码内 `// aac-cut:start/end` 切除标记（不配对即报错）；标识符级中性化用**合法 ASCII 占位名**
-  （踩坑：换中文词会污染「把名字当真数据用」的校验，造出公开版假失败）；生成 README/RELEASES/
-  CONTRIBUTING/SECURITY/package.json（包名 aac + 双命令别名 atlas-engine·aac + 去 private）/ci.yml。
-- `scripts/check-public-privacy.mjs`：公开面隐私门禁（22 词规 + 16 路径规），命中即 exit 1。
-  扫描器自身含要猎的词故自我豁免，但豁免的可核性 = 「公开版该文件与内部版字节一致」，不可夹带改动。
-- **锚规则腐化检测**：任何一条改写规则在全树零命中即投影失败——「零手工维护」能成立的前提是
-  规则失效会响亮报错，而不是静默产出死链或漏脱敏产物。
-- **PR 保护**：投影记录管辖文件哈希；再投影时若外部 PR 改过管辖文件 → exit 1 点名并要求先回流本仓；
-  非管辖文件（外部新增）保留且显式报告。永不 force-push、永不覆盖他人内容。
-- `test/public-projection.test.mjs（内部件，未随本版发布）` 6 条回归钉（幂等/排除面/身份别名/扫描器一致/冲突拒绝/外来文件保留）；
-  本仓 CI 在 node 24 上加 `--selfcheck` 步骤。
-- `docs/PUBLIC-PROJECTION.md（内部件，未随本版发布）`（内部协议档，不导出）。
-- `docs/PUBLIC-PROJECTION.md（内部件，未随本版发布）`（内部协议档，不导出）。
-- 安全联系人经 `安全联系人常量` 常量注入生成物（公开版是投影产物，手工编辑会被判为外来改动）。
-- **生成物完整性校验** `checkGenerated`：必备七件（README/RELEASES/CONTRIBUTING/SECURITY/package.json/ci.yml/LICENSE）
-  必须存在、非空、且不含未填模板痕迹（中文填空尖括号、TBD/TODO、未替换常量名）。
-  立法来自本轮自曝的两个缺陷：SECURITY.md 的写入行被误删而自证仍报绿（校验只看内容不看存在）；
-  README 曾带着 `<owner>` 占位符通过全部检查。**宁可不投影，也不把占位符发给公众**。
-- 隐私规则收窄：禁的是**内部仓 URL 与硬编码第三方远端**，不禁账号本身（账号随公开仓必然可见，
-  禁它只会逼生成物写假地址）。
-
-### 记录
-
-- **P4 已裁（2026-08-28，保留不切除）**：`notice` 命令族与 `--seat` 席位语义原样进入公开面。
-  切除需共享文件内分支手术（`lib/commands.mjs` 8 处触点、`doctor --stats`、侧车 schema、`specs/` 17 处、
-  help↔契约对账测试），会造出与内部不同的第二份实现，直接违背"投影只做文件级取舍、本体只维护一处"；
-  且本仓改为接收外部 PR 后公开场景本身即多人协作，该能力的前提价值成立。故零改动，代价为零。
-
-## [0.14.1] - 2026-08-27
-
-交叉审核（reviewer-A + kimi reviewer-B 双席，workflow 编排）处置批——0.14.0 的三项 NIT 修正。
-
-### Fixed
-
-- gate 失败尾「另 N 条同类诊断」措辞错误（reviewer-B 席 b 发现）：`diags.length - 1` 计的是剩余诊断
-  总数而非同类数，改「另 N 条诊断」。
-- **三闸结构化摘要声称与实际覆盖不符（glm 席 b① 发现，主线亲手复核确认）**：visual-check
-  回执形状与 validate/deliver 不同——无 `diagnostics[]`，失败状态分置
-  containment/readability/viewerChrome/captures 子项；0.14.0 的 `structuredDiagNote` 在第三闸
-  静默返空。新增 `visualCheckNote`（解析子项状态，把失败项与证据联络表路径提进失败尾），
-  三闸声称补全。specs/command-contract.md §gate 同步注明两套解析面。
-
-### 附记（审核结论）
-
-  双席一致「高」；「零破坏」前提=内核升级划在 archify 版本轨，图集结果变化属旧内核假阴性
-  被新守卫揭露（demo-c 12 张修复为 一线席位 动作，本章 RELEASES 记 一线席位 归功）。
-- 记债不修：gate spawnSync 无 timeout（挂死内核阻塞 gate，预存债）；低于基线仅 doctor
-  warning 不入 gate（基线漂移与闸行为之间无联动防线，可作后续债）。
-
 ---
 
-更早的 32 个版本（0.1.0 → 0.14.0）：
+更早的 34 个版本（0.1.0 → 0.14.2）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 派生时丢弃 15 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

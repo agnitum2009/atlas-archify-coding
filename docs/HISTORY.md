@@ -3,6 +3,49 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.17.0] - 2026-09-14
+
+路线一裁定落地（2026-09-14 负责人裁定：`settled` 闭环语义只能由带证据的跨轴事件产生；判据 = Lamport 归纳不变量 Init ⇒ Inv、DbC 创建过程不豁免类不变量、Temporal/Kubernetes/Git/Liquibase/ISA 510/IFRS 1 等十二来源交叉验证，无一允许终态经普通初始化获得第二种含义）。
+
+### Breaking（set 终态守卫：拒绝直达终态）
+
+- **`state set --axis progress --value verified`**：无证据被拒（`verified_requires_evidence`），**init 首写不再豁免**——昨天合法的无证据直达 verified（含新建节点）今天被拒；`--correction` 为唯一显式出口（history corrected:true 留痕）。属破坏性变更 (a)。
+- **`state set --axis ledger --value settled`**：一律被拒（`settled_requires_event`），含 init 首写与表内 backlog→settled——ledger→settled 只能经 `state settle`（执行闭环）或 `state import`（历史导入）跨轴事件写入（A2 §2.4 双写不变量）；同值原地写不拦；`--correction` 放行并留痕。属破坏性变更 (a)。
+
+### Added
+
+- **`state import --node <id> --reason --owner --locator <文件:行号> [--source <来源系统>] [--cutoff <截止日期>]`**：历史/迁移导入的唯一合法跨轴写（蓝本 = Liquibase `MARK_RAN` 独立 EXECTYPE，绝非 settle 别名）——原子双写 progress=verified + ledger=settled + 证据锚（evidence-add 同款校验/绝对化/锚行哈希）+ history kind='import'（含 source/cutoff 溯源字段）+ 自动 notice（kind=settled，summary 带 [import] 前缀）。只登记新节点或零执行史节点（progress=planned 且 ledger=clean），已有执行史 = `import_conflict`；建号校验（id 白名单/L1 前缀门/L2 席位门）与 set 同则。回执 rule=`A2-cross-axis-import`、dualWrite:true、provenance='imported'，与执行闭环永久可区分。
+- **report 存量清洗 `import_unmarked`**（warning 不阻断，常开不依赖 --spec）：ledger=settled 但 history 无 settle/import 事件的节点逐条列出——0.16.x 及更早 init 漏洞的直达赋值遗存/手工写账由此可机检；补救 = state import 补登或 --correction 修正。
+- set 纠错留痕补全：守卫命中但 A2 表合法（backlog→settled 本在迁移表内）时 admittedCorrection 不覆盖 corrected 标记，0.17.0 起由终态守卫自身打标。
+
+### 验证
+
+- 新增 test/state-import.test.mjs 六例（happy path 全落账含 notice/缺参零写入/冲突与属主与桩节点/双守卫+correction 留痕/同值原地写不拦/report 清洗消解）；
+- set-a2 ②③ 改钉新契约（init 免表改用非终态 blocked 验证；首写 verified 带证据放行）；report-gate 种子 bad 节点改钉 import_unmarked；
+- 契约附录 A 登记 settled_requires_event / import_conflict / import_unmarked 三新码 + verified_requires_evidence 扩至 set；verify-contract-freshness 全绿。
+
+## [0.16.0] - 2026-09-14
+
+A3-cancelled 守卫 + state get 语义 + doctor 完整性检查（负责人令 2026-09-14：防智能体读不全整体项目）。
+
+### Breaking（A3-cancelled 守卫：拒绝无证据取消）
+
+- **`state set --axis progress --value cancelled`**（`set` 路径）：对已存在节点，无 `--correction` 且 evidence 为空时被拒，新错误码 `cancelled_requires_evidence`（A3：取消是终态声明，须锚定被取代/退役依据）。属破坏性变更 (a)——无证据取消昨天合法、今天被拒。
+- **`state transition --axis progress --to cancelled`**（`transition` 路径）：同上，`cancelled_requires_evidence`。
+
+### Added
+
+- **`state get` 输出语义增强**：新增 `lastHistory` 字段（kind/at/reason，最近一次事件）——读节点时直接看到"为什么"，防止只看 progress 不看语义。
+- **doctor 新增 `cancelled-evidence` 检查**（warning 级不阻断）：progress=cancelled 但零证据的节点列为数据债，消息附前 5 个节点+全量汇总（nodeSample 体例）——无依据取消在操作面可闻。
+
+### Fixed
+
+- **A3 守卫补全**：此前 `settle`/`transition→verified` 有证据守卫但 `set→cancelled` 无——本次补上，与 verified 同构。
+
+### 验证
+
+- 新增错误码已入 `specs/command-contract.md` 附录 A（契约保鲜测试拦截未登记）；
+
 ## [0.15.0] - 2026-09-01
 
 codegraph × archify 协同补齐批（负责人令 2026-09-01 逐项裁：P-0 落 / P-1 加 / P-2 落 / P-3 做）。
@@ -896,4 +939,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 37 个版本全量保留；派生时丢弃 15 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 39 个版本全量保留；派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

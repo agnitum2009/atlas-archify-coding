@@ -51,7 +51,7 @@ const EXPECTED_COMMANDS = ['init', 'state', 'diff', 'compile', 'report', 'gate',
 //   A2-cross-axis-settle/A2-cross-axis-block），非 diagnostics.rule 错误码，不查附录 A。
 // - gate_：diag('gate_' + result.stage) 动态前缀，无完整字面量；附录以模板行 gate_<stage> 覆盖。
 // - SYSTEM_CODES：Node/OS 原生错误码（kill ESRCH / fs ENOENT / mkdir EEXIST 的 e.code 检查），非本仓错误码。
-const RECEIPT_RULES = new Set(['A2', 'A2-init', 'A2-correction', 'A3', 'A2-cross-axis-settle', 'A2-cross-axis-block']);
+const RECEIPT_RULES = new Set(['A2', 'A2-init', 'A2-correction', 'A3', 'A2-cross-axis-settle', 'A2-cross-axis-block', 'A2-cross-axis-import']);
 const DYNAMIC_PREFIXES = new Set(['gate_']);
 const SYSTEM_CODES = new Set(['ESRCH', 'ENOENT', 'EEXIST']);
 

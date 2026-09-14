@@ -91,7 +91,7 @@ test('A1d：多 spec 聚合 + 账外节点/图外节点各自 warning', () => {
   // a 在 spec1，b 在 spec2，z 只在 spec：聚合后 a/b 均已入图；ghost=账外；z=图外。
   const r = buildReport(sidecar, { specs: [specOf(['a']), specOf(['b', 'z'])] });
   const unmatched = r.warnings.filter((w) => w.rule === 'a1-unmatched-account');
-  const unaccounted = r.warnings.filter((w) => w.rule === 'a1-unaccounted-node');
+  const unaccounted = r.warnings.filter((w) => w.rule === 'a1-diagram-local-id');
   assert.deepEqual(unmatched.map((w) => w.subject), ['ghost']);
   assert.deepEqual(unaccounted.map((w) => w.subject), ['z']);
   assert.equal(r.a1.specs, 2);
@@ -116,7 +116,7 @@ test('A1d2：lifecycle spec 的 states 参与图账交叉（图账同 id）', ()
   };
   const r = buildReport(sidecar, { specs: [lifecycleSpec] });
   assert.equal(r.a1.specComponentIds, 2);
-  const unaccounted = r.warnings.filter((w) => w.rule === 'a1-unaccounted-node');
+  const unaccounted = r.warnings.filter((w) => w.rule === 'a1-diagram-local-id');
   assert.deepEqual(unaccounted.map((w) => w.subject), ['pile-2']);
   assert.equal(r.errors.length, 0);
 });
@@ -206,7 +206,7 @@ test('CLI：--spec 传入但零 error → exit 0，a1 警告计数可见', () =>
   assert.equal(r.code, 0);
   assert.equal(r.receipt.status, 'ok');
   const a1WarnRules = r.receipt.data.warnings.filter((w) => w.rule.startsWith('a1-')).map((w) => w.rule).sort();
-  assert.deepEqual(a1WarnRules, ['a1-unaccounted-node', 'a1-unmatched-account', 'a1-weak-assertion']);
+  assert.deepEqual(a1WarnRules, ['a1-diagram-local-id', 'a1-unmatched-account', 'a1-weak-assertion']);
   assert.equal(r.receipt.data.a1.warnings, 3);
   fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -264,3 +264,65 @@ test('A1 meta 仅豁免 d 项：a/b/c 对 meta 节点照查不豁免（missing-e
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+
+// 2026-09-10：图面绑定口径收窄（triage 实证 567→290）——class 已声明的节点不参与图绑定核对
+// （图=架构/流程投影，非台账镜像）；未分类的**结构性**节点仍报 unmatched。
+test('A1e：class 已声明节点豁免图绑定核对（classExempted 计数）；未分类节点仍报', () => {
+  const sidecar = {
+    schemaVersion: 1,
+    nodes: {
+      'structural-unbound': nodeOf({}),                 // 未分类 → 仍报
+      'work-item': nodeOf({ class: 'task' }),           // 已分类 → 豁免
+      'design-record': nodeOf({ class: 'declared' }),   // 已分类 → 豁免
+      'bound-node': nodeOf({ class: 'task' }),          // 已分类且在图 → 豁免
+    },
+  };
+  const r = buildReport(sidecar, { specs: [specOf(['bound-node'])] });
+  const unmatched = r.warnings.filter((w) => w.rule === 'a1-unmatched-account');
+  assert.deepEqual(unmatched.map((w) => w.subject), ['structural-unbound']);
+  assert.equal(r.a1.classExempted, 3, '三个已分类节点全部豁免：' + JSON.stringify(r.a1));
+  assert.equal(r.a1.warnings, 1, '仅未分类未绑定节点成警：' + JSON.stringify(r.a1));
+});
+
+test('A1e：无 class 字段时行为与改动前一致（零豁免，全报）', () => {
+  const sidecar = { schemaVersion: 1, nodes: { x: nodeOf({}), y: nodeOf({}) } };
+  const r = buildReport(sidecar, { specs: [specOf(['z'])] });
+  assert.equal(r.a1.classExempted, 0);
+  assert.equal(r.warnings.filter((w) => w.rule === 'a1-unmatched-account').length, 2);
+});
+
+// A3（2026-09-10）：图件 id ↔ 账本节点 id 的收敛三法——归一化 / specRefs 认领 / 图内局部 id 单列
+test('A3：图件 id 与节点 id 仅差 demo-b- 前缀或大小写 ⇒ 归一化视为已入账', () => {
+  const sidecar = {
+    schemaVersion: 1,
+    nodes: { 'demo-b-contract-center': nodeOf({ class: 'task' }) },
+  };
+  const r = buildReport(sidecar, { specs: [specOf(['Contract-Center'])] });
+  assert.equal(r.a1.diagramLocalIds, 0, JSON.stringify(r.a1));
+  assert.equal(r.warnings.filter((w) => w.rule === 'a1-unaccounted-node').length, 0);
+});
+
+test('A3：节点用 specRefs 显式认领图件 id（含图内局部 id）⇒ 不再报', () => {
+  const sidecar = {
+    schemaVersion: 1,
+    nodes: { 'demo-b-x': nodeOf({ class: 'task', specRefs: ['hooks'] }) },
+  };
+  const r = buildReport(sidecar, { specs: [specOf(['hooks'])] });
+  assert.equal(r.a1.diagramLocalIds, 0, JSON.stringify(r.a1));
+  assert.equal(r.warnings.filter((w) => w.rule === 'a1-diagram-local-id').length, 0);
+});
+
+test('A3：未认领的图内局部 id 单列 diagramLocalIds（不再与"账本缺节点"混计）', () => {
+  const sidecar = {
+    schemaVersion: 1,
+    nodes: { 'demo-b-x': nodeOf({ class: 'task' }) },
+  };
+  const r = buildReport(sidecar, { specs: [specOf(['enroll'])] });
+  assert.equal(r.a1.diagramLocalIds, 1, JSON.stringify(r.a1));
+  assert.ok(
+    r.warnings.some(
+      (w) => w.rule === 'a1-diagram-local-id' && w.subject === 'enroll'
+    ),
+    '图内局部 id 须单列该类：' + JSON.stringify(r.warnings)
+  );
+});

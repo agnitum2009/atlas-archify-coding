@@ -8,7 +8,7 @@
 
 ## 治理（增长控制开发规范批一#2/#4，2026-08-15）
 
-**预算硬顶**：命令数 ≤ 11（当前 **10**——v0.10.0 移除 evidence 顶层命令后**腾出 1 个名额**；硬顶不随实数回落，理由：退役的目的是为增长让路（负责人 2026-08-17 令），若硬顶跟着降则等于永久冻结能力面，违反 Lehman 法则 6「功能内容须持续增长以维持适用性」。占用该名额仍须过能力准入五问 + 出具采用率基线，见 docs/ADOPTION-BASELINE-2026-08-17.md）；全仓唯一旗标总数 ≤ 50（当前 44；scripts/verify-contract-freshness.mjs 从注册表 flags 字段聚合统计，不 grep 文本）。超限 = 门禁 exit 1 并打印「预算超限=强制一次显式决定:提预算或退一个旗标」——加项必须显式换入，禁止静默膨胀。
+**预算硬顶**：命令数 ≤ 11（当前 **10**——v0.10.0 移除 evidence 顶层命令后**腾出 1 个名额**；硬顶不随实数回落，理由：退役的目的是为增长让路（负责人 2026-08-17 令），若硬顶跟着降则等于永久冻结能力面，违反 Lehman 法则 6「功能内容须持续增长以维持适用性」。占用该名额仍须过能力准入五问 + 出具采用率基线，见 docs/ADOPTION-BASELINE-2026-08-17.md）；全仓唯一旗标总数 ≤ 50（当前 47——0.17.0 state import 增 source/cutoff；scripts/verify-contract-freshness.mjs 从注册表 flags 字段聚合统计，不 grep 文本）。超限 = 门禁 exit 1 并打印「预算超限=强制一次显式决定:提预算或退一个旗标」——加项必须显式换入，禁止静默膨胀。
 
 **本体边界（负责人裁定 2026-08-17，前置于下列五问）**：ADD 的问题域 = **已开工、中后期失去进度掌控的项目**
 （「开了头不知道如何收」）。**从零开始的项目不是本工具的场景**——这类工具已极多，兼顾会让本体累贅，
@@ -61,13 +61,13 @@
   已存在的锚只刷新 evidenceMeta 哈希（=「重新加持」，drifted 的规范补救），**不往 evidence 数组重复插入**，回执附 warning `evidence_reblessed` 明示；修复前会真重复插入，而 drifted 诊断消息自己写着「须复核后重新 evidence-add」——照官方推荐路径做每修一次漂移就塞一条重复锚。换锚请用 evidence-reanchor（语义不同：移锚而非加持）。**存储形态绝对化**（2026-08-15 批二）：格式校验（parseLocator 正则）通过后按 process.cwd() path.resolve 绝对化落账，已是绝对的原样；写边不校验文件存在/行界（lint 属读方——report/doctor，语义不变），旧相对锚仍被读方按 --root 解析（兼容读）。**落锚同时写锚行哈希**（锁口② 2026-08-16）：读目标行计算 trim 后内容 sha256 前 12 hex，写入节点 evidenceMeta[锚]={h, at}（可选增量字段，语义见 §5）；行读取失败不阻断落锚（哈希缺失=unhashed）；重复落同锚刷新哈希（复核后重新 evidence-add 即钉新内容）。
 - state evidence-remove --node <id> --locator <锚>（0.6.0，一线席位 一线实战反馈）：移除该节点 evidence 数组中的指定锚——输入锚按 evidence-add 同法绝对化后匹配（落账形态=绝对，须传当初落账的同一形态）；不在数组 = failed exit 1 **locator_not_found**。成功：移除锚 + 同步删除 evidenceMeta 对应键（孤儿 meta 边界由此关闭，见 §5）+ history 记 kind='evidence-remove' 事件（含 locator），经 saveSidecar 走 CAS+锁；回执 data = { node, removed, remaining }。**A3 守卫**：节点声称对齐实相（progress=verified / ledger=settled / truth∈{effective,closed}，与 §6 A1 声称判定同语义）且移除后 evidence 长度归零 = failed exit 1 复用 **verified_requires_evidence**，消息写明「移除会使声称对齐节点失去全部证据（A3）；请先 evidence-add 新锚再移除，或用 evidence-reanchor 原子替换」；失败信封 data 附 lessonPrompt（B4 同模式）。
 - state evidence-reanchor --node <id> --from <旧锚> --to <新锚>（0.6.0）：drifted 处置的规范路径——**原子改锚，先验后改，任何一步失败零写入**。①旧锚必须存在（绝对化匹配，否则 locator_not_found；格式坏 = bad_locator）；②新锚过 evidence-add 同款校验（格式 lint + 绝对化）再加**行存在（file_missing）/行界（line_out_of_bounds）lint**——比 evidence-add 写边更严，理由：改锚即 drifted 处置，新锚必须真实可解析，否则处置落空为 broken/unhashed；③一次 saveSidecar 内完成「移除旧锚（含其 evidenceMeta 键）+ 追加新锚（含新行哈希）」——**中途绝不出现证据为零的瞬间，故 A3 天然不受威胁，无需额外守卫**（设计理由：把移除+追加合并为单次 CAS 写入，若拆两步则中间态可被 A3 拦截/被他席位观察）；④history 记 kind='evidence-reanchor' 事件（含 from/to）。回执 data = { node, from, to, hash }（hash=新锚目标行哈希；极端竞态下读取失败为 null=unhashed）。幂等边界：--from === --to 时按刷新哈希处理（重读目标行钉新哈希与时间戳，evidence 数组不动，与 evidence-add 重复落锚同语义）；新锚已在 evidence 中（to≠from）视为合并去重（移除旧锚不重复追加，新锚哈希刷新）。
-- state settle --node <id> --reason --owner：销账跨轴事件（progress in_progress→verified + ledger backlog→settled 同回执双写；A3 无证据拒绝；A4 owner 校验）。
+- state settle --node <id> --reason --owner：销账跨轴事件（progress in_progress→verified + ledger backlog→settled 同回执双写；A3 无证据拒绝；A4 owner 校验）。｜ state import --node <id> --reason --owner --locator <文件:行号> [--source <来源系统>] [--cutoff <截止日期>]（0.17.0，路线一裁定）：**历史/迁移导入的唯一合法跨轴写**，与 settle 并列为仅有的两条 ledger→settled 写入路径（蓝本 = Liquibase MARK_RAN 独立 EXECTYPE）——原子双写 progress=verified + ledger=settled + 证据锚（写边同 evidence-add 校验/绝对化/锚行哈希）+ history kind='import'（含 locator/source/cutoff 溯源字段）。只登记**新节点或零执行史节点**（progress=planned 且 ledger=clean），已有执行史 = exit 1 import_conflict（执行闭环请用 state settle）；已 settled = already_settled；属主不符 = owner_mismatch（A4）；建号校验（id 白名单/L1 前缀门/L2 席位门）与 set 同则。回执 receipt.rule=A2-cross-axis-import，含 dualWrite:true、provenance:'imported'（与执行闭环永久可区分）与 data.next（report 提醒，同 settle）。
 - state block --node <id> --reason --owner [--with-backlog]：阻塞跨轴事件（progress in_progress→blocked；--with-backlog 时 ledger clean→backlog 双写）。
-- settle/block 成功同次写入自动投递一条席位通知 notice（2026-08-15 清单 B3：from=--owner 值，kind=settled|blocked，summary=--reason，readBy 初始空，revision 只随该次保存推一次；详见 §11）。
+- settle/block/import 成功同次写入自动投递一条席位通知 notice（2026-08-15 清单 B3：from=--owner 值，kind=settled|blocked，summary=--reason，readBy 初始空，revision 只随该次保存推一次；import 投递 kind=settled 且 summary 带 [import] 前缀以便席位区分来源；详见 §11）。
 输出：{ node, axis, from, to, receipt }（set 的 receipt.rule 三态：A2=过表校验通过 / A2-init=初始化或首写免表 / A2-correction=纠错通道放行；settle/block 输出 { node, from, to, receipt }（to 为双轴对象）。settle 成功回执另含 data.next = 「销账五动作第4步：atlas-engine report --sidecar <本次调用实际 sidecar 路径> 生成销账回执」（2026-08-15 实战反馈修补：销账五动作第 4 步 report 曾整批漏做，实战反馈档（2026-08-15）；纯增字段，非破坏）。settle 成功回执另含 data.lessonPrompt = 「本刀有无新教训？有则 lessons add 回写（S5a 欠账教训）」（2026-08-15 清单 B4 防膨胀回写提示）；A3 拦截失败回执（settle/transition 的 verified_requires_evidence）同样在 failed 信封 data 附带 lessonPrompt（与 data.next 同模式纯增字段）。
-约束：transition 违反迁移表 = status failed + diagnostics；跨轴事件必须同回执双写；sidecar 首次使用（文件缺失）由 set 自动初始化空账本（仅限初始化语义）。set 违反迁移表 = status failed + diagnostics（rule=illegal_transition，消息带裁定④注记与 --correction 纠错出口，见上）。
+约束：transition 违反迁移表 = status failed + diagnostics；跨轴事件必须同回执双写；sidecar 首次使用（文件缺失）由 set 自动初始化空账本（仅限初始化语义）。set 违反迁移表 = status failed + diagnostics（rule=illegal_transition，消息带裁定④注记与 --correction 纠错出口，见上）。**set 终态守卫（0.17.0，路线一裁定）**：progress→verified 无证据 = exit 1 verified_requires_evidence（与 transition/settle 同构，**init 首写不再豁免**——终态声称必须证据绑定）；ledger→settled 一律 = exit 1 settled_requires_event（A2 §2.4：只能经 settle/import 跨轴事件写入，set 直达含 init 首写会破坏双写不变量）。两守卫同值原地写（from==to，无状态变更）均不拦；--correction 为唯一显式出口（history corrected:true 留痕——守卫命中但 A2 表合法时 admittedCorrection 不覆盖此标记，由守卫自身打标）。
 truth 轴回执门禁（2026-08-15 负责人裁定，提案③；ADD-SPEC §2.5）：truth 前进写入（candidate→pending_confirmation→effective→closed 各步，含 set 跳级前进）必须 --receipt <负责人本地回执文件>；未给 = receipt_required，文件不存在 = receipt_not_found（诊断带解析后绝对路径）；存在则放行并把绝对路径落 history 事件 receipt 字段 + 节点 truthReceipts {to, receipt, at}；机器只校验存在性不校验语义。非 truth 轴与 truth 非前进写入传入 --receipt 一律忽略（语义完全不变）。
-history 事件引擎戳（2026-08-15 增长控制开发规范批一#1）：state 写路径（set/evidence-add/transition/settle/block）每条 history 事件增可选字段 engine=引擎版本号（lib/version.mjs），标识该条账由哪个引擎语义写入；旧事件无此字段照常解析（snapshot-policy §5.2 登记）。
+history 事件引擎戳（2026-08-15 增长控制开发规范批一#1）：state 写路径（set/evidence-add/transition/settle/block/import）每条 history 事件增可选字段 engine=引擎版本号（lib/version.mjs），标识该条账由哪个引擎语义写入；旧事件无此字段照常解析（snapshot-policy §5.2 登记）。
 
 ## 3. compile
 
@@ -100,17 +100,20 @@ history 事件引擎戳（2026-08-15 增长控制开发规范批一#1）：state
 输出：{ slice, shas: { code, spec }, state_changes: n, evidence: { valid, invalid }, gate?: 对象, a1?: { checkedNodes, errors, warnings, nonClaims }, replays?: [...] }
 --replay（B2）：data 增 replays 段，内联各节点 replayNode 时间线**摘要**——每节点最多最近 10 条事件（防 token 膨胀；超出注 truncated: true 与 total 总数），每条只留 at/kind/source/一行要点 summary；节点不存在 = 该条目带 error 字段，不整体失败。
 --brief（A3，2026-08-15 清单）：data 只保留计数摘要 + 全部 error 级诊断，warning 级诊断与明细数组全文略去——nodes 降为节点数（receipts 计数 = state_changes 保留，状态迁移回执条数合计）、warnings 降为计数、errors 全文保留（诊断数组）、lessons 只留 { count }（规则数组略去）、shas/verify 略去；a1 小节仅计数且 nonClaims 降为条数（全文略去）；--replay 组合时 replays 每节点只出 { node, total }（未知节点带 error 不整体失败）。exit 码语义不变（error 仍 failed exit 1、纯 warning 仍 ok exit 0）；失败信封同样携带 brief 计数摘要（与成功路径同形）。与 --spec/--replay 可组合。
-约束：缺失 sha 或缺失证据 = warning（不阻断）；A3 违反而声称完成 = error。
+约束：缺失 sha 或缺失证据 = warning（不阻断）；A3 违反而声称完成 = error。**存量清洗（0.17.0，路线一裁定）**：节点 ledger=settled 但 history 无 settle/import 事件 = warning **import_unmarked**（不阻断）——0.16.x 及更早 init 漏洞的直达赋值遗存或手工写账；补救 = 历史导入事实用 state import 补登事件，误直达用 state set --correction 修正。与 --spec 无关，常开。
 自动留痕（2026-08-15 清单 B1，语义变化明示）：report 原为只读命令，现运行后（成功与失败都记）默认向侧车追加一条 kind='command' 轨迹事件（detail={ command, params:{ slice, specs }, result:{ errors, warnings } }；--slice 传入时事件锚定该节点），CAS revision 随写推进；--no-trace 关闭；侧车缺失时 report 本身按原行为 failed（sidecar_missing），留痕保存失败（如 CAS 冲突/只读目录）降级为 diagnostics 一条 severity=warning（rule=trace_degraded），主结果照出不阻断。
-A1 适用前提（2026-08-17 demo-b 治理型项目 holdout 对抗实验成文；适用边界，非缺陷）：A1 图账交叉（与 compile 注入同源）以**「图节点 id 即侧车账节点 id」约定为前提**。在「图=结构实体、账=工作切片」的项目上（如治理型项目）该约定不成立——compile 注入 tags=0，d 项 a1-unmatched-account / a1-unaccounted-node 全为噪声。不满足时的处置建议：不传 --spec（停用 A1，行为与无 A1 完全一致），或建立 id 映射纪律（图节点与账节点同 id 命名）后再启用。
+A1 适用前提（2026-08-17 demo-b 治理型项目 holdout 对抗实验成文；适用边界，非缺陷）：A1 图账交叉（与 compile 注入同源）以**「图节点 id 即侧车账节点 id」约定为前提**。在「图=结构实体、账=工作切片」的项目上（如治理型项目）该约定不成立——compile 注入 tags=0，d 项 a1-unmatched-account / a1-diagram-local-id 全为噪声。不满足时的处置建议：不传 --spec（停用 A1，行为与无 A1 完全一致），或建立 id 映射纪律（图节点与账节点同 id 命名）后再启用。
 A1 对账规则码（六条，仅 --spec 传入时启用）：
 - a1-missing-evidence（error）：节点声称对齐实相（progress=verified / ledger=settled / truth∈{effective,closed}）而证据数为 0。
 - a1-weak-assertion（warning）：progress=in_progress|blocked 且无证据（未声称对齐，降级警告）。
 - a1-evidence-broken（error）：声称对齐节点携带失效 locator（图与码矛盾）。
 - a1-evidence-drifted（warning，锁口② 2026-08-16）：声称对齐节点携带漂移锚——行在界但内容哈希不匹配（图码矛盾未证实但复核义务成立；无哈希锚=unhashed 不发声，存量容忍；消息附「复核后重新 evidence-add 钉新哈希」；与 a1-evidence-broken 同仅对声称对齐节点发声）。
 - a1-unmatched-account（warning）：侧车节点 id 不在任何已提供 spec 中（覆盖缺口，非已证实矛盾；node.kind='meta' 的账务/元节点跳过本检查，2026-08-15 裁定②，豁免数计入 a1.metaExempted）。
-- a1-unaccounted-node（warning）：spec 组件 id 不在侧车账中（覆盖缺口，非已证实矛盾）。
-a1 数据小节：{ specs, checkedNodes, specComponentIds, errors, warnings, metaExempted, nonClaims }；report 失败时 failed 信封仍携带 data.a1（不伪装成功）。
+- spec_ref_not_found（error）：`state spec-ref --remove` 指定的 `<ref>` 不在该节点 `specRefs[]` 中（A3 认领面，2026-09-10）。补救 = 先 `state get --node <id>` 看已认领清单；要追加则去掉 `--remove`（重复认领是幂等 ✓）。
+- a1-diagram-local-id（warning）：spec 组件 id 无对应账本节点。**2026-09-10 细分**（原码 `a1-unaccounted-node` 停用）：先按**归一化**（去 `demo-b-` 前缀 + 小写）匹配，再按节点 `specRefs[]` **认领**，两者皆未命中才报本码；实测多为**图内局部标签**（如 hooks/enroll/roles），故单列并计数 `a1.diagramLocalIds`——若确为实体，请补节点或用 `state spec-ref --node <id> --ref <图件id>` 认领。
+- a1-settle-unbound（warning，2026-09-11 P1 余项）：state settle 回执携带 `graphBinding`（图账绑定入销账链）；当 `verdict=unbound`（节点 id/归一化/specRefs 皆未命中任何 spec 组件）**且节点未分类**时报本码——结构性节点该上图；已分类节点按口径收窄豁免（不再发码）。
+非账本实体声明（2026-09-11 P4）：report 读 `<侧车同目录>/diagram-nonaccounts.json`（形状 `{ schemaVersion, note?, nonAccounts: { <图名>: { ids: [...], reason } } }`），命中 id 计入 `a1.nonAccountDeclared` 且不再报 a1-diagram-local-id。与 `specRefs` 分工：**specRefs=某节点认领该图件 id**；**本声明=该图件 id 非账本实体**（架构构件/图内局部标签）。无文件或文件坏 = 空集（零破坏）。
+a1 数据小节：{ specs, checkedNodes, specComponentIds, errors, warnings, metaExempted, classExempted, diagramLocalIds, nonAccountDeclared, nonClaims }；report 失败时 failed 信封仍携带 data.a1（不伪装成功）。
 nonClaims（显式声明的机器不可判项）：truth 轴业务生效性需负责人回执；证据仅静态 lint（文件存在 + 行号在界），不验证证据内容与代码语义一致；锚行哈希只证行内容未变（ok/drifted 三态判定），不证行内容对节点声称的语义支撑（锁口② 2026-08-16）；图账交叉按 component/node id 精确匹配，不判语义等价或别名；A1 图账交叉仅在图账同 id 约定成立时有信号（适用前提见上，0.7.0 增）；boundary/connection 拓扑正确性不在对账范围；meta 节点豁免图账交叉（仅 d 项，a/b/c 照查）。
 
 ## 7. gate
@@ -153,7 +156,8 @@ A1 过滤（2026-08-15 清单）：lessons list --recent <N> 按 at 倒序取最
 - 节点样例列表封顶（0.10.2）：brokenNodes / driftedNodes / emptyLineNodes / binaryNodes 均只逐条列前 5 个去重节点 id，
   **超出时消息补 P6 同式汇总**「另有 N 个节点同类，共 M 个；前 5 个已逐条列出」——修复前静默截断，一线据此误判为全量。
   结构字段形状不变（不新增计数字段：实害是读消息时误判，无已知结构化消费方，准入五问②拒）。
-- ledger-size：侧车 >1MB 或 trace >1000 条 → ok:false 并提示「考虑冷归档到 history/ 区」（仅提示，不自动动账——冷归档属人工决定）；当前字节数与 trace 条数入 detail。
+- ledger-size：侧车 >1MB 或 trace >1000 条（**默认阈值**）→ ok:false 并提示「考虑冷归档到 history/ 区」（仅提示，不自动动账——冷归档属人工决定）；当前字节数与 trace 条数入 detail。
+  **阈值参数化（2026-09-11，编排线技术自决并留痕）**：`<侧车同目录>/ledger-size.json`（形状 `{ schemaVersion, maxBytes?, maxTraces?, rationale? }`）可覆盖默认阈值；无文件/坏文件/非法值 = 默认（零破坏）；detail 附 `来源=default|config`。立法依据（实测）：1.73MB 侧车 read 4.35ms + parse 2.77ms + write 1.68ms 约 8.8ms/轮，成本线性、无超线性拐点 ⇒ 1MB 是保守启发式而非性能拐点；且 nodes 段常占约半且**不可归档**（拆文件会破坏单一侧车 CAS 语义），单靠归档可能永远达不到 1MB。故由项目按实测定档并写明 rationale，而非把不可达阈值长期挂成常红警告。
 输出：{ ok, checks: [...], evidenceResolvability?: {...}, stats?: {...}, layout?: { root, diagnostics }, unchecked?: [...] }
 stats（--stats 时，data.stats，全部账本侧单源可算，杜绝手搓度量脚本）：{ nodes, ownedNodes（owner 非空的节点数；命名避让：「座位」保留给图账交叉语义，本字段测 owner 指派——2026-08-15 依 一线席位 A/B 报告改名，原名 seatedNodes 未及发布即废；图账交叉座次校验仍属 report --spec 的 A1 面，doctor 不做）, evidence: { total, absolute（文件部分 path.isAbsolute）, relative, hashed（携带锚行哈希的锚数，锁口② 2026-08-16；哈希是否匹配属 resolvability 三态不在此重复）}, truthAdvances（history 中 axis=truth 且 from→to 按 A2 迁移表为前进的事件数，lib/truth-receipt.mjs isTruthAdvance）, traceKinds（六 kind 全量计数，零值保留）, lessons: { total, active, retired, hits }, notices: { total }, attribution: { historyTotal, withBy, withEngine }, sidecarBytes, revision }。
 约束：任一 error 级检查不通过 = status failed exit 1（failed 信封 diagnostics 只列 error 级不通过的检查；**0.7.0 起 failed 信封同时携带 data**——与成功路径同形，含 checks 全量与 data.layout.diagnostics 明细；此前失败路径丢 data，atlas-layout 明细自述「详见 data.layout.diagnostics」在失败时指向不存在位置，demo-b holdout 对抗实验缺陷2）；warning 级检查不通过不改变 exit 码（检查项仍在 data.checks 全量呈现，ok:false 可机器判读）；机器不可判定的规范条目逐条列入 unchecked 具名披露，不静默跳过。
@@ -192,17 +196,21 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 | notice_not_found | notice ack：--id 指向的通知条目不存在 | 1 | 补救 = 先 notice list 核对 id |
 | unknown_axis | state set/transition：--axis 非 truth\|progress\|ledger | 1 | 用户输入校验失败；补救 = 按消息修正 |
 | invalid_state_value | state set：--value 不在该轴状态集 | 1 | 用户输入校验失败；补救 = 查该轴状态集 |
-| invalid_node_id | state set（0.12.0，实战反馈档-2026-08-23）：新建节点 id 不合 ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$（修前管道符/换行可静默建号且无删除原语）；只拦新建，既存畸形 id 仍可读改（存量清理通道） | 1 | 用户输入校验失败；补救 = 换合法 id |
-| project_prefix_gate | state set（0.13.0，负责人令 2026-08-27 L1 前缀硬门）：新建节点 id 不以本侧车项目前缀开头（激活条件 = 同目录 projects.json 条目 sidecar 字段映射本侧车；共享侧车取并集如 demo-a\|add；只拦新建，存量 grandfather，P6 doctor warning 继续管存量） | 1 | 越界拦截；补救 = 换 <项目名>- 前缀 id 或换正确 --sidecar |
-| seat_gate | state set/transition/settle/block（0.13.0，L2 席位门）：--owner 不在映射条目 seats 并集（条目无 seats = 不限；注册表 opt-in 渐进启用） | 1 | 越权拦截；补救 = 用授权席位或经负责人扩 seats |
+| invalid_node_id | state set/import（0.12.0，实战反馈档-2026-08-23）：新建节点 id 不合 ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$（修前管道符/换行可静默建号且无删除原语）；只拦新建，既存畸形 id 仍可读改（存量清理通道） | 1 | 用户输入校验失败；补救 = 换合法 id |
+| project_prefix_gate | state set/import（0.13.0，负责人令 2026-08-27 L1 前缀硬门）：新建节点 id 不以本侧车项目前缀开头（激活条件 = 同目录 projects.json 条目 sidecar 字段映射本侧车；共享侧车取并集如 demo-a\|add；只拦新建，存量 grandfather，P6 doctor warning 继续管存量） | 1 | 越界拦截；补救 = 换 <项目名>- 前缀 id 或换正确 --sidecar |
+| seat_gate | state set/transition/settle/block/import（0.13.0，L2 席位门）：--owner 不在映射条目 seats 并集（条目无 seats = 不限；注册表 opt-in 渐进启用） | 1 | 越权拦截；补救 = 用授权席位或经负责人扩 seats |
 | invalid_from_state | state transition：--from 不在该轴状态集 | 1 | 用户输入校验失败；补救 = 沿合法状态迁移 |
 | invalid_to_state | state transition：--to 不在该轴状态集 | 1 | 用户输入校验失败；补救 = 沿合法状态迁移 |
 | node_not_found | state get/evidence-add/evidence-remove/evidence-reanchor/transition/settle/block、trace replay、report --replay：节点不存在 | 1 | 补救 = 核对节点 id；report 内联 replay 时该条带 error 字段，不整体失败 |
-| owner_mismatch | state set/transition/settle/block：写入者非节点属主（A4 单一真相拥有者） | 1 | 补救 = 用属主 --owner 写 |
-| already_settled | state settle：ledger 已是 settled 终态 | 1 | 幂等终态拒绝重复销账 |
-| bad_locator | state evidence-add/remove/reanchor、report 证据 lint（读方）：locator 非严格 文件:行号（parseLocator 正则；全角冒号典型触发，处置见 DEFENSIVE.md §3） | 1 | 补救 = 改半角冒号/补行号 |
+| owner_mismatch | state set/transition/settle/block/import：写入者非节点属主（A4 单一真相拥有者） | 1 | 补救 = 用属主 --owner 写 |
+| already_settled | state settle/import：ledger 已是 settled 终态 | 1 | 幂等终态拒绝重复销账/重复导入 |
+| bad_locator | state evidence-add/remove/reanchor、state import、report 证据 lint（读方）：locator 非严格 文件:行号（parseLocator 正则；全角冒号典型触发，处置见 DEFENSIVE.md §3） | 1 | 补救 = 改半角冒号/补行号 |
 | locator_not_found | state evidence-remove/evidence-reanchor：指定锚（绝对化后）不在该节点 evidence 数组 | 1 | 补救 = 核对锚字符串（evidence-add 落账即绝对化，须传当初落账的同一形态，即同一 cwd 下的同一相对形态或绝对形态） |
-| verified_requires_evidence | state transition/settle/evidence-remove（A3）：progress→verified 无证据；或移除会使声称对齐节点（progress=verified / ledger=settled / truth∈{effective,closed}）失去全部证据 | 1 | 补救 = 先 state evidence-add；或改用 state evidence-reanchor 原子替换（移除+追加单次写入，不出现零证据瞬间）；失败信封 data 附 lessonPrompt（B4） |
+| verified_requires_evidence | state set/transition/settle/evidence-remove（A3）：progress→verified 无证据（0.17.0 起 set 同责，init 首写不豁免）；或移除会使声称对齐节点（progress=verified / ledger=settled / truth∈{effective,closed}）失去全部证据 | 1 | 补救 = 先 state evidence-add；历史导入用 state import；或改用 state evidence-reanchor 原子替换（移除+追加单次写入，不出现零证据瞬间）；失败信封 data 附 lessonPrompt（B4） |
+| settled_requires_event | state set（A2 §2.4，0.17.0 路线一裁定）：ledger→settled 经 set 直达（含 init 首写）——只能经 state settle（执行闭环）或 state import（历史导入）跨轴事件写入；同值原地写不拦 | 1 | 补救 = 执行闭环用 state settle；历史导入用 state import；确属纠错加 --correction（history corrected:true） |
+| import_conflict | state import（0.17.0）：目标节点已有执行史（progress≠planned 或 ledger≠clean）——import 只登记新节点或零执行史节点的历史闭环 | 1 | 补救 = 执行闭环用 state settle；确需重登记先 --correction 修正轴值 |
+| import_unmarked | report（0.17.0 存量清洗，常开不依赖 --spec）：节点 ledger=settled 但 history 无 settle/import 事件（存量直达赋值或手工写账遗存） | 不阻断（warning） | 补救 = 历史导入事实用 state import 补登事件；误直达用 state set --correction 修正 |
+| cancelled_requires_evidence | state set/transition（A3，2026-09-14）：progress→cancelled 无证据——取消是终态声明，须锚定被取代/退役依据 | 1 | 补救 = 先 state evidence-add 锚定取消理由（KB 页、审计报告、退役声明等） |
 | unknown_subcommand | 未知顶层命令（bin 薄壳；**0.10.0 起**由 internal/exit 2 归位 exit 1——用户输入校验失败非内部错误，holdout #2 P2b）/ 各命令组未知子命令（如 state foo） | 1 | 用户输入校验失败；补救 = 看 --help |
 | internal | bin/lib 未分类内部错误（顶层/命令级 catch） | 2 | 不伪装成功；修复 = 按 subject/evidence 定位代码缺陷 |
 | bad_kind | trace add --kind 非枚举；notice add --kind 非 note（settled\|blocked 为 settle/block 自动投递专属） | 1 | 补救 = 按消息修正 |
@@ -224,7 +232,9 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 | a1-evidence-broken | report --spec（A1）：声称对齐节点携带失效 locator（图与码矛盾） | 1 | 补救 = 修复证据 locator |
 | a1-evidence-drifted | report --spec（A1）：声称对齐节点携带漂移锚——行在界但内容哈希不匹配（锁口② 2026-08-16；图码矛盾未证实但复核义务成立） | 不阻断（warning） | 补救 = 复核目标行内容后重新 state evidence-add 钉新哈希；无哈希锚=unhashed 不发此码 |
 | a1-unmatched-account | report --spec（A1）：侧车节点 id 不在任何已提供 spec（覆盖缺口；node.kind='meta' 豁免，豁免数计入 a1.metaExempted） | 不阻断（warning） | 非已证实矛盾 |
-| a1-unaccounted-node | report --spec（A1）：spec 组件 id 不在侧车账中 | 不阻断（warning） | 非已证实矛盾 |
+| a1-diagram-local-id | report --spec（A1）：spec 组件 id 无对应账本节点（归一化、specRefs 与非账本实体声明皆未命中；2026-09-10 起替代 a1-unaccounted-node） | 不阻断（warning） | 多为图内局部标签，非已证实矛盾；也可用 state/diagram-nonaccounts.json 显式声明 |
+| a1-settle-unbound | state settle（P1 余项，2026-09-11）：销账回执 graphBinding.verdict=unbound 且节点未分类——结构性节点该上图 | 不阻断（warning） | 补救 = 补图同拍 / `state spec-ref` 认领 / 归入 `class` |
+| spec_ref_not_found | state spec-ref --remove：ref 不在该节点 specRefs[]（A3 认领面） | 1 | 补救 = 核对已认领清单；追加时去掉 --remove（幂等） |
 | anchor-empty-line | doctor evidence-resolvability（0.8.0，锚质量）：锚目标行 trim 后为空——空行无证据语义（:360 漂移教训） | 不阻断（warning） | 补救 = 复核后 state evidence-reanchor 改锚到实际内容行；写入边不拦截（lint 属读方，理由见 §5） |
 | anchor-binary | doctor evidence-resolvability（0.8.0，锚质量）：锚目标文件疑似二进制（前 8KB 含 NUL 字节）——二进制无证据行语义 | 不阻断（warning） | 补救 = 改锚到可读证据行；写入边不拦截（lint 属读方，理由见 §5） |
 | gate_out_placement | gate（0.10.0，holdout #2 P0）：--out 父目录正好是某 atlas 的 artifacts/<项目>/ 根（祖父目录名==artifacts 且图谱根下有 spec/<项目>/）——生成物直落项目根会触发布局 P2 | 不阻断（warning） | 附在 gate 回执 diagnostics（成败均附），消息给建议落点 artifacts/<项目>/<模块>-<YYMMDD>/（日期取当天）；不改退出码、不自动移动文件；补救 = --out 改落模块-日期目录 |

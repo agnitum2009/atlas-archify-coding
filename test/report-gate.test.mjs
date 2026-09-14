@@ -37,7 +37,9 @@ test('buildReport：聚合状态迁移与证据 lint；A3 违规=error；缺 SHA
   assert.equal(r.lessons.count, 0);
   const a3 = r.errors.find((e) => e.rule === 'verified_requires_evidence');
   assert.ok(a3, 'A3 违规应报 error');
-  assert.equal(r.warnings.length, 0);
+  // 0.17.0 存量清洗：bad 节点 settled 但 history 无 settle/import 事件 → import_unmarked warning（不阻断）
+  assert.deepEqual(r.warnings.map((w) => w.rule), ['import_unmarked']);
+  assert.equal(r.warnings[0].subject, 'bad');
 
   const noSha = buildReport(sidecar, { root: process.cwd() });
   assert.equal(noSha.warnings.filter((w) => w.rule === 'missing_code_sha').length, 1);

@@ -33,9 +33,9 @@ function seedSidecar(dir, over) {
   return p;
 }
 
-test('runDoctor：六项检查齐全；archify 缺失时 fail-closed 检出；新增两项 warning 级检查不使整体 failed', () => {
+test('runDoctor：七项检查齐全；archify 缺失时 fail-closed 检出；新增三项 warning 级检查不使整体 failed', () => {
   const d = runDoctor({});
-  assert.equal(d.checks.length, 6);
+  assert.equal(d.checks.length, 7);
   assert.equal(d.checks[0].name, 'node>=18');
   assert.equal(d.checks[1].name, 'archify-kernel');
 

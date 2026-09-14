@@ -83,7 +83,7 @@ test('runDoctor --atlas：布局校验入 checks，data.unchecked 显式列出�
   try {
     scaffoldCompliant(dir);
     const d = runDoctor({ atlas: dir });
-    assert.equal(d.checks.length, 7); // 6 常规 + atlas-layout（批二新增两项 warning 级后）
+    assert.equal(d.checks.length, 8); // 7 常规（含 cancelled-evidence）+ atlas-layout
     const c = d.checks.find((x) => x.name === 'atlas-layout');
     assert.ok(c && c.ok, '合规样例 atlas-layout 检查应 ok');
     assert.ok(Array.isArray(d.unchecked) && d.unchecked.length >= 5, 'data.unchecked 须具名披露');

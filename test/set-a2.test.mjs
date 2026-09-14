@@ -56,13 +56,12 @@ test('① 违表 set 被拒：exit 1 illegal_transition + 裁定④提示文案�
 test('② 初始化例外：新节点任意状态直接写（免表）；同值写入不触发校验', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  // 节点不存在 → 初始化免表：planned 直达 verified（迁移表外路径）
-  const created = run(['state', 'set', '--node', 'n2', '--axis', 'progress', '--value', 'verified', '--reason', '播种', '--owner', '一线席位'], sidecar);
+  // 节点不存在 → 初始化免表：planned 直达 blocked（迁移表外路径；0.17.0 起 verified/settled 属终态守卫另行拦截，见 state-import.test.mjs）
+  const created = run(['state', 'set', '--node', 'n2', '--axis', 'progress', '--value', 'blocked', '--reason', '播种', '--owner', '一线席位'], sidecar);
   assert.equal(created.code, 0);
-  assert.equal(created.receipt.data.to, 'verified');
+  assert.equal(created.receipt.data.to, 'blocked');
   assert.equal(created.receipt.data.receipt.rule, 'A2-init');
   assert.equal(created.receipt.data.receipt.status, 'ok');
-
   // 同值写入（无变更）不触发 A2：truth candidate→candidate 不在迁移表也放行
   const noop = run(['state', 'set', '--node', 'n2', '--axis', 'truth', '--value', 'candidate', '--reason', '原地', '--owner', '一线席位'], sidecar);
   assert.equal(noop.code, 0);
@@ -79,7 +78,7 @@ test('③ 首写轴例外：该轴尚无值（节点已存在）直接写；写�
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
   // 播种节点：缺 progress 轴（模拟该轴尚无值的既有节点）
-  seed(sidecar, { n3: { owner: '一线席位', truth: 'candidate', ledger: 'clean', evidence: [], history: [] } });
+  seed(sidecar, { n3: { owner: '一线席位', truth: 'candidate', ledger: 'clean', evidence: ['spec/proj/x.json:1'], history: [] } });
 
   const first = run(['state', 'set', '--node', 'n3', '--axis', 'progress', '--value', 'verified', '--reason', '首写', '--owner', '一线席位'], sidecar);
   assert.equal(first.code, 0);

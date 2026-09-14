@@ -2,7 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AXES, isAxis, isValidState, validateTransition, validateSetWrite } from '../lib/state-machine.mjs';
+import { AXES, isAxis, isValidState, validateTransition, validateSetWrite, CLASS_STATES, ACTIVE_CLASSES } from '../lib/state-machine.mjs';
 
 test('三轴状态集互斥且无重复', () => {
   for (const axis of Object.keys(AXES)) {
@@ -75,3 +75,26 @@ test('validateSetWrite：违表被拒带 illegal_transition；--correction 放�
   assert.equal(legal.admittedCorrection, false);
 });
 
+
+// 2026-09-10：class 轴（账务分类）+ 活帐视图（"还有多少任务没完成"的机检答案）
+test('class 轴：合法值可写、越界值拒绝、重分类不受迁移表限制', () => {
+  assert.equal(isAxis('class'), true);
+  assert.equal(isValidState('class', 'task'), true);
+  assert.equal(isValidState('class', 'debt'), true);
+  assert.equal(isValidState('class', 'batch-gated'), true);
+  assert.equal(isValidState('class', 'nonsense'), false);
+  // 任意→任意（重分类属正常记账）
+  assert.equal(validateTransition('class', 'declared', 'task').ok, true);
+  assert.equal(validateTransition('class', 'task', 'registry').ok, true);
+});
+
+test('class 轴状态集与活帐集一致（ACTIVE ⊆ CLASS，且活帐四类齐备）', () => {
+  for (const c of ACTIVE_CLASSES) {
+    assert.ok(CLASS_STATES.includes(c), '活帐类须在 class 状态集内：' + c);
+  }
+  assert.deepEqual([...ACTIVE_CLASSES], ['task', 'debt', 'batch-gated', 'trigger-gated']);
+  // 声明/注册/容器不在活帐内（它们不是待办）
+  for (const c of ['declared', 'registry', 'container']) {
+    assert.equal(ACTIVE_CLASSES.includes(c), false, c + ' 不属活帐');
+  }
+});

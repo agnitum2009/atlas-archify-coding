@@ -64,6 +64,8 @@
 4. report --sidecar S --slice <项目>-<切片> --code-sha ... --spec-sha ... （可加 --replay <焦点节点> 一并出时间线）
 5. 图集反哺（活文档纪律）+ gate 三闸
 
+历史/迁移导入（非执行闭环，0.17.0 起）：`state import --node <id> --reason 历史导入 --owner <席> --locator <文件:行号> [--source 旧系统] [--cutoff 日期] --sidecar S`——原子双写 verified+settled 并锚定证据，history kind=import 与 settle 永久可区分；只登记新节点或零执行史节点。同版起 ledger→settled 只能经 settle/import 事件写入（set 直达 = settled_requires_event），set progress→verified 无证据同拒（init 首写不豁免）。
+
 销账/阻塞成功会自动投递一条席位通知（notice，B3）：他席位 notice list --seat <名> 即见未读，notice ack --seat <名> 确认。
 
 ## 四、位置与共享物

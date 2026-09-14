@@ -52,7 +52,10 @@ const connections = [];
 for (const sp of specs) {
   let d;
   try { d = JSON.parse(fs.readFileSync(sp, 'utf8')); } catch (e) { fail('spec 非合法 JSON：' + sp + '（' + e.message + '）'); }
-  for (const c of d.connections || []) {
+  // 2026-09-10 修（负责人责问的 worker 面缺口同批实捕）：workflow/sequence 型图用
+  // `edges[]`（无 connections）——先前只读 connections，致 workflow 图的边全部不可见，
+  // 反向报成“码有据而图未画”漏边（knifeseq e4 实测误报）。两形并入同一口径。
+  for (const c of [...(d.connections || []), ...(d.edges || [])]) {
     if (c && c.from && c.to) connections.push({ spec: path.basename(sp), id: c.id || null, from: String(c.from), to: String(c.to), label: c.label || '' });
   }
 }
@@ -96,8 +99,38 @@ const findings = [];
 let calibrated = 0;
 let ungrounded = 0;
 let withoutEvidence = 0;
+/** 跨仓边计数（两端锚分属不同仓——本提名器只做同仓核对，跨仓归人工；2026-09-10 triage 分拆） */
+let crossRepo = 0;
+/** 图内自锚计数（两端锚同处一仓但该仓无代码索引——如 atlas 数据根的 spec 自锚；码证据不适用） */
+let specAnchored = 0;
 let withoutEdge = 0;
+/** 漏边提名按「两锚文件类型」计数（事实标註；2026-09-10 triage 加） */
+const byClass = {};
 const naRepos = new Set();
+
+/**
+ * 锚文件类型（doc/spec/sql/test/script/src/other）——只做事实分类，不裁决语义。
+ * 用途：漏边提名里「src+src」占比高但节点对若是工作项/记录类（节点=批次/债/
+ * 性能项，锚=该项动过的文件），两锚互引只说明两项动过同一片码，**不蕴含图上
+ * 应有连线**（图语义=工作项依赖，非组件调用）。行动政策见 runbook 图码纪律节。
+ */
+const fileClassOf = (p) => {
+  const s = String(p).toLowerCase();
+  if (s.endsWith('.md')) return 'doc';
+  if (s.endsWith('.sql')) return 'sql';
+  if (s.endsWith('.json') || s.endsWith('.tsv')) return 'spec';
+  if (s.includes('.test.') || s.includes('.spec.') || s.includes('/__tests__/')) return 'test';
+  if (s.startsWith('scripts/') || s.includes('/scripts/')) return 'script';
+  if (/(\.ts|\.tsx|\.mjs|\.js|\.jsx)$/.test(s)) return 'src';
+  return 'other';
+};
+const edgeNominationClass = (a, b) => {
+  const pair = [fileClassOf(a), fileClassOf(b)].sort();
+  return `${pair[0]}+${pair[1]}`;
+};
+
+/** 索引可用性缓存（每仓只探测一次；无索引仓的锚不作码证据） */
+const indexCache = new Map();
 
 for (const conn of connections) {
   const af = anchoredFiles(conn.from);
@@ -122,16 +155,48 @@ for (const conn of connections) {
   const ra = byRepo(af);
   const rb = byRepo(bf);
   let hit = false;
-  let checked = false;
+  let indexedSharedRepo = false;
+  let indexedRootCount = 0;
+  const seenRoots = new Set();
+  for (const [root, fa] of ra) seenRoots.add(root);
+  for (const root of rb.keys()) seenRoots.add(root);
+  // 索引可用性探测（缓存）：无索引仓的锚只是文件事实，不能当码证据用
+  for (const root of seenRoots) {
+    if (!indexCache.has(root)) {
+      const probe = openDb(root);
+      if (probe.err) { indexCache.set(root, false); naRepos.add(path.basename(root)); }
+      else { indexCache.set(root, true); probe.db.close(); }
+    }
+    if (indexCache.get(root)) indexedRootCount += 1;
+  }
   for (const [root, fa] of ra) {
     if (!rb.has(root)) continue; // 异仓边本提名器不可见（跨仓归人工）
+    if (!indexCache.get(root)) continue; // 共享仓但无索引：不能当码证据
     const opened = openDb(root);
     if (opened.err) { naRepos.add(path.basename(root)); continue; }
-    checked = true;
+    indexedSharedRepo = true;
     if (dbHasEdgeBetween(opened.db, fa, rb.get(root))) { hit = true; }
     opened.db.close();
   }
   if (hit) { calibrated += 1; continue; }
+  if (!indexedSharedRepo && indexedRootCount >= 2) {
+    // 两端锚分属 ≥２ 个「有索引」的仓：同仓索引结构上不可能命中（跨仓归人工）。
+    // 2026-09-10 triage 实证：demo-b 全 34 图的 31 条「无据边」里此类与自锚类混同。
+    crossRepo += 1;
+    findings.push({ rule: 'edge-cross-repo-manual', severity: 'warning', subject: conn.id || `${conn.from}→${conn.to}`,
+      evidence: `图边 ${conn.from}→${conn.to}（${conn.label || '无标签'}）两端锚分属不同仓（均有代码索引）——同仓索引不可见（提名器设计如此），归人工核对两端锚行是否真支撑该连线`,
+      supportedFixes: ['人工核对：是否有跨仓实物（包依赖/脚本调用/HTTP 契约文件）；有则给两端补该实物为锚，无则删边'] });
+    continue;
+  }
+  if (!indexedSharedRepo && indexedRootCount < 2) {
+    // 两端锚同处一仓且该仓无代码索引（典型：锚为图/spec 自指所在的 atlas 数据根）：
+    // 码证据结构上不适用，不能报为「无据」（否则即“拿码尺量图”）。
+    specAnchored += 1;
+    findings.push({ rule: 'edge-spec-anchored', severity: 'warning', subject: conn.id || `${conn.from}→${conn.to}`,
+      evidence: `图边 ${conn.from}→${conn.to}（${conn.label || '无标签'}）两端锚同处一仓但该仓无代码索引（锚为图/spec 自指）——码证据不适用；若该边本应有码支撑，请给端点补码锚`,
+      supportedFixes: ['给端点补码/文档实物锚（替代或叠加 spec 自锚）；若为声明性关系则保留并在规程里标该类'] });
+    continue;
+  }
   withoutEvidence += 1;
   findings.push({ rule: 'edge-without-code-evidence', severity: 'warning', subject: conn.id || `${conn.from}→${conn.to}`,
     evidence: `图边 ${conn.from}→${conn.to}（${conn.label || '无标签'}）在同仓索引里无调用/引用边——I 级提名：不证明码无此边，但值得复核两端锚行是否真支撑这条连线`,
@@ -175,15 +240,23 @@ for (const [root, relFiles] of byRepoAll) {
     if (!ca || !cb || ca === cb) continue;
     if (!edgeKey.has(`${ca}→${cb}`) && !edgeKey.has(`${cb}→${ca}`)) {
       withoutEdge += 1; n += 1;
+      // triage 分类（2026-09-10）：本轮全图 triage 实证——提名绝大多数落在
+      // 工作项/记录类节点（节点=批次/债/性能项，其锚=该项动过的源码文件），
+      // 此时两锚文件互引只说明「两项动过同一片码」，**不蕴含图上应有边**
+      // （图语义=工作项依赖/记录关系，非组件调用）。分类只做事实标註，
+      // 不改变提名口径（仍全量报出）；行动政策见 runbook 图码纪律节。
+      const cls = edgeNominationClass(r.sf, r.tf);
+      byClass[cls] = (byClass[cls] || 0) + 1;
       findings.push({ rule: 'code-evidence-without-edge', severity: 'warning', subject: `${ca}→${cb}`,
-        evidence: `码上有据（${r.sf} ↔ ${r.tf}）而图上无边——候选漏边（I 级提名：先实读两文件确认关系再决定是否入图）` });
+        evidence: `码上有据（${r.sf} ↔ ${r.tf}）而图上无边——候选漏边（I 级提名：先实读两文件确认关系再决定是否入图；分类=${cls}）` });
     }
   }
 }
 
 const data = {
   connections: connections.length,
-  calibrated, ungrounded, withoutEvidence, withoutEdge,
+  calibrated, ungrounded, withoutEvidence, crossRepo, specAnchored, withoutEdge,
+  withoutEdgeByClass: byClass,
   noIndexRepos: [...naRepos],
   ...(connections.length === 0 ? { note: 'spec 无 connections——本报告是"无对象"，不是"全部有边"' } : {}),
 };
@@ -192,7 +265,9 @@ const receipt = { schemaVersion: 1, command: 'reconcile-graph-edges', status: 'o
   diagnostics: findings };
 if (JSON_OUT) console.log(JSON.stringify(receipt, null, 2));
 else {
-  console.log(`edge-reconcile ok：连接 ${data.connections} · 已校准 ${calibrated} · 无端点 ${ungrounded} · 无据边 ${withoutEvidence} · 漏边 ${withoutEdge} · N/A 仓 ${naRepos.size}`);
+  const classStr = Object.entries(byClass).map(([k, v]) => `${k}=${v}`).join(' · ') || '无';
+  console.log(`edge-reconcile ok：连接 ${data.connections} · 已校准 ${calibrated} · 无端点 ${ungrounded} · 无据边 ${withoutEvidence} · 跨仓边 ${crossRepo} · 图内自锚 ${specAnchored} · 漏边 ${withoutEdge} · N/A 仓 ${naRepos.size}`);
+  console.log(`  漏边分类（事实标註，不改提名口径）：${classStr}`);
   for (const f of findings.slice(0, CAP * 2)) console.log(`  [${f.severity}] ${f.subject} ${f.evidence}`.trim());
   if (findings.length > CAP * 2) console.log(`  …另 ${findings.length - CAP * 2} 条（--cap 可调）`);
 }

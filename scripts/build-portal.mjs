@@ -211,23 +211,59 @@ function buildPortal(opts) {
   modules.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   const total = modules.reduce((n, m) => n + m.items.length, 0);
 
+  // 分级分类管理（2026-09-08 负责人令：根目录链接按业务表达特性分级分类，子系统结构图统一归一类）。
+  // 规则制：命名前缀 subsystem-<模块>-<YYMMDD> 走规则；存量五张走显式清单；顺序即呈现顺序。
+  const CATEGORY_RULES = [
+    ['子系统结构图', (name) => name.startsWith('subsystem-') || ['settlement-runtime', 'token-compute', 'contract-center', 'membership', 'sub2api', 'storefront', 'admin-panel', 'vendor-panel', 'platform-bff', 'shared-stack', 'governance-meta'].includes(name)],
+    ['平台能力与架构总图', (name) => /capabilit|platform-overview|architecture|blueprint|maps|biz-overview|sseries/.test(name)],
+    ['业务域', (name) => /^biz-/.test(name)],
+    ['规划与路线图', (name) => /roadmap|continuation|slices|spine|knifeseq|loops|lifecycle/.test(name)],
+    ['审计与评估', (name) => /audit|e2e-architecture/.test(name)],
+  ];
+  const FALLBACK_CATEGORY = '其他';
+  const categorize = (name) => {
+    const bare = name.replace(/-\d{6}$/, ''); // 剥 -<YYMMDD> 日期后缀再匹配（存量五张清单按裸名）
+    for (const [cat, test] of CATEGORY_RULES) if (test(name) || test(bare)) return cat;
+    return FALLBACK_CATEGORY;
+  };
+  const categorized = [];
+  for (const m of modules) {
+    const cat = categorize(m.name);
+    let bucket = categorized.find((b) => b.cat === cat);
+    if (!bucket) { bucket = { cat, mods: [] }; categorized.push(bucket); }
+    bucket.mods.push(m);
+  }
+  const catOrder = CATEGORY_RULES.map((r) => r[0]).concat([FALLBACK_CATEGORY]);
+  categorized.sort((a, b) => catOrder.indexOf(a.cat) - catOrder.indexOf(b.cat));
+
   // 相对链接：门户在 <根>/<伞名>/<伞名>-<日期>/ 两级深度，向上退两级再入区（零拷贝）。
   const relArtifact = (moduleName, file) => '../../artifacts/' + project + '/' + moduleName + '/' + file;
   const relEvidence = (id, png) => '../../evidence/' + project + '/' + id + '/' + png;
 
+  const catAnchor = (cat) => 'cat-' + cat.replace(/[^a-zA-Z0-9\u4e00-\u9fff]+/g, '-');
+  const nav = categorized.length > 1
+    ? '<nav><strong>分级分类</strong>：' + categorized.map((b) => {
+        const n = b.mods.reduce((x, m) => x + m.items.length, 0);
+        return '<a href="#' + esc(catAnchor(b.cat)) + '">' + esc(b.cat) + '（' + b.mods.length + ' 模块 / ' + n + ' 件）</a>';
+      }).join(' · ') + '</nav>'
+    : '';
   const sections = [];
-  for (const m of modules) {
-    const lis = m.items.map((f) => {
-      const id = f.slice(0, -'.html'.length);
-      const png = findVisualCheckPng(evidenceDir, id);
-      const thumb = png
-        ? ' <a href="' + esc(relEvidence(id, png)) + '"><img class="thumb" src="' + esc(relEvidence(id, png)) + '" alt="visual-check ' + esc(id) + '"></a>'
-        : '';
-      return '<li><a href="' + esc(relArtifact(m.name, f)) + '">' + esc(id) + '（HTML）</a>' + thumb + '</li>';
+  for (const b of categorized) {
+    const n = b.mods.reduce((x, m) => x + m.items.length, 0);
+    const subs = b.mods.map((m) => {
+      const lis = m.items.map((f) => {
+        const id = f.slice(0, -'.html'.length);
+        const png = findVisualCheckPng(evidenceDir, id);
+        const thumb = png
+          ? ' <a href="' + esc(relEvidence(id, png)) + '"><img class="thumb" src="' + esc(relEvidence(id, png)) + '" alt="visual-check ' + esc(id) + '"></a>'
+          : '';
+        return '<li><a href="' + esc(relArtifact(m.name, f)) + '">' + esc(id) + '（HTML）</a>' + thumb + '</li>';
+      });
+      return '<h3>' + esc(m.name) + '（' + m.items.length + ' 件）</h3>\n<ul>\n' + lis.join('\n') + '\n</ul>';
     });
-    sections.push('<section><h2>模块 ' + esc(m.name) + '（' + m.items.length + ' 件）</h2>\n<ul>\n' + lis.join('\n') + '\n</ul></section>');
+    sections.push('<section id="' + esc(catAnchor(b.cat)) + '"><h2>' + esc(b.cat) + '（' + b.mods.length + ' 模块 / ' + n + ' 件）</h2>\n' + subs.join('\n') + '\n</section>');
   }
-  const body = sections.length > 0 ? sections.join('\n') : '<p>（无交付物）</p>';
+  const body = sections.length > 0 ? nav + '\n' + sections.join('\n') : '<p>（无交付物）</p>';
 
   const html = [
     '<!DOCTYPE html>',

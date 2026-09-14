@@ -92,6 +92,28 @@ test('漏边：码有据而图未画 → code-evidence-without-edge（I 级提�
   assert.equal(r.receipt.data.withoutEdge >= 1, true, 'b→a 有据但图未画须提示：' + JSON.stringify(r.receipt.data));
   const f = r.receipt.diagnostics.find((x) => x.rule === 'code-evidence-without-edge');
   assert.ok(f, '漏边须入诊断');
+  // 2026-09-10 triage：漏边须带「锚型分类」事实标註（不改提名口径，只让噪声自解释）
+  const byClass = r.receipt.data.withoutEdgeByClass;
+  assert.ok(byClass && Object.keys(byClass).length >= 1, '漏边须带分类计数：' + JSON.stringify(byClass));
+  const summed = Object.values(byClass).reduce((a, b) => a + b, 0);
+  assert.equal(summed, r.receipt.data.withoutEdge, '分类计数之和须等于漏边总数');
+  assert.ok(f.evidence.includes('分类='), '漏边证据须含分类标註：' + f.evidence);
+});
+
+test('workflow 图 edges[] 一并入账（不因缺 connections 而漏读）', { skip: !hasSqlite && 'node:sqlite 不可用' }, () => {
+  const { sc, dir } = makeFixture();
+  const wf = path.join(dir, 'wf.json');
+  fs.writeFileSync(wf, JSON.stringify({
+    schema_version: 1,
+    diagram_type: 'workflow',
+    meta: { title: 'wf' },
+    nodes: [],
+    edges: [{ id: 'w1', from: 'comp-b', to: 'comp-a' }],
+  }));
+  const r = run(['--spec', wf, '--sidecar', sc, '--json']);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.receipt.data.connections, 1, 'workflow edges[] 必须计入：' + JSON.stringify(r.receipt.data));
+  assert.equal(r.receipt.data.calibrated, 1, 'b→a 在码上有据 → 应校准：' + JSON.stringify(r.receipt.data));
 });
 
 test('降级与诚实：Node<22/无索引/无端点全部如实记，exit 0 不谎报', () => {
@@ -110,4 +132,72 @@ test('用法守卫：缺 --spec 或 --sidecar → exit 2（不猜路径）', () 
   const r = run(['--json']);
   assert.equal(r.code, 2);
   assert.equal(r.receipt.diagnostics[0].rule, 'bad_args');
+});
+
+test('跨仓边归人工：不计入「无据」，单列 crossRepo（2026-09-10 triage）', { skip: !hasSqlite && 'node:sqlite 不可用' }, () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'edge-recon-xrepo-'));
+  const mk = (name) => {
+    const repo = path.join(dir, name);
+    fs.mkdirSync(path.join(repo, 'src'), { recursive: true });
+    spawnSync('git', ['-C', repo, 'init', '-q'], { encoding: 'utf8' });
+    fs.writeFileSync(path.join(repo, 'src', 'x.ts'), 'export const x = 1;\n');
+    // 最小同 schema 索引（无跨文件边）：使该仓成为「有索引仓」→ 才能判为跨仓
+    const dbPath = path.join(repo, '.codegraph', 'codegraph.db');
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    const db = new DatabaseSync(dbPath);
+    db.exec(`CREATE TABLE nodes (id TEXT PRIMARY KEY, kind TEXT, name TEXT, qualified_name TEXT, file_path TEXT, language TEXT, start_line INTEGER, end_line INTEGER);
+             CREATE TABLE edges (id INTEGER PRIMARY KEY, source TEXT, target TEXT, kind TEXT, metadata TEXT, line INTEGER, col INTEGER, provenance TEXT);`);
+    db.prepare('INSERT INTO nodes (id,kind,name,file_path) VALUES (?,?,?,?)').run('n:x', 'file', 'x.ts', 'src/x.ts');
+    db.close();
+    return repo;
+  };
+  const repoA = mk('repoA');
+  const repoB = mk('repoB');
+  const sc = path.join(dir, 'sc.json');
+  fs.writeFileSync(sc, JSON.stringify({ schemaVersion: 1, revision: 1, nodes: {
+    'comp-a': { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [path.join(repoA, 'src/x.ts') + ':1'], history: [] },
+    'comp-b': { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [path.join(repoB, 'src/x.ts') + ':1'], history: [] },
+  } }));
+  const spec = path.join(dir, 'spec.json');
+  fs.writeFileSync(spec, JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'x' },
+    components: [
+      { id: 'comp-a', type: 'backend', label: 'A', pos: [0, 0], size: [200, 100] },
+      { id: 'comp-b', type: 'backend', label: 'B', pos: [300, 0], size: [200, 100] },
+    ],
+    connections: [{ id: 'e-ab', from: 'comp-a', to: 'comp-b', label: '跨仓' }] }));
+  const r = run(['--spec', spec, '--sidecar', sc, '--json']);
+  assert.equal(r.code, 0, r.out);
+  const d = r.receipt.data;
+  assert.equal(d.crossRepo, 1, '跨仓边须单列：' + JSON.stringify(d));
+  assert.equal(d.withoutEvidence, 0, '跨仓边不得计入无据：' + JSON.stringify(d));
+  const f = r.receipt.diagnostics.find((x) => x.rule === 'edge-cross-repo-manual');
+  assert.ok(f, '跨仓边须入诊断（归人工）');
+  assert.ok(f.supportedFixes.length >= 1, '跨仓边须附人工核对路径');
+});
+
+test('图内自锚归该类：两端锚皆指向 spec 自身（无代码索引仓）→ 不计入「无据」（2026-09-10 triage）', { skip: !hasSqlite && 'node:sqlite 不可用' }, () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'edge-recon-specanchor-'));
+  const dataRoot = path.join(dir, 'atlas');
+  fs.mkdirSync(path.join(dataRoot, 'spec'), { recursive: true });
+  spawnSync('git', ['-C', dataRoot, 'init', '-q'], { encoding: 'utf8' });
+  const spec = path.join(dataRoot, 'spec', 'g.json');
+  fs.writeFileSync(spec, JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'x' },
+    components: [
+      { id: 'v-a', type: 'note', label: 'A', pos: [0, 0], size: [200, 100] },
+      { id: 'v-b', type: 'note', label: 'B', pos: [300, 0], size: [200, 100] },
+    ],
+    connections: [{ id: 'e-ab', from: 'v-a', to: 'v-b', label: '声明性' }] }));
+  const sc = path.join(dir, 'sc.json');
+  fs.writeFileSync(sc, JSON.stringify({ schemaVersion: 1, revision: 1, nodes: {
+    'v-a': { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [spec + ':4'], history: [] },
+    'v-b': { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [spec + ':5'], history: [] },
+  } }));
+  const r = run(['--spec', spec, '--sidecar', sc, '--json']);
+  assert.equal(r.code, 0, r.out);
+  const d = r.receipt.data;
+  assert.equal(d.specAnchored, 1, '图内自锚须单列：' + JSON.stringify(d));
+  assert.equal(d.withoutEvidence, 0, '图内自锚不得计入无据：' + JSON.stringify(d));
+  assert.equal(d.crossRepo, 0, '同仓不算跨仓：' + JSON.stringify(d));
+  const f = r.receipt.diagnostics.find((x) => x.rule === 'edge-spec-anchored');
+  assert.ok(f, '图内自锚须入诊断');
 });
