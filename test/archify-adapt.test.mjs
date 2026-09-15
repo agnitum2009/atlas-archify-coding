@@ -10,6 +10,7 @@ import path from 'node:path';
 import { probeArchifyVersion, isBelowBaseline, ARCHIFY_BASELINE } from '../lib/resolve-archify.mjs';
 import { runDoctor } from '../lib/doctor.mjs';
 import { runGate } from '../lib/gate.mjs';
+import { writeFakeArchify } from './fake-archify.mjs';
 
 function fixtureSkill(version) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-fixture-'));
@@ -114,8 +115,9 @@ test('gate：visual-check 失败且回执为子项状态形状 → 失败尾附�
     captures: { status: 'pass', screenshots: [], contactSheet: null },
     sidecars: { receipt: 'x.visual-check.json', contactSheet: 'x.visual-check.html' },
   };
-  const stub = path.join(dir, 'archify-vc-fail.mjs');
-  fs.writeFileSync(stub, 'const cmd = process.argv[2];\nif (cmd !== "visual-check") { process.exit(0); }\nconsole.log(' + JSON.stringify(JSON.stringify(receipt)) + ');\nprocess.exit(1);\n');
+  // gate 现在校验 validate/deliver 的真回执契约（缺陷7）——前两闸必须按契约回话，
+  // 只有 visual-check 用本用例的自定义失败回执。
+  const stub = writeFakeArchify(dir, 'archify-vc-fail.mjs', { visualizeScript: JSON.stringify(receipt), visualExit: 1 });
   const r = runGate(spec, path.join(dir, 'out.html'), stub);
   assert.equal(r.final, 'fail');
   assert.equal(r.stage, 'visual-check');
@@ -136,8 +138,7 @@ test('gate：visual-check 回执全 pass（status 非 fail）→ 不附摘要（
     viewerChrome: { status: 'pass', viewports: [] },
     captures: { status: 'fail', screenshots: [], contactSheet: null },
   };
-  const stub = path.join(dir, 'archify-vc-mixed.mjs');
-  fs.writeFileSync(stub, 'const cmd = process.argv[2];\nif (cmd !== "visual-check") { process.exit(0); }\nconsole.log(' + JSON.stringify(JSON.stringify(receipt)) + ');\nprocess.exit(1);\n');
+  const stub = writeFakeArchify(dir, 'archify-vc-mixed.mjs', { visualizeScript: JSON.stringify(receipt), visualExit: 1 });
   const r = runGate(spec, path.join(dir, 'out.html'), stub);
   assert.equal(r.stage, 'visual-check');
   assert.ok(r.tail.includes('captures'), '只点名真正失败的子项：' + r.tail);

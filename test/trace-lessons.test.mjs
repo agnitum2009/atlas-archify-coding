@@ -56,3 +56,24 @@ test('lessons：add/list + 空 lesson 拒绝', () => {
   assert.throws(() => addLesson(sidecar, { lesson: '   ' }), /lesson 不能为空/);
 });
 
+
+test('shared comparator orders parsed times transitively and retains stable ties and unknown dates', async () => {
+  const { compareEventTime, summarizeReplay } = await import('../lib/trace.mjs');
+  const older = '2026-09-15T00:00:00Z';
+  const newer = '2026-09-15T00:00:00.500Z';
+  const same = '2026-09-15T08:00:00+08:00';
+  assert.equal(typeof compareEventTime, 'function');
+  assert.equal(compareEventTime(older, newer), -1);
+  assert.equal(compareEventTime(same, older), 0);
+  const times = [newer, '!', older, 'unknown', same];
+  for (const a of times) for (const b of times) for (const c of times) {
+    if (compareEventTime(a, b) <= 0 && compareEventTime(b, c) <= 0) assert.ok(compareEventTime(a, c) <= 0);
+  }
+  const sc = { nodes: { n: { history: times.map((at, i) => ({ at, kind: String(i) })) } }, lessons: times.map((at, i) => ({ at, id: String(i), lesson: 'retained', custom: i })) };
+  const before = structuredClone(sc);
+  assert.deepEqual(replayNode(sc, 'n').events.map(e => e.at), [older, same, newer, '!', 'unknown']);
+  assert.deepEqual(summarizeReplay(sc, 'n', 2).events.map(e => e.at), ['!', 'unknown']);
+  assert.deepEqual(listLessons(sc, { recent: 5 }).map(e => e.at), ['unknown', '!', newer, older, same]);
+  assert.deepEqual(replayNode(sc, 'n', older).events.filter(e => e.at === older || e.at === same).map(e => e.at), [older, same]);
+  assert.deepEqual(sc, before);
+});

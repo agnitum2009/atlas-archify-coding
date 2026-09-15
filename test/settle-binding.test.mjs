@@ -25,8 +25,12 @@ function seed() {
   fs.mkdirSync(specDir, { recursive: true });
   const specPath = path.join(specDir, 'diagram-a.json');
   fs.writeFileSync(specPath, JSON.stringify({ diagram_type: 'architecture', components: [{ id: 'x-node' }, { id: 'other' }] }) + '\n');
+  // 证据锚放**spec 目录之外**：2026-09-15 起 settle 是完成声称、锚必须可解析（缺陷3），
+  // 若锚落在 spec/ 内，「spec 目录缺席」用例会因锚文件本身消失而被拦（那是另一条规则的正确行为）。
+  const evidenceFile = path.join(root, 'ev.md');
+  fs.writeFileSync(evidenceFile, 'evidence line\n');
   const scPath = path.join(stateDir, 'atlas-proj.json');
-  const loc = specPath + ':1';
+  const loc = evidenceFile + ':1';
   const mk = (id) => ({ owner: 'o', truth: 'candidate', progress: 'in_progress', ledger: 'clean', evidence: [loc], history: [] });
   fs.writeFileSync(scPath, JSON.stringify({ schemaVersion: 1, atlas: null, nodes: { 'x-node': mk('x-node'), 'y-other': mk('y-other') }, notices: [], trace: [], lessons: [] }) + '\n');
   return scPath;

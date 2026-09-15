@@ -30,7 +30,7 @@
 | 命令 | 一句话 | 示例 |
 | --- | --- | --- |
 | init | 生成 v3 版式图谱目录（七区 + 项目子目录 + projects.json 注册表，0.7.0 起直通 build-portal/doctor） | init --dir ./my-atlas --title '我的项目' --diagram-id main [--template minimal\|demo] |
-| state | 三轴状态机（A2/A3/A4 硬门禁） | state set --node s1 --axis progress --value in_progress --reason 开工 --owner me |
+| state | 三轴状态机（A2/A3/A4 硬门禁） | state set --node s1 --axis progress --value in_progress --class task --reason 开工 --owner me |
 | diff | spec 差异 + 状态时间线 | diff state --sidecar atlas-state.json --since 2026-08-15T00:00:00Z |
 | compile | 状态注入 tag + 当前焦点章节 | compile --diagram spec/main.json --sidecar atlas-state.json --out compiled.json |
 | report | 销账回执 + A3 门禁 + A1 对账（--brief 只出计数+error 摘要） | report --sidecar atlas-state.json --slice s1 --code-sha abc --spec-sha def [--spec spec/main.json（可重复，传入即启用 A1 图码对账）] [--replay s1（可重复，内联时间线摘要）] [--brief] |
@@ -50,21 +50,22 @@
 
 ## 三、标准作业流（一刀完整示例）
 
-开工五动作：
-1. doctor --sidecar S （四检查，含 experience-pool）
-2. lessons list （读经验池）
-3. trace add --kind tool_call --note 'lessons-read' --sidecar S （留痕）
-4. state set --node <项目>-<切片> --axis progress --value in_progress --reason 开工 --owner <席> --sidecar S
-5. 执行切片
+将 `ATLAS_ENGINE_BIN` 设为当前检出的 `bin/atlas-engine.mjs` 绝对路径；在空的临时工作目录执行以下原命令。首次节点必须指定分类；每条命令使用同一侧车。
 
-销账五动作：
-1. state evidence-add --node <项目>-<切片> --locator <测试文件:行号> --sidecar S
-2. state settle --node <项目>-<切片> --reason 交付 --owner <席> --sidecar S （progress→verified + ledger→settled 同回执）
-3. trace add --kind diagram_diff --note '交付 SHA' --node <项目>-<切片> --sidecar S
-4. report --sidecar S --slice <项目>-<切片> --code-sha ... --spec-sha ... （可加 --replay <焦点节点> 一并出时间线）
-5. 图集反哺（活文档纪律）+ gate 三闸
+<!-- atlas-example:start -->
+```bash
+set -eu
+node "$ATLAS_ENGINE_BIN" init --dir demo-atlas --title Demo --diagram-id demo-system
+node "$ATLAS_ENGINE_BIN" state set --node demo-task --axis progress --value in_progress --class task --reason 开工 --owner reviewer --sidecar demo-atlas/state/atlas-state.json
+printf '%s\n' '交付证据' > demo-atlas/evidence/proof.txt
+node "$ATLAS_ENGINE_BIN" state evidence-add --node demo-task --locator "$PWD/demo-atlas/evidence/proof.txt:1" --sidecar demo-atlas/state/atlas-state.json
+node "$ATLAS_ENGINE_BIN" state settle --node demo-task --reason 交付 --owner reviewer --sidecar demo-atlas/state/atlas-state.json
+```
+<!-- atlas-example:end -->
 
-历史/迁移导入（非执行闭环，0.17.0 起）：`state import --node <id> --reason 历史导入 --owner <席> --locator <文件:行号> [--source 旧系统] [--cutoff 日期] --sidecar S`——原子双写 verified+settled 并锚定证据，history kind=import 与 settle 永久可区分；只登记新节点或零执行史节点。同版起 ledger→settled 只能经 settle/import 事件写入（set 直达 = settled_requires_event），set progress→verified 无证据同拒（init 首写不豁免）。
+`verified` 表示执行已验证，`settled` 表示账务已销账；settle 同时写两轴及 history kind=settle。交付后按需 trace/report，并更新图谱、运行 gate 三闸。
+
+历史/迁移导入（非执行闭环，0.17.0 起）：`state import --node <id> --reason 历史导入 --owner <席> --locator <文件:行号> [--class declared|registry|container|task|debt|batch-gated|trigger-gated] [--source 旧系统] [--cutoff 日期] --sidecar S`——原子双写 verified+settled 并锚定证据，history kind=import 与 settle 永久可区分；只登记新节点或零执行史节点。同版起 ledger→settled 只能经 settle/import 事件写入（set 直达 = settled_requires_event），set progress→verified 无证据同拒（init 首写不豁免）。
 
 销账/阻塞成功会自动投递一条席位通知（notice，B3）：他席位 notice list --seat <名> 即见未读，notice ack --seat <名> 确认。
 
@@ -79,7 +80,7 @@
 
 1. demo-harness 插件必须声明 demo-harness.bundle.patch，否则装为普通依赖不激活（0.1.0 教训）。
 2. demo-harness plugin 依赖 pnpm 在 PATH。
-3. 写状态必须走正规链：set 快捷置 verified 会触发 report 的 A3 门禁。
+3. 写状态必须走正规链：set 置 verified 无有效证据会立即被 A3 门禁拒绝；ledger=settled 只经 settle/import。
 4. 侦察件引用的映射载体字段，开工前必须 grep 实测（S5b 首日实证）。
 5. 交付 HTML 默认全图可见 + 当前焦点章节；禁止局部内容版本。
 6. sidecar_conflict = 并发写被 CAS 拦截（store 持锁重读磁盘 revision，不一致即拒绝覆盖）：补救 = 重新 load 最新 sidecar，在其上重放变更再保存；不得强行覆盖。
@@ -87,9 +88,6 @@
 
 ## 六、验证方式
 
-- 测试：cd atlas-engine && node --test test/*.test.mjs （测试，零依赖；勿用目录形式 `node --test test/`——Node v24.19 下有假失败 bug）
-- 门禁：node scripts/verify-doc-test-count.mjs（文档测试数对账）+ node scripts/verify-contract-freshness.mjs（--help/错误码 vs command-contract 对账，D6）
-- 部署注入对账：node scripts/verify-deploy-injection.mjs（仓外 注入块 的词表+命令名对账；本地部署机生效，CI 上文件不存在自动 skipped 不假红）
-- 验收器：scripts/verify-plugin-bundle.cjs；项目侧切片验收器按项目仓自备（示范见早期试点仓 scripts/）
+- 测试：在仓库根运行 `npm test`，结果与耗时以本次输出为准。
+- 门禁：node scripts/verify-contract-freshness.mjs（--help/错误码与 command-contract 对账）及 CI 中其他验证器。
 - 活样：trace replay --node <示范节点>（10 条三源时间线示范，见早期试点账）
-

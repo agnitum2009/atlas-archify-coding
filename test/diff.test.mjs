@@ -48,3 +48,41 @@ test('stateTimeline：since 过滤 + 确定性排序 + 字段完整', () => {
   assert.equal(since[0].to.progress, 'verified');
 });
 
+
+test('diffSpecs preserves array/object identity at shared containers', () => {
+  for (const [base, head, subject] of [
+    [{}, [], '#'], [[], {}, '#'], [{ a: {} }, { a: [] }, 'a'],
+    [{ components: [{ id: 'a' }] }, { components: { 0: { id: 'a' } } }, 'components'],
+    [{ a: [1], ab: 1, 'a.x': 1 }, { a: { 0: 1 }, ab: 2, 'a.x': 2 }, 'a'],
+  ]) {
+    const result = diffSpecs(base, head);
+    const row = result.rows.find((row) => row.subject === subject);
+    assert.deepEqual(row, { subject, kind: 'changed', before: base === null ? base : subject === '#' ? base : base[subject], after: subject === '#' ? head : head[subject] });
+    assert.equal(result.rows.filter((row) => row.subject.startsWith(subject + '.')).length, 0);
+    if (subject === 'a' && base.ab) assert.deepEqual(result.summary, { added: 0, removed: 0, changed: 3 });
+    else assert.equal(result.rows.length, 1);
+  }
+});
+
+test('diffSpecs keeps special segments distinct from nesting and root', () => {
+  for (const [base, head] of [
+    [{ 'a.b': 1 }, { a: { b: 1 } }],
+    [{ 'a\\.b': 1 }, { 'a.b': 1 }],
+    [{ '': 1 }, 1], [{ '#': 1 }, 1], [{ '': 1 }, { '\\e': 1 }],
+  ]) assert.ok(diffSpecs(base, head).rows.length > 0);
+  const flat = flatten(JSON.parse('{"a.b":1,"a\\\\b":2,"":3,"#":4,"__proto__":5,"a":{"b":6}}'));
+  assert.equal(Object.getPrototypeOf(flat), null);
+  assert.deepEqual(Object.keys(flat).sort(), ['\\#', '\\e', '__proto__', 'a.b', 'a\\.b', 'a\\\\b'].sort());
+  assert.equal(flat.__proto__, '5');
+  assert.equal(diffSpecs({ a: { b: 1 } }, { a: { b: 2 } }).rows[0].subject, 'a.b');
+});
+
+test('diffSpecs keeps empty containers, scalar roots and ordering deterministic', () => {
+  for (const value of [{}, [], null, 1, 'x']) assert.deepEqual(diffSpecs(value, value).rows, []);
+  assert.deepEqual(diffSpecs({ a: 1, b: 2 }, { b: 2, a: 1 }).rows, []);
+  assert.deepEqual(diffSpecs(null, 1).rows, [{ subject: '#', kind: 'changed', before: null, after: 1 }]);
+  for (const [base, head] of [[{}, { a: 1 }], [[], [1]]]) {
+    assert.deepEqual(diffSpecs(base, head).summary, { added: 1, removed: 1, changed: 0 });
+    assert.deepEqual(diffSpecs(head, base).summary, { added: 1, removed: 1, changed: 0 });
+  }
+});

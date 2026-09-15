@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { checkTruthReceipt, isTruthAdvance } from '../lib/truth-receipt.mjs';
 
 const BIN = new URL('../bin/atlas-engine.mjs', import.meta.url).pathname;
 
@@ -20,10 +21,59 @@ function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-truth-receipt-'));
 }
 
+test('首次补写缺失/null truth 仍需要回执，历史前进统计保持原定义', () => {
+  for (const from of [undefined, null]) {
+    assert.equal(isTruthAdvance(from, 'effective'), false);
+    for (const to of ['pending_confirmation', 'effective', 'closed']) {
+      const r = checkTruthReceipt({ axis: 'truth', from, to });
+      assert.equal(r.ok, false);
+      assert.equal(r.diagnostics[0].rule, 'receipt_required');
+    }
+    assert.equal(checkTruthReceipt({ axis: 'truth', from, to: 'candidate' }).ok, true);
+  }
+});
+
+test('回执须为普通文件：目录拒绝，文件和指向文件的链接可用', (t) => {
+  const dir = tmpDir();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, 'receipt.txt'), link = path.join(dir, 'receipt-link');
+  fs.writeFileSync(file, '');
+  fs.symlinkSync(file, link);
+  const check = receipt => checkTruthReceipt({ axis: 'truth', from: null, to: 'effective', receipt });
+  assert.equal(check(dir).diagnostics?.[0]?.rule, 'receipt_not_file');
+  assert.equal(check(file).receipt, file);
+  assert.equal(check(link).receipt, link);
+  assert.equal(check(path.join(dir, 'absent')).diagnostics?.[0]?.rule, 'receipt_not_found');
+  const stat = fs.statSync;
+  fs.statSync = (p, ...args) => {
+    if (p === file) throw Object.assign(new Error('access denied'), {code:'EACCES'});
+    return stat(p, ...args);
+  };
+  try { assert.equal(check(file).diagnostics?.[0]?.rule, 'receipt_unreadable'); }
+  finally { fs.statSync = stat; }
+});
+
+test('CLI 首次 truth 生效缺回执及目录回执均拒绝且侧车不变', (t) => {
+  const dir = tmpDir(), sidecar = path.join(dir, 'atlas-state.json');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  for (const truth of [undefined, null]) {
+    fs.writeFileSync(sidecar, JSON.stringify({schemaVersion:1, nodes:{n:{truth, owner:'一线席位', history:[]}}}));
+    const before = fs.readFileSync(sidecar, 'utf8');
+    const args = ['state', 'set', '--node', 'n', '--axis', 'truth', '--value', 'effective', '--reason', '首次', '--owner', '一线席位'];
+    const missing = run(args, sidecar);
+    assert.equal(missing.code, 1);
+    assert.equal(missing.receipt.diagnostics[0].rule, 'receipt_required');
+    const directory = run(args.concat(['--receipt', dir]), sidecar);
+    assert.equal(directory.code, 1);
+    assert.equal(directory.receipt.diagnostics[0].rule, 'receipt_not_file');
+    assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
+  }
+});
+
 test('① transition truth 前进无 --receipt → exit 1 receipt_required，节点不动不落历史', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  const seeded = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位'], sidecar);
+  const seeded = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(seeded.code, 0);
 
   const res = run(['state', 'transition', '--node', 'n1', '--axis', 'truth', '--from', 'candidate', '--to', 'pending_confirmation', '--reason', '提交负责人确认', '--owner', '一线席位'], sidecar);
@@ -43,7 +93,7 @@ test('① transition truth 前进无 --receipt → exit 1 receipt_required，节
 test('② --receipt 指向不存在路径 → exit 1 receipt_not_found，subject 带解析后绝对路径', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  run(['state', 'set', '--node', 'n2', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位'], sidecar);
+  run(['state', 'set', '--node', 'n2', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--class', 'task'], sidecar);
   const ghost = path.join(dir, 'rulings', 'receipts', 'ghost.json'); // 不存在
 
   const res = run(['state', 'transition', '--node', 'n2', '--axis', 'truth', '--from', 'candidate', '--to', 'pending_confirmation', '--reason', 'r', '--owner', '一线席位', '--receipt', ghost], sidecar);
@@ -60,7 +110,7 @@ test('② --receipt 指向不存在路径 → exit 1 receipt_not_found，subject
 test('③ 带真实临时回执文件 → ok：truth 推进 + truthReceipts 记绝对路径 + history 事件含 receipt 字段', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  run(['state', 'set', '--node', 'n3', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位'], sidecar);
+  run(['state', 'set', '--node', 'n3', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--class', 'task'], sidecar);
   const receiptFile = path.join(dir, 'rulings', 'receipts', 'n3-truth-pending_confirmation.json');
   fs.mkdirSync(path.dirname(receiptFile), { recursive: true });
   fs.writeFileSync(receiptFile, JSON.stringify({ node: 'n3', axis: 'truth', to: 'pending_confirmation', decided_at: '2026-08-15', quote: '必须就做' }), 'utf8');
@@ -87,14 +137,14 @@ test('③ 带真实临时回执文件 → ok：truth 推进 + truthReceipts 记�
 test('④ set 快捷路径同样被拦：truth 前进无回执 exit 1 receipt_required；带回执放行并落账', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  const noReceipt = run(['state', 'set', '--node', 'n4', '--axis', 'truth', '--value', 'pending_confirmation', '--reason', '快捷路径', '--owner', '一线席位'], sidecar);
+  const noReceipt = run(['state', 'set', '--node', 'n4', '--axis', 'truth', '--value', 'pending_confirmation', '--reason', '快捷路径', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(noReceipt.code, 1);
   assert.equal(noReceipt.receipt.diagnostics[0].rule, 'receipt_required');
   assert.equal(fs.existsSync(sidecar), false); // 被拒不落盘
 
   const receiptFile = path.join(dir, 'r4.json');
   fs.writeFileSync(receiptFile, '{}', 'utf8');
-  const withReceipt = run(['state', 'set', '--node', 'n4', '--axis', 'truth', '--value', 'pending_confirmation', '--reason', '快捷路径', '--owner', '一线席位', '--receipt', receiptFile], sidecar);
+  const withReceipt = run(['state', 'set', '--node', 'n4', '--axis', 'truth', '--value', 'pending_confirmation', '--reason', '快捷路径', '--owner', '一线席位', '--receipt', receiptFile, '--class', 'task'], sidecar);
   assert.equal(withReceipt.code, 0);
   assert.equal(withReceipt.receipt.data.to, 'pending_confirmation');
 
@@ -109,11 +159,14 @@ test('④ set 快捷路径同样被拦：truth 前进无回执 exit 1 receipt_re
 test('⑤ 非 truth 轴（progress/ledger）写入照常无需 --receipt；truth 非前进写入传 --receipt 被忽略', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  const p = run(['state', 'set', '--node', 'n5', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位'], sidecar);
+  const p = run(['state', 'set', '--node', 'n5', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(p.code, 0);
   const l = run(['state', 'set', '--node', 'n5', '--axis', 'ledger', '--value', 'backlog', '--reason', 'r', '--owner', '一线席位'], sidecar);
   assert.equal(l.code, 0);
-  run(['state', 'evidence-add', '--node', 'n5', '--locator', 'src/a.ts:1'], sidecar);
+  // 真实证据文件（transition→verified 是完成声称，锚必须可解析，2026-09-15 缺陷3）
+  const evFile = path.join(dir, 'ev.md');
+  fs.writeFileSync(evFile, 'evidence\n');
+  run(['state', 'evidence-add', '--node', 'n5', '--locator', evFile + ':1'], sidecar);
   const v = run(['state', 'transition', '--node', 'n5', '--axis', 'progress', '--from', 'in_progress', '--to', 'verified', '--reason', '销账', '--owner', '一线席位'], sidecar);
   assert.equal(v.code, 0);
 

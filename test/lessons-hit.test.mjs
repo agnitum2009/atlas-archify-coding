@@ -86,7 +86,7 @@ test('B4 lessonPrompt：settle 成功回执 + A3 拦截失败回执（settle/tra
   const sidecar = path.join(dir, 'atlas-state.json');
 
   // settle 的 A3 拦截（无证据销账）
-  run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--sidecar', sidecar]);
+  run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--sidecar', sidecar, '--class', 'task']);
   const a3Settle = run(['state', 'settle', '--node', 'n1', '--reason', '无证据销账', '--owner', '一线席位', '--sidecar', sidecar]);
   assert.equal(a3Settle.code, 1);
   assert.equal(a3Settle.receipt.diagnostics[0].rule, 'verified_requires_evidence');
@@ -99,7 +99,10 @@ test('B4 lessonPrompt：settle 成功回执 + A3 拦截失败回执（settle/tra
   assert.ok(a3Trans.receipt.data.lessonPrompt.includes('lessons add'));
 
   // settle 成功回执（补证据后）
-  run(['state', 'evidence-add', '--node', 'n1', '--locator', 'test/fake.ts:1', '--sidecar', sidecar]);
+  // 真实证据文件（完成声称要求锚可解析，2026-09-15 缺陷3）
+  const evFile = path.join(dir, 'ev.md');
+  fs.writeFileSync(evFile, 'evidence\n');
+  run(['state', 'evidence-add', '--node', 'n1', '--locator', evFile + ':1', '--sidecar', sidecar]);
   const settled = run(['state', 'settle', '--node', 'n1', '--reason', '销账', '--owner', '一线席位', '--sidecar', sidecar]);
   assert.equal(settled.code, 0);
   assert.ok(settled.receipt.data.lessonPrompt.includes('lessons add'), 'settle 成功回执附 lessonPrompt');

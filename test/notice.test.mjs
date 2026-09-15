@@ -22,6 +22,10 @@ function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-notice-'));
 }
 
+// 证据夹具目录：settle 前必须存在（缺陷3 起完成声称要求锚可解析）
+const EV_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-notice-ev-'));
+fs.writeFileSync(path.join(EV_DIR, 'ev.md'), 'evidence\n');
+
 // seed 为旧侧车形状（无 notices 字段），验证向后兼容路径。
 function seedSidecar(dir, extra) {
   const p = path.join(dir, 'atlas-state.json');
@@ -34,7 +38,8 @@ function readSidecar(p) {
 }
 
 function inProgressNode() {
-  return { owner: '一线席位', truth: 'candidate', progress: 'in_progress', ledger: 'backlog', evidence: ['lib/x.mjs:1'], history: [] };
+  // 真实证据文件（完成声称要求锚可解析，2026-09-15 缺陷3）
+  return { owner: '一线席位', truth: 'candidate', progress: 'in_progress', ledger: 'backlog', evidence: [path.join(EV_DIR, 'ev.md') + ':1'], history: [] };
 }
 
 test('B3 settle 成功自动投递 notice（kind=settled，from=--owner，summary=reason，readBy 空）', () => {

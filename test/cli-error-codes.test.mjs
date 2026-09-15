@@ -25,6 +25,36 @@ function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-engine-errcodes-'));
 }
 
+test('requireArgs 对缺参提供 bad_args 错误码', async () => {
+  const { requireArgs } = await import('../lib/cli-util.mjs');
+  assert.throws(() => requireArgs({}, ['reason']), { code: 'bad_args' });
+});
+
+const requiredCalls = {
+  set: { node: 'n1', axis: 'progress', value: 'in_progress', reason: 'work', owner: 'o' },
+  transition: { node: 'n1', axis: 'progress', from: 'planned', to: 'in_progress', reason: 'work', owner: 'o' },
+  settle: { node: 'n1', reason: 'done', owner: 'o' },
+  block: { node: 'n1', reason: 'waiting', owner: 'o' },
+};
+for (const [sub, values] of Object.entries(requiredCalls)) {
+  for (const missing of ['node', 'reason', 'owner']) {
+    test('state ' + sub + ' 缺 --' + missing + '：exit 1 bad_args 且磁盘不变', (t) => {
+      const dir = tmpDir();
+      t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+      const sidecar = path.join(dir, 'atlas-state.json');
+      const before = JSON.stringify({ schemaVersion: 1, revision: 4, nodes: { n1: { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [], history: [] } } }) + '\n';
+      fs.writeFileSync(sidecar, before);
+      const args = Object.entries(values).filter(([key]) => key !== missing).flatMap(([key, value]) => ['--' + key, value]);
+      const result = run(['state', sub, ...args], sidecar);
+      assert.equal(result.code, 1, result.stdout);
+      assert.equal(result.receipt.diagnostics[0].rule, 'bad_args');
+      assert.ok(result.receipt.diagnostics[0].evidence.includes('--' + missing));
+      assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
+      assert.deepEqual(fs.readdirSync(dir), ['atlas-state.json']);
+    });
+  }
+}
+
 test('未知顶层命令（0.10.0，holdout #2 P2b）：exit 1 / rule=unknown_subcommand——用户输入错误不再悬 internal/exit 2', () => {
   const res = spawnSync(process.execPath, [BIN, 'evidnece', 'lint'], { encoding: 'utf8' });
   assert.equal(res.status, 1, '拼错的顶层命令 = 用户输入校验失败 exit 1（0.9.0 为 exit 2 / rule=internal——归类错误）');
@@ -55,7 +85,7 @@ test('锁被存活进程持有且超时：state set exit 1，rule=sidecar_locked
   // pid=本测试进程（存活）→ 非陈旧锁；ATLAS_LOCK_TIMEOUT_MS=150 → 快速触达超时。
   fs.writeFileSync(sidecar + '.lock', JSON.stringify({ pid: process.pid, at: Date.now() }) + '\n', 'utf8');
   const res = run(
-    ['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位'],
+    ['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--class', 'task'],
     sidecar,
     { ATLAS_LOCK_TIMEOUT_MS: '150' }
   );
@@ -69,10 +99,11 @@ test('锁被存活进程持有且超时：state set exit 1，rule=sidecar_locked
 test('只读侧车（chmod 444）：state set exit 1 且 rule=sidecar_readonly，内容与权限均未变（0.7.0 缺陷1；修复前 exit 0 静默写入且 444→664 被重置）', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  fs.writeFileSync(sidecar, JSON.stringify({ schemaVersion: 1, atlas: null, nodes: {}, revision: 0 }) + '\n', 'utf8');
+  // 只读侧车 + 已有节点（存量无 class 不受 O3 约束）→ 写入路径才触得到 saveSidecar 的只读守卫。
+  fs.writeFileSync(sidecar, JSON.stringify({ schemaVersion: 1, atlas: null, nodes: { n1: { owner: '一线席位', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [], history: [] } }, revision: 0 }) + '\n', 'utf8');
   fs.chmodSync(sidecar, 0o444);
   const before = fs.readFileSync(sidecar, 'utf8');
-  const res = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位'], sidecar);
+  const res = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(res.code, 1, '只读=保护意图，必须 fail-loud（修复前此处 exit 0 静默穿过）');
   assert.equal(res.receipt.status, 'failed');
   assert.equal(res.receipt.diagnostics[0].rule, 'sidecar_readonly');
@@ -86,7 +117,7 @@ test('只读侧车（chmod 444）：state set exit 1 且 rule=sidecar_readonly�
 test('正常路径回归：set/get 仍 exit 0 ok，revision 递增', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  const set = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位'], sidecar);
+  const set = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(set.code, 0);
   assert.equal(set.receipt.status, 'ok');
   const got = run(['state', 'get', '--node', 'n1'], sidecar);

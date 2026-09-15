@@ -4,17 +4,15 @@
 > 维护约定：**新坑修复时必须来此登记一条**（缺陷类别、规则、锚点），未登记
 > 不算修复完成；与经验池（lessons）互训——此处是工程侧登记册。
 
-## 1. 陈旧锁接管 TOCTOU → 锁 token 回读闭环
-判陈旧→unlink→O_EXCL 重抢的窗口内他席位可能已另立新锁：拿到创建权 ≠ 持有。
-规则：写入含随机 token 的锁内容后按路径回读核对，一致才算真持有；不一致
-按争用继续等，绝不双持锁写入。
-锚点：lib/store.mjs:69-70（接管闭环注释）、84-91（readLockToken）、175（回读核对）。
+## 1. 陈旧锁接管 TOCTOU → 不自动抢占已有锁
+判陈旧后 unlink 可能删除另一写者刚取得的活锁；一次 token 回读无法封闭该竞态。
+规则：所有已有锁都等待或报 sidecar_locked，死 PID 和超龄同样拒绝自动接管。
+锚点：lib/store.mjs acquireLock；specs/command-contract.md 附录 A sidecar_locked。
 
-## 2. pid 复用 → 30s 锁龄兜底（显式有界风险）
-pid 死亡后 OS 把同号 pid 分给无关进程，死锁可看似存活。
-规则：pid 探测仅作线索，30s 锁龄兜底为接受的有界风险（STALE_LOCK_MS），
-风险在注释与契约附录 A 显式声明而非悄悄接受。
-锚点：lib/store.mjs:71-72、119（isStaleLock）；specs/command-contract.md 附录 A sidecar_locked。
+## 2. pid 复用与锁恢复 → 持有者信息只作诊断
+PID、时间、token 与存活探测用于说明锁状态，不作为强制抢占依据。
+确认全部写者已停止后，才人工删除锁并重试；释放自己取得的锁仍核对身份。
+锚点：lib/store.mjs lockHolderInfo、removeLockOwnedBy；恢复说明见契约 sidecar_locked。
 
 ## 3. locator 全角冒号 → bad_locator 可行动提示，不做归一
 实测中文括号路径合法，真凶是全角冒号「：」（bad_locator 拒）。
@@ -52,18 +50,15 @@ node <bin> 起进程），保证 validate 在任何机器都真实跑到且确�
 锚点：test/auto-trace.test.mjs:35-38、54-55；test/resolve-archify.test.mjs:10-28；
 specs/command-contract.md §10（archify 解析顺序）。
 
-## 7. node --test 报告器随 TTY 变化 → ℹ/# 双格式解析
-TTY 下 spec 报告器印「ℹ tests N」，CI 非 TTY 下 TAP 报告器印「# tests N」。
-规则：解析 node --test 输出的脚本必须双格式兼容，单格式解析换环境即静默坏掉。
-锚点：scripts/verify-doc-test-count.mjs:14-15。
+## 7. 报告格式耦合 → 消除不必要的输出解析
+2026-09-15 退役 scripts/verify-doc-test-count.mjs；它为同步文档宣传数字而重复执行全套测试，
+还必须兼容 TTY/CI 的不同报告格式。当前直接以 `npm test` 退出码和本次日志验收。
+锚点：package.json scripts.test；.github/workflows/ci.yml。
 
-## 8. 文档数字腐烂 Status rots → 对账门禁入 CI
-文档「N 测试」数字曾 52/55/69 三版本并存四文档（demo-harness 教训活标本），人工同步
-必然漂移。
-规则：文档声称的测试数必须与 node --test 实测对账，漂移即 exit 1，门禁入
-CI 四版本矩阵。
-锚点：scripts/verify-doc-test-count.mjs:1-3；.github/workflows/ci.yml:19；
-docs/PENDING-IMPROVEMENTS-2026-08-15.md D1（已闭）。
+## 8. 文档数字腐烂 → 当前文档引用运行入口
+当前操作说明不手写测试总数或固定耗时；日期明确的审计与版本记录保留当时观测。
+历史文档中的计数门禁指针仅说明当时机制，该脚本已按 §7 退役，不再作为操作指令。
+锚点：README.md；docs/DEFENSIVE.md；docs/USAGE.md。
 
 ## 9. 空态被当成验证通过 → 无发现与无对象必须分开措辞（vacuous green）
 零对象时说「全部可解析」= 用「无事可查」冒充「已查过」。同类形态：第三方工具在

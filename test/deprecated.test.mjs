@@ -38,7 +38,7 @@ test('evidence 顶层命令已移除（0.10.0 第二阶段）：调用 → exit 
     assert.ok(r.receipt.diagnostics[0].evidence.includes('未知命令'), r.receipt.diagnostics[0].evidence);
     // 替代路径仍存活（写时 evidence-add 内嵌校验）：state evidence-add 照常 exit 0。
     const sidecar = path.join(dir, 'atlas-state.json');
-    run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar]);
+    run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar, '--class', 'task']);
     const add = run(['state', 'evidence-add', '--node', 'n1', '--locator', file + ':2', '--sidecar', sidecar]);
     assert.equal(add.code, 0, '替代路径 state evidence-add 不受移除影响；' + add.stdout);
   } finally {

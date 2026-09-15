@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { buildReport } from '../lib/report.mjs';
 import { runGate } from '../lib/gate.mjs';
+import { writeFakeArchify } from './fake-archify.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -51,6 +52,63 @@ test('buildReport：slice 过滤单节点', () => {
   const r = buildReport(sidecar, { slice: 'n1' });
   assert.equal(r.nodes.length, 1);
   assert.equal(r.nodes[0].node, 'n1');
+});
+
+test('runGate：假内核（exit 0 + 无回执契约 + 无 HTML）→ fail，绝不伪装 pass（缺陷7 核心回归）', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gate-fake-kernel-'));
+  const spec = path.join(dir, 'spec.json');
+  fs.writeFileSync(spec, JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'x' }, components: [{ id: 'a', name: 'A' }] }));
+  // 旧实现在此判 pass（只看 exit code）：假内核输出 {status:'failed'}、exit 0、不产 HTML。
+  const fake = path.join(dir, 'fake.mjs');
+  fs.writeFileSync(fake, 'console.log(JSON.stringify({ status: "failed" }));\nprocess.exit(0);\n');
+  const r = runGate(spec, path.join(dir, 'out.html'), fake);
+  assert.equal(r.final, 'fail');
+  assert.equal(r.stage, 'validate');
+  assert.equal(r.reason, 'validate-receipt');
+  assert.ok(r.tail.includes('内核回执'), r.tail);
+  assert.equal(fs.existsSync(path.join(dir, 'out.html')), false, '不得产出「成功」假象');
+
+  // 假内核自称成功（ok:true）但产物不存在 → deliver 归属校验拦下
+  const fake2 = writeFakeArchify(dir, 'fake2.mjs', { mutateOutPath: 'false' });
+  const r2 = runGate(spec, path.join(dir, 'out2.html'), fake2);
+  assert.equal(r2.final, 'fail');
+  assert.equal(r2.reason, 'deliver-artifact-missing', r2.tail);
+
+  // 假内核回执 artifact 摘要与磁盘不符 → 拦下
+  const fake3 = writeFakeArchify(dir, 'fake3.mjs', { extraDeliver: "{ artifact: { sha256: 'deadbeef', bytes: 3 } }" });
+  const r3 = runGate(spec, path.join(dir, 'out3.html'), fake3);
+  assert.equal(r3.reason, 'deliver-artifact-mismatch', r3.tail);
+
+  // 成功路径：契约合规内核 → pass，且 visualReview 仍为 pending（人工边界不被自动证据吞掉）
+  const fake4 = writeFakeArchify(dir, 'fake4.mjs');
+  const r4 = runGate(spec, path.join(dir, 'out4.html'), fake4);
+  assert.equal(r4.final, 'pass', JSON.stringify(r4.results));
+  assert.equal(r4.visualReview, 'pending', '自动证据不得声称感知级复核');
+  assert.equal(r4.results.validate.receipt.checkCount, 1);
+  assert.equal(r4.results.deliver.receipt.checksPassed, 1);
+  assert.equal(r4.results.visual_check.receipt.status, 'pass');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('runGate：visual-check 子项失败/被跳过 → fail（不把 skipped 当 pass）', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gate-vc-skip-'));
+  const spec = path.join(dir, 'spec.json');
+  fs.writeFileSync(spec, JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'x' }, components: [] }));
+  // status=skipped（Chrome 不可用，真实内核 exit 2 / 回执 status='skipped'）
+  const skipped = path.join(dir, 'skipped.mjs');
+  fs.writeFileSync(skipped, `import fs from 'node:fs';import crypto from 'node:crypto';
+const argv = process.argv.slice(2);const sha=(b)=>crypto.createHash('sha256').update(b).digest('hex');
+if (argv[0]==='validate'){console.log(JSON.stringify({schemaVersion:1,ok:true,command:'validate',input:argv[2],checks:[{ok:true}],composition:{profile:'showcase',status:'pass',summary:{errors:0,warnings:0}}}));process.exit(0);}
+if (argv[0]==='deliver'){const html='<html></html>';fs.writeFileSync(argv[3],html);const sp=fs.readFileSync(argv[2]);console.log(JSON.stringify({schemaVersion:1,ok:true,command:'deliver',input:argv[2],output:argv[3],specification:{sha256:sha(sp),bytes:sp.byteLength},artifact:{sha256:sha(Buffer.from(html)),bytes:html.length},validation:{checksPassed:1,checkCount:1,errors:0,compositionStatus:'pass'}}));process.exit(0);}
+if (argv[0]==='visual-check'){console.log(JSON.stringify({schemaVersion:1,ok:false,command:'visual-check',status:'skipped',visualReview:'pending',artifact:{path:argv[1]},error:'Chrome or Chromium is unavailable.',containment:{status:'skipped'},readability:{status:'skipped'},viewerChrome:{status:'skipped'},captures:{status:'skipped'}}));process.exit(2);}
+process.exit(1);
+`);
+  const r = runGate(spec, path.join(dir, 'o.html'), skipped);
+  assert.equal(r.final, 'fail');
+  assert.equal(r.reason, 'visual-check-skipped');
+  assert.equal(r.results.visual_check.status, 'skipped');
+  assert.ok(r.tail.includes('Chrome'), r.tail);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('runGate：archify 缺失或非法 spec → fail 停在 validate，绝不伪装 pass', () => {
@@ -113,8 +171,8 @@ test('gate --out 落点 warning（0.10.0，holdout #2 P0）：直落 atlas 的 a
   fs.mkdirSync(path.join(dir, 'artifacts', 'demo'), { recursive: true });
   const spec = path.join(dir, 'spec', 'demo', 'demo.json');
   fs.writeFileSync(spec, JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'x', quality_profile: 'showcase' }, components: [{ id: 'a', name: 'A' }] }));
-  const stub = path.join(dir, 'archify-stub.mjs');
-  fs.writeFileSync(stub, 'process.exit(0);\n');
+  // 缺陷7：gate 现在校验内核回执契约 + 产物本轮归属，空壳 exit-0 stub 不再代表「成功内核」。
+  const stub = writeFakeArchify(dir, 'archify-stub.mjs');
   const now = new Date();
   const stamp = String(now.getFullYear()).slice(2) + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
 
@@ -143,3 +201,49 @@ test('gate --out 落点 warning（0.10.0，holdout #2 P0）：直落 atlas 的 a
   fs.rmSync(alien, { recursive: true, force: true });
 });
 
+
+const malformedReceipts = [
+  ['validate', 'missing check ok', { extraValidate: '{checks:[{name:"schema"}]}' }],
+  ['validate', 'null check', { extraValidate: '{checks:[null]}' }],
+  ['validate', 'empty checks', { extraValidate: '{checks:[]}' }],
+  ['validate', 'missing composition status', { extraValidate: '{composition:{summary:{errors:0}}}' }],
+  ['validate', 'negative composition errors', { extraValidate: '{composition:{status:"pass",summary:{errors:-1}}}' }],
+  ['deliver', 'missing validation', { extraDeliver: '{validation:null}' }],
+  ['deliver', 'missing passed count', {extraDeliver:'{validation:{checkCount:1,compositionStatus:"pass",errors:0}}'}],
+  ['deliver', 'missing total count', {extraDeliver:'{validation:{checksPassed:1,compositionStatus:"pass",errors:0}}'}],
+  ['deliver', 'negative errors', {extraDeliver:'{validation:{checksPassed:1,checkCount:1,compositionStatus:"pass",errors:-1}}'}],
+  ['deliver', 'missing counts', { extraDeliver: '{validation:{compositionStatus:"pass",errors:0}}' }],
+  ...[ [0,7], [-1,1], [1.5,1.5], [0,0] ].map(([checksPassed,checkCount]) => ['deliver', 'counts '+checksPassed+'/'+checkCount, {extraDeliver: `{validation:{checksPassed:${checksPassed},checkCount:${checkCount},compositionStatus:"pass",errors:0}}`}]),
+  ['deliver', 'missing composition status', {extraDeliver:'{validation:{checksPassed:1,checkCount:1,errors:0}}'}],
+  ['deliver', 'missing errors', {extraDeliver:'{validation:{checksPassed:1,checkCount:1,compositionStatus:"pass"}}'}],
+  ['visual-check', 'review pass', {extraVisual:'{visualReview:"pass"}'}],
+  ['visual-check', 'review null', {extraVisual:'{visualReview:null}'}],
+  ['visual-check', 'missing path', {extraVisual:'{artifact:{sha256:sha(buf),bytes:buf.byteLength}}'}],
+  ['visual-check', 'missing bytes', {extraVisual:'{artifact:{path:artifact,sha256:sha(buf)}}'}],
+  ['visual-check', 'wrong path', {extraVisual:'{artifact:{path:artifact+".other",sha256:sha(buf),bytes:buf.byteLength}}'}],
+  ['visual-check', 'wrong bytes', {extraVisual:'{artifact:{path:artifact,sha256:sha(buf),bytes:buf.byteLength+1}}'}],
+];
+for (const [stage, label, opts] of malformedReceipts) test('G1 rejects '+stage+' '+label, () => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gate-g1-'));
+  try {
+    const spec=path.join(dir,'spec.json'), out=path.join(dir,'out.html');
+    fs.writeFileSync(spec, JSON.stringify({diagram_type:'architecture'}));
+    const r=runGate(spec,out,writeFakeArchify(dir,'stub.mjs',opts));
+    assert.equal(r.final,'fail',JSON.stringify(r));
+    assert.equal(r.stage,stage,JSON.stringify(r));
+    assert.equal(r.reason,stage==='visual-check'?'visual-check-artifact-mismatch':stage+'-receipt');
+    if(stage!=='validate') assert.equal(fs.readFileSync(out,'utf8'),'<html><body>ok</body></html>');
+  } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+});
+for (const [label, date] of [['past','2000-01-01'],['future','2099-01-01']]) test('G1 rejects '+label+' untouched artifact', () => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gate-g1-time-'));
+  try {
+    const spec=path.join(dir,'spec.json'),out=path.join(dir,'out.html');
+    fs.writeFileSync(spec,'{}'); fs.writeFileSync(out,'<html><body>ok</body></html>');
+    fs.utimesSync(out,new Date(date),new Date(date));
+    const r=runGate(spec,out,writeFakeArchify(dir,'stub.mjs',{mutateOutPath:'false'}));
+    assert.equal(r.final,'fail',JSON.stringify(r)); assert.equal(r.stage,'deliver');
+    assert.equal(r.reason,'deliver-artifact-stale');
+    assert.match(r.tail,label==='future'?/未来/:/早于/);
+  } finally {fs.rmSync(dir,{recursive:true,force:true});}
+});

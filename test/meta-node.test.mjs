@@ -22,7 +22,7 @@ test('--kind meta：建号时落 kind；同 kind 幂等不炸；读得到', () =
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-'));
   const sc = path.join(dir, 'sc.json');
   fs.writeFileSync(sc, '{"schemaVersion":1,"nodes":{},"revision":0}');
-  const r1 = run(['state', 'set', '--node', 'demo-conn-1', '--axis', 'ledger', '--value', 'clean', '--reason', '边登记', '--owner', 'o', '--kind', 'meta', '--sidecar', sc], dir);
+  const r1 = run(['state', 'set', '--node', 'demo-conn-1', '--axis', 'ledger', '--value', 'clean', '--reason', '边登记', '--owner', 'o', '--kind', 'meta', '--sidecar', sc, '--class', 'task'], dir);
   assert.equal(r1.code, 0, r1.stdout);
   const node = JSON.parse(fs.readFileSync(sc, 'utf8')).nodes['demo-conn-1'];
   assert.equal(node.kind, 'meta', 'kind 必须落账：' + JSON.stringify(node));
@@ -35,12 +35,12 @@ test('--kind 拒非 meta 值；已存在节点不可改 kind（身份即历史�
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'meta-bad-'));
   const sc = path.join(dir, 'sc.json');
   fs.writeFileSync(sc, '{"schemaVersion":1,"nodes":{},"revision":0}');
-  const bad = run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'clean', '--reason', 'r', '--owner', 'o', '--kind', 'code', '--sidecar', sc], dir);
+  const bad = run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'clean', '--reason', 'r', '--owner', 'o', '--kind', 'code', '--sidecar', sc, '--class', 'task'], dir);
   assert.equal(bad.code, 1);
   assert.equal(bad.receipt.diagnostics[0].rule, 'bad_args');
   assert.ok(bad.receipt.diagnostics[0].evidence.includes('仅接受 meta'));
   // 建一个默认节点再试图加 kind=meta → 拒
-  run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'clean', '--reason', 'r', '--owner', 'o', '--sidecar', sc], dir);
+  run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'clean', '--reason', 'r', '--owner', 'o', '--class', 'task', '--sidecar', sc], dir);
   const late = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', 'o', '--kind', 'meta', '--sidecar', sc], dir);
   assert.equal(late.code, 1, '已存在节点改 kind 必须拒');
   assert.ok(late.receipt.diagnostics[0].evidence.includes('kind 不可改'));
@@ -55,9 +55,17 @@ test('meta 节点豁免：不在 spec 里也不触发 a1-unmatched-account；普
   const spec = path.join(dir, 'spec.json');
   fs.writeFileSync(sc, '{"schemaVersion":1,"nodes":{},"revision":0}');
   fs.writeFileSync(spec, JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'x' }, components: [{ id: 'in-spec', type: 'backend', label: 'In Spec', pos: [0, 0], size: [200, 100] }] }));
-  // 一个 meta 边节点（不在 spec）+ 一个普通节点（不在 spec）
-  run(['state', 'set', '--node', 'edge-a-b', '--axis', 'ledger', '--value', 'clean', '--reason', '边登记', '--owner', 'o', '--kind', 'meta', '--sidecar', sc], dir);
-  run(['state', 'set', '--node', 'plain-node', '--axis', 'ledger', '--value', 'clean', '--reason', 'r', '--owner', 'o', '--sidecar', sc], dir);
+  // 一个 meta 边节点（不在 spec）+ 一个普通节点（不在 spec）——直写 JSON 播种（存量无 class 形态，
+  // 本用例验的是 report 的 meta 豁免口径，不是 CLI 建号路径；O3 起 CLI 建号必带 class，
+  // 而「普通节点仍报 unmatched」的前提是它未分类——故此处保持无 class）。
+  fs.writeFileSync(sc, JSON.stringify({
+    schemaVersion: 1,
+    revision: 0,
+    nodes: {
+      'edge-a-b': { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', kind: 'meta', evidence: [], history: [] },
+      'plain-node': { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [], history: [] },
+    },
+  }));
   const rep = run(['report', '--sidecar', sc, '--spec', spec, '--brief', '--no-trace'], dir);
   assert.equal(rep.code, 0, rep.stdout);
   // --brief 下 warnings 折叠为计数：metaExempted 应恰为 1（meta 节点被豁免、不计 unmatched），

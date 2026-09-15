@@ -59,15 +59,15 @@
 
 ### 2.4 跨轴事件（唯一合法的跨轴写）
 
-- 销账事件 settle：ledger backlog→settled 与 progress →verified 必须同回执双写，缺一即违反 A2。
-- 导入事件 import（0.17.0，路线一裁定）：历史/迁移事实的 ledger →settled 与 progress →verified 同事件双写，必须携带 ≥1 条 Evidence 及 source/cutoff 溯源；与 settle 并列为仅有的两条合法 settled 写入路径——set 直达（含 init 首写）一律非法（纠错通道 --correction 除外，须留痕）。
+- 销账事件 settle：前态 progress∈{in_progress,verified} 且 ledger∈{clean,backlog}；同事件写 progress=verified、ledger=settled、history 和 notice，只推进一次 revision。独立 verified 仍可正常销账；仅轴内迁移仍遵循上表，其他前态及重复销账拒绝。
+- 导入事件 import（0.17.0，路线一裁定）：历史/迁移事实的 ledger →settled 与 progress →verified 同事件双写，必须携带 ≥1 条 Evidence；class/source/cutoff 可选，显式 class 校验并留痕，省略 source/cutoff 记为 null（未知）；与 settle 并列为仅有的两条合法 settled 写入路径——set 直达（含 init 首写）一律非法（纠错通道 --correction 除外，须留痕）。
 
 ### 2.5 真相轴启用协议（2026-08-15 负责人裁定，提案③）
 
 真相轴语义（§2.1）保留不变：candidate → pending_confirmation → effective → closed 单向逐级，closed 为终态，回退仍按 A2 迁移表拒绝。启用协议：
 
 - 真相轴任何前进写入（candidate→pending_confirmation→effective→closed 各步，含 state set 快捷路径跳级前进）一律要求 `--receipt <负责人本地回执文件路径>`：未给 = failed（rule=receipt_required）；给了但文件不存在 = failed（rule=receipt_not_found，诊断携带解析后绝对路径）。
-- 机器只校验回执文件存在性，不校验语义（生效与否属负责人判断，机器不自证）。
+- 写边将 truth 缺失/null 视为 candidate；回执须为现存普通文件（允许指向文件的 symlink），目录=receipt_not_file，无法 stat=receipt_unreadable。机器不读取/校验业务语义（生效与否属负责人判断）。
 - 放行后回执解析出的绝对路径写入该次 history 事件（receipt 字段），并在节点追加 truthReceipts 条目 `{to, receipt, at}`。
 - 回执文件建议归位 `<图谱目录>/rulings/receipts/`（软约定，不硬校验位置）。
 - 非 truth 轴写入不受影响；truth 非前进写入与非 truth 轴传入的 `--receipt` 一律忽略（契约 §2）。

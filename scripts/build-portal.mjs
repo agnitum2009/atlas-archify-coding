@@ -13,6 +13,7 @@
 // 退出码：0=ok · 1=failed（用户输入/项目子目录缺失/根缺 spec/ 项目一级子目录/注册表坏 JSON）· 2=internal。
 
 import fs from 'node:fs';
+import { readProjectsRegistry } from '../lib/projects-registry.mjs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
@@ -28,6 +29,35 @@ const UMBRELLA_RE = /^(.+)-add$/;
 function fail(code, message) {
   process.stderr.write('build-portal ' + code + '：' + message + '\n');
   process.exit(1);
+}
+
+// Reject identity changes and output paths that follow existing symlinks outside the atlas.
+function assertSegment(value, kind) {
+  if (typeof value !== 'string' || value.length === 0 || value === '.' || value === '..' || /[\\/\x00-\x1f]/.test(value) || path.isAbsolute(value)) {
+    fail('bad_args', kind + ' 须为非空单目录段');
+  }
+}
+
+function assertOutputWithin(root, target) {
+  const within = (base, candidate) => {
+    const rel = path.relative(base, candidate);
+    return rel !== '..' && !rel.startsWith('..' + path.sep) && !path.isAbsolute(rel);
+  };
+  if (!within(root, target)) fail('bad_args', 'output escapes atlas root');
+  // lstat includes a symlink whose destination is missing: fail closed on realpath failure.
+  let parent = target;
+  while (true) {
+    try { fs.lstatSync(parent); break; }
+    catch (err) {
+      if (err.code !== 'ENOENT') throw err;
+      const next = path.dirname(parent);
+      if (next === parent) throw err;
+      parent = next;
+    }
+  }
+  try {
+    if (!within(fs.realpathSync(root), fs.realpathSync(parent))) fail('bad_args', 'output escapes atlas root through symlink');
+  } catch (err) { fail('bad_args', 'output parent cannot be resolved: ' + err.message); }
 }
 
 function parseArgs(argv) {
@@ -84,15 +114,17 @@ function registryPath(root) {
 
 function loadRegistry(root) {
   const p = registryPath(root);
-  if (!fs.existsSync(p)) return { schemaVersion: 1, projects: [] };
-  let data;
-  try {
-    data = JSON.parse(fs.readFileSync(p, 'utf8'));
-  } catch (err) {
-    fail('registry_invalid', 'state/projects.json 不可解析（fail-loud，不静默重建）：' + err.message);
-  }
-  if (!data || typeof data !== 'object' || !Array.isArray(data.projects)) {
-    fail('registry_invalid', 'state/projects.json 形状不符（须 {schemaVersion:1, projects:[{project, umbrella, sourcePath, firstSeen, portals}]}）');
+  const facts = readProjectsRegistry(p);
+  if (facts.status === 'missing') return { schemaVersion: 1, projects: [] };
+  if (facts.status === 'invalid') fail('registry_invalid', 'state/projects.json 不可解析：' + facts.error.message);
+  const data = facts.data;
+  const owners = new Map();
+  for (const entry of facts.entries) {
+    if (!entry || typeof entry.umbrella !== 'string') continue;
+    if (owners.has(entry.umbrella) && owners.get(entry.umbrella) !== entry.project) {
+      fail('registry_invalid', 'umbrella 映射到多个项目：' + entry.umbrella);
+    }
+    owners.set(entry.umbrella, entry.project);
   }
   if (data.schemaVersion !== 1) {
     fail('registry_invalid', 'state/projects.json schemaVersion 不支持：' + JSON.stringify(data.schemaVersion) + '（本引擎只认 1）');
@@ -160,6 +192,7 @@ function findVisualCheckPng(evidenceProjectDir, id) {
 function buildPortal(opts) {
   const root = path.resolve(opts.atlas);
   const project = opts.project;
+  assertSegment(project, 'project');
   const date = opts.init || todayYYMMDD();
   const source = opts.source !== undefined ? path.resolve(opts.source) : null;
 
@@ -197,6 +230,16 @@ function buildPortal(opts) {
     entry.sourcePath = source;
   }
   const umbrella = entry.umbrella;
+  assertSegment(umbrella, 'umbrella');
+  if (!UMBRELLA_RE.test(umbrella)) fail('registry_invalid', 'umbrella 须为 <非空前缀>-add');
+  // Validate the final selection too: default and hash fallbacks may name an existing owner.
+  if (registry.projects.some(e => e && e.umbrella === umbrella && e.project !== project)) {
+    fail('registry_invalid', 'umbrella 已登记给其他项目：' + umbrella);
+  }
+  const portalDir = path.join(root, umbrella, umbrella + '-' + date);
+  for (const target of [portalDir, path.join(portalDir, 'index.html'), registryPath(root)]) {
+    assertOutputWithin(root, target);
+  }
 
   // 按模块分组（模块目录名 <模块>-<YYMMDD>；只收 .html 交付物；排序保证幂等输出）。
   const modules = [];
@@ -282,6 +325,7 @@ function buildPortal(opts) {
     '<body>',
     '<header>',
     '<h1>' + esc(project) + ' 图集门户</h1>',
+    currentBadgeHtml(loadCurrentPortals(root).get(umbrella) || null, umbrella + '-' + date),
     '<p><strong>纯生成物，重跑本命令覆盖</strong>：node scripts/build-portal.mjs --atlas <根> --project ' + esc(project) + (opts.source !== undefined ? ' --source ' + esc(opts.source) : '') + ' [--init <YYMMDD>]</p>',
     '<p>门户目录：' + esc(umbrella + '/' + umbrella + '-' + date) + '/ · 伞：' + esc(umbrella) + (entry.sourcePath ? ' · 源仓：' + esc(entry.sourcePath) : '') + ' · 收录：' + total + ' 件交付物 / ' + modules.length + ' 个模块 · 旧期目录保留为历史</p>',
     '</header>',
@@ -293,7 +337,6 @@ function buildPortal(opts) {
   ].join('\n');
 
   // 幂等：期目录可已存在（同日期重扫 = 覆盖 index.html；旧期目录不删）。
-  const portalDir = path.join(root, umbrella, umbrella + '-' + date);
   fs.mkdirSync(portalDir, { recursive: true });
   fs.writeFileSync(path.join(portalDir, 'index.html'), html);
 
@@ -361,6 +404,35 @@ function projectCounts(root, project) {
   return counts;
 }
 
+// 现行版指针（2026-09-14 · O12；债 demo-b-debt-portal-authoritative-version）：<根>/state/current-portals.json
+// = { "<伞名>": "<期目录名>" }。缺文件/缺键 = 未声明（**零破坏**：行为与旧版一致，只标「最新」）。
+// 口径：「最新」是**时间事实**（期名日期最大），「现行」是**权威声明**（谁是可引用版）——二者不得互推；
+// 声明与最新不一致时**两处都标**并在卡内注明（诚实优先，不静默把最新当现行）。声明期不在列表中则明说。
+function loadCurrentPortals(root) {
+  const file = path.join(root, 'state', 'current-portals.json');
+  const out = new Map();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      for (const [k, v] of Object.entries(parsed)) {
+        if (typeof v === 'string' && v.length > 0) out.set(k, v);
+      }
+    }
+  } catch { /* 缺文件/坏 JSON = 未声明（生成物不因声明坏而失败） */ }
+  return out;
+}
+
+/** 项目页顶部现行行（三态：未声明 / 本页即现行 / 本页为历史且给出现行期） */
+function currentBadgeHtml(declared, periodDir) {
+  if (declared === null) {
+    return '<p class="muted">现行版：未声明（state/current-portals.json 无本条）</p>';
+  }
+  if (declared === periodDir) {
+    return '<p><strong>★ 现行版</strong>（state/current-portals.json 声明）</p>';
+  }
+  return '<p class="muted">历史版　·　现行版 = <code>' + esc(declared) + '</code>（state/current-portals.json 声明）</p>';
+}
+
 // 伞下期目录列举（两级导航第二级）：只收 <伞名>-<YYMMDD>/ 且含 index.html 的期，日期倒序（最新在前）。
 function listPeriods(root, umbrella) {
   const dir = path.join(root, umbrella);
@@ -407,6 +479,7 @@ function nowStamp(now) {
 
 function buildRootIndex(opts) {
   const root = path.resolve(opts.atlas);
+  assertOutputWithin(root, path.join(root, 'index.html'));
 
   // fail-loud：根缺 spec/ 项目一级子目录（v2/v3 版式 spec/<项目>/）即 exit 1，绝不生成空壳可视化索引。
   let specEntries;
@@ -430,7 +503,9 @@ function buildRootIndex(opts) {
 
   // a) 项目卡片区：每项目一卡——两级导航（伞 → 各期，倒序、最新标「最新」）+ 实扫计数；
   //    兼容收录根下 v2 平铺门户（最新一期 + 「建议迁移」标注，不报错）。
+  const registeredOwner = new Map(registry.projects.filter(e => e && typeof e.umbrella === 'string').map(e => [e.umbrella, e.project]));
   const cards = [];
+  const currentPortalsRoot = loadCurrentPortals(root);
   let totalSpecs = 0;
   let totalArtifacts = 0;
   let totalEvidence = 0;
@@ -446,15 +521,17 @@ function buildRootIndex(opts) {
     const claimed = new Set();
     const umbrellas = [];
     for (const e of registry.projects) {
-      if (e && e.project === proj && typeof e.umbrella === 'string') {
+      if (e && e.project === proj && typeof e.umbrella === 'string' && !claimed.has(e.umbrella)) {
         umbrellas.push({ name: e.umbrella, source: e.sourcePath || null });
         claimed.add(e.umbrella);
       }
     }
     for (const u of umbrellaDirs) {
-      if (claimed.has(u)) continue;
+      if (registeredOwner.has(u)) continue;
       const stripped = UMBRELLA_RE.exec(u)[1];
-      if (stripped === proj || stripped.startsWith(proj + '-')) {
+      const owner = projects.filter(p => stripped === p || stripped.startsWith(p + '-'))
+        .sort((a, b) => b.length - a.length || a.localeCompare(b))[0];
+      if (owner === proj) {
         umbrellas.push({ name: u, source: null });
         claimed.add(u);
       }
@@ -470,12 +547,27 @@ function buildRootIndex(opts) {
       }
       hasPortal = true;
       totalPeriods += periods.length;
-      const lis = periods.map((p, i) => '<li><a href="' + esc(p.link) + '">' + esc(p.date) + (i === 0 ? '（最新）' : '') + '</a></li>');
+      const curDeclared = currentPortalsRoot.get(u.name) || null;
+      const curHit = curDeclared === null ? null : periods.find((p) => u.name + '-' + p.date === curDeclared || p.date === curDeclared) || null;
+      const lis = periods.map((p, i) => {
+        const tags = [];
+        if (i === 0) tags.push('最新');
+        if (curHit !== null && curHit.date === p.date) tags.push('★ 现行');
+        return '<li><a href="' + esc(p.link) + '">' + esc(p.date) + (tags.length > 0 ? '（' + tags.join(' · ') + '）' : '') + '</a></li>';
+      });
+      // 声明与最新不一致（或声明期不在列表）⇒ 卡内明说，不静默以最新代现行。
+      let curNote = '';
+      if (curDeclared !== null && curHit === null) {
+        curNote = '<p class="muted">★ 声明现行 <code>' + esc(curDeclared) + '</code> 不在本期列表（声明件与目录不一致，请核）</p>';
+      } else if (curHit !== null && curHit.date !== periods[0].date) {
+        curNote = '<p class="muted">现行与最新不一致：★ 现行 <code>' + esc(curHit.date) + '</code> ／最新 <code>' + esc(periods[0].date) + '</code>（现行以声明为准）</p>';
+      }
       blocks.push(
         '<div class="umbrella">\n' +
         '<p>伞：<code>' + esc(u.name) + '/</code>' + (u.source ? ' · 源仓：<code>' + esc(u.source) + '</code>' : '') + '</p>\n' +
         '<p>初始化：' + esc(fmtYYMMDD(periods[periods.length - 1].date)) + ' · 最近重扫：' + esc(fmtYYMMDD(periods[0].date)) + ' · 期数 ' + periods.length + '</p>\n' +
         '<ul>\n' + lis.join('\n') + '\n</ul>\n' +
+        curNote +
         '</div>'
       );
     }

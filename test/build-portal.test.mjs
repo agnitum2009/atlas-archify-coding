@@ -441,3 +441,216 @@ test('build-portal --root：根缺 spec/ 项目一级子目录 = exit 1 fail-lou
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// O12 现行版标记（2026-09-14；债 demo-b-debt-portal-authoritative-version）：
+// 「最新」=时间事实、「现行」=权威声明（state/current-portals.json），二者不得互推。
+test('build-portal：现行版指针——声明即标★，声明与最新不一致时两处都标并注明', () => {
+  const root = tmpdir('portal-cur-');
+  scaffoldRoot(root);
+  scaffoldProject(root, 'demo');
+  // 两期：260815（旧，将被声明为现行）+ 260816（新=最新）
+  spawnSync(process.execPath, [PORTAL, '--atlas', root, '--project', 'demo', '--init', '260815'], { encoding: 'utf8' });
+  spawnSync(process.execPath, [PORTAL, '--atlas', root, '--project', 'demo', '--init', '260816'], { encoding: 'utf8' });
+
+  spawnSync(process.execPath, [PORTAL, '--atlas', root, '--root'], { encoding: 'utf8' });
+  // ① 未声明：两页都只有「未声明」行，根索引只标最新（零破坏）
+  let projHtml = fs.readFileSync(path.join(root, 'demo-add', 'demo-add-260816', 'index.html'), 'utf8');
+  assert.match(projHtml, /现行版：未声明/);
+  let rootHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.doesNotMatch(rootHtml, /★ 现行/);
+
+  // ② 声明 260815（旧期）为现行 ⇒ 新期页显「历史版 + 现行期」；根索引两处都标 + 不一致注记
+  fs.writeFileSync(path.join(root, 'state', 'current-portals.json'), JSON.stringify({ 'demo-add': 'demo-add-260815' }));
+  spawnSync(process.execPath, [PORTAL, '--atlas', root, '--project', 'demo', '--init', '260816'], { encoding: 'utf8' });
+  spawnSync(process.execPath, [PORTAL, '--atlas', root, '--root'], { encoding: 'utf8' });
+  projHtml = fs.readFileSync(path.join(root, 'demo-add', 'demo-add-260816', 'index.html'), 'utf8');
+  assert.match(projHtml, /历史版/);
+  assert.match(projHtml, /demo-add-260815/);
+  const curHtml = fs.readFileSync(path.join(root, 'demo-add', 'demo-add-260815', 'index.html'), 'utf8');
+  rootHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.match(rootHtml, /★ 现行/);
+  assert.match(rootHtml, /现行与最新不一致/);
+
+  // ③ 声明期不在列表 ⇒ 明说（不静默）
+  fs.writeFileSync(path.join(root, 'state', 'current-portals.json'), JSON.stringify({ 'demo-add': 'demo-add-999999' }));
+  spawnSync(process.execPath, [PORTAL, '--atlas', root, '--root'], { encoding: 'utf8' });
+  rootHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.match(rootHtml, /不在本期列表/);
+
+  // ④ 坏 JSON ⇒ 视同未声明（生成物不因声明坏而失败）
+  fs.writeFileSync(path.join(root, 'state', 'current-portals.json'), '{oops');
+  const bad = spawnSync(process.execPath, [PORTAL, '--atlas', root, '--root'], { encoding: 'utf8' });
+  assert.equal(bad.status, 0, bad.stdout + bad.stderr);
+  rootHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.doesNotMatch(rootHtml, /★ 现行/);
+  assert.ok(curHtml.length > 0);
+});
+
+
+test('portal rejects malformed identities and escaped output before registry writes', () => {
+  const base = tmpdir('portal-boundary-');
+  try {
+    const root = path.join(base, 'atlas'); scaffoldRoot(root);
+    const registryFile = path.join(root, 'state/projects.json');
+    for (const umbrella of ['../escaped-add', '/absolute-add', 'demo/escape-add', 'demo\\escape-add', '.', '..', '-add', 'demo']) {
+      const bytes = JSON.stringify({schemaVersion:1, projects:[{project:'demo', umbrella, sourcePath:null, portals:[]}]});
+      fs.writeFileSync(registryFile, bytes);
+      const r = runPortal(['--atlas', root, '--project', 'demo', '--init', '260915']);
+      assert.equal(r.status, 1, umbrella);
+      assert.equal(fs.readFileSync(registryFile, 'utf8'), bytes);
+      assert.equal(fs.existsSync(path.join(base, 'escaped-add')), false);
+    }
+    fs.rmSync(registryFile);
+    for (const project of ['../artifacts/demo', '/absolute', 'demo/escape', 'demo\\escape', '.', '..']) {
+      assert.equal(runPortal(['--atlas', root, '--project', project]).status, 1, project);
+      assert.equal(fs.existsSync(registryFile), false);
+    }
+    for (const date of ['../escape', '260915/escape', '12345', 'abcdef']) {
+      assert.equal(runPortal(['--atlas', root, '--project', 'demo', '--init', date]).status, 1);
+      assert.equal(fs.existsSync(registryFile), false);
+    }
+    const outside = path.join(base, 'outside'); fs.mkdirSync(outside);
+    fs.symlinkSync(outside, path.join(root, 'demo-add'));
+    assert.equal(runPortal(['--atlas', root, '--project', 'demo', '--init', '260915']).status, 1);
+    assert.equal(fs.existsSync(registryFile), false);
+    assert.deepEqual(fs.readdirSync(outside), []);
+    fs.rmSync(path.join(root, 'demo-add'));
+    fs.rmSync(path.join(root, 'state'), {recursive:true});
+    fs.symlinkSync(outside, path.join(root, 'state'));
+    assert.equal(runPortal(['--atlas', root, '--project', 'demo', '--init', '260915']).status, 1);
+    assert.equal(fs.existsSync(path.join(root, 'demo-add')), false);
+    assert.deepEqual(fs.readdirSync(outside), []);
+    fs.symlinkSync(path.join(outside, 'sentinel'), path.join(root, 'index.html'));
+    fs.writeFileSync(path.join(outside, 'sentinel'), 'sentinel');
+    assert.equal(runPortal(['--atlas', root, '--root']).status, 1);
+    assert.equal(fs.readFileSync(path.join(outside, 'sentinel'), 'utf8'), 'sentinel');
+  } finally { fs.rmSync(base, {recursive:true, force:true}); }
+});
+
+
+test('portal preflights leaf symlinks and preserves valid hyphenated identities', () => {
+  const base = tmpdir('portal-leaf-');
+  try {
+    const root = path.join(base, 'atlas'); scaffoldRoot(root);
+    scaffoldProject(root, 'trade-platform');
+    const args = ['--atlas', root, '--project', 'trade-platform', '--source', path.join(base, 'source'), '--init', '260915'];
+    const first = runPortal(args); assert.equal(first.status, 0, first.stderr);
+    const portalDir = path.join(root, 'trade-platform-add', 'trade-platform-add-260915');
+    const registry = path.join(root, 'state/projects.json');
+    const registryBytes = fs.readFileSync(registry, 'utf8');
+    assert.equal(runPortal(args).status, 0);
+    assert.equal(fs.readFileSync(registry, 'utf8'), registryBytes);
+    const html = fs.readFileSync(path.join(portalDir, 'index.html'), 'utf8');
+    assert.ok(html.includes('../../artifacts/trade-platform/'));
+    const outside = path.join(base, 'sentinel'); fs.writeFileSync(outside, 'sentinel');
+    fs.rmSync(path.join(portalDir, 'index.html'));
+    fs.symlinkSync(outside, path.join(portalDir, 'index.html'));
+    assert.equal(runPortal(args).status, 1);
+    assert.equal(fs.readFileSync(outside, 'utf8'), 'sentinel');
+    assert.equal(fs.readFileSync(registry, 'utf8'), registryBytes);
+    fs.rmSync(path.join(portalDir, 'index.html'));
+    fs.rmSync(registry); fs.writeFileSync(outside, registryBytes); fs.symlinkSync(outside, registry);
+    assert.equal(runPortal(args).status, 1);
+    assert.equal(fs.existsSync(path.join(portalDir, 'index.html')), false);
+    assert.equal(fs.readFileSync(outside, 'utf8'), registryBytes);
+  } finally { fs.rmSync(base, {recursive:true, force:true}); }
+});
+
+for (const registered of [false,true]) test('B3 root assigns each umbrella once, registered=' + registered, () => {
+  const root=tmpdir('portal-ownership-');
+  try {
+    scaffoldRoot(root);
+    fs.mkdirSync(path.join(root,'spec','demo-api'));
+    const u='demo-api-add';
+    fs.mkdirSync(path.join(root,u,u+'-260915'),{recursive:true});
+    fs.writeFileSync(path.join(root,u,u+'-260915','index.html'),'portal');
+    if(registered) fs.writeFileSync(path.join(root,'state','projects.json'),JSON.stringify({schemaVersion:1,projects:[{project:'demo',umbrella:u}]}));
+    const r=runPortal(['--atlas',root,'--root']);
+    assert.equal(r.status,0,r.stderr);
+    assert.match(r.stdout,/期门户：1/);
+    const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+    const pos=html.indexOf(u+'/'+u+'-260915/index.html');
+    const section=html.slice(html.lastIndexOf('<article',pos),pos);
+    assert.ok(pos >= 0);
+    assert.ok(section.includes('<h2>'+(registered?'demo':'demo-api')+'</h2>'));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('B3 conflicting umbrella owners fail before output writes',()=>{
+  const root=tmpdir('portal-conflict-');
+  try {
+    scaffoldRoot(root);
+    const reg=path.join(root,'state','projects.json');
+    const bytes=JSON.stringify({schemaVersion:1,projects:[{project:'demo',umbrella:'demo-add'},{project:'other',umbrella:'demo-add'}]});
+    fs.writeFileSync(reg,bytes);
+    for(const args of [['--root'],['--project','demo']]) {
+      const r=runPortal(['--atlas',root,...args]);
+      assert.equal(r.status,1,r.stdout);
+      assert.match(r.stderr,/registry_invalid/);
+    }
+    assert.equal(fs.existsSync(path.join(root,'index.html')),false);
+    assert.equal(fs.existsSync(path.join(root,'demo-add')),false);
+    assert.equal(fs.readFileSync(reg,'utf8'),bytes);
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+
+for (const withSource of [false, true]) test('B3 new default umbrella cannot overwrite another registered project, source=' + withSource, () => {
+  const root = tmpdir('portal-new-owner-conflict-');
+  try {
+    scaffoldRoot(root);
+    const umbrella = 'demo-add';
+    const period = path.join(root, umbrella, umbrella + '-260915');
+    fs.mkdirSync(period, { recursive: true });
+    fs.writeFileSync(path.join(period, 'index.html'), 'other project sentinel\n');
+    fs.writeFileSync(path.join(root, 'index.html'), 'root sentinel\n');
+    fs.writeFileSync(path.join(root, 'state', 'projects.json'), JSON.stringify({schemaVersion:1, projects:[
+      {project:'other', umbrella, sourcePath:'/source/other', portals:['260915']},
+    ]}, null, 2));
+    const snapshot = () => {
+      const out = {};
+      const walk = dir => {
+        for (const entry of fs.readdirSync(dir, {withFileTypes:true})) {
+          const file = path.join(dir, entry.name);
+          const rel = path.relative(root, file);
+          out[rel] = entry.isDirectory() ? 'directory' : fs.readFileSync(file).toString('base64');
+          if (entry.isDirectory()) walk(file);
+        }
+      };
+      walk(root);
+      return out;
+    };
+    const before = snapshot();
+    const r = runPortal(['--atlas',root,'--project','demo','--init','260915',
+      ...(withSource ? ['--source',path.join(root,'source')] : [])]);
+    assert.equal(r.status,1,r.stdout);
+    assert.match(r.stderr,/registry_invalid/);
+    assert.deepEqual(snapshot(),before,'all existing bytes and directory entries must remain unchanged');
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('B3 derived hash umbrella cannot overwrite another registered project', () => {
+  const root = tmpdir('portal-derived-owner-conflict-');
+  try {
+    scaffoldRoot(root);
+    const source = path.resolve('/source/demo');
+    const hash = crypto.createHash('sha256').update(source).digest('hex').slice(0,6);
+    const umbrella = 'demo-source-' + hash + '-add';
+    const entries = [
+      {project:'demo',umbrella:'demo-add',sourcePath:'/old/demo'},
+      {project:'other',umbrella:'demo-source-add'},
+      {project:'other',umbrella},
+    ];
+    const registry = path.join(root,'state','projects.json');
+    const bytes = JSON.stringify({schemaVersion:1,projects:entries});
+    fs.writeFileSync(registry,bytes);
+    const period = path.join(root,umbrella,umbrella+'-260915');
+    fs.mkdirSync(period,{recursive:true});
+    const portal = path.join(period,'index.html');
+    fs.writeFileSync(portal,'derived sentinel');
+    const r = runPortal(['--atlas',root,'--project','demo','--source',source,'--init','260915']);
+    assert.equal(r.status,1,r.stdout);
+    assert.match(r.stderr,/registry_invalid/);
+    assert.equal(fs.readFileSync(registry,'utf8'),bytes);
+    assert.equal(fs.readFileSync(portal,'utf8'),'derived sentinel');
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});

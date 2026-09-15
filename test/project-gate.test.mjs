@@ -82,7 +82,7 @@ test('⑤ seatAllowed：seats=null 全放行（条目未启用席位限制）', 
 
 test('⑥ 新建节点前缀不符 → exit 1 rule=project_prefix_gate，侧车零写入', () => {
   const { sidecar } = tmpAtlas(sharedEntries(), {});
-  const res = run(['state', 'set', '--node', 'demo-b-pi-try', '--axis', 'progress', '--value', 'planned', '--reason', '越界探针', '--owner', 'pi', '--sidecar', sidecar]);
+  const res = run(['state', 'set', '--node', 'demo-b-pi-try', '--axis', 'progress', '--value', 'planned', '--reason', '越界探针', '--owner', 'pi', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(res.code, 1);
   assert.equal(res.receipt.diagnostics[0].rule, 'project_prefix_gate');
   assert.match(res.receipt.diagnostics[0].evidence, /demo-a \| add/);
@@ -91,14 +91,14 @@ test('⑥ 新建节点前缀不符 → exit 1 rule=project_prefix_gate，侧车�
 
 test('⑦ 新建节点 demo-a-* 前缀 → 放行（共享侧车第一项目）', () => {
   const { sidecar } = tmpAtlas(sharedEntries(), {});
-  const res = run(['state', 'set', '--node', 'demo-a-gate-probe', '--axis', 'progress', '--value', 'planned', '--reason', '探针', '--owner', 'pi', '--sidecar', sidecar]);
+  const res = run(['state', 'set', '--node', 'demo-a-gate-probe', '--axis', 'progress', '--value', 'planned', '--reason', '探针', '--owner', 'pi', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(res.code, 0);
   assert.ok(readNodes(sidecar)['demo-a-gate-probe']);
 });
 
 test('⑧ 新建节点 add-* 前缀 → 放行（共享侧车第二项目并集）', () => {
   const { sidecar } = tmpAtlas(sharedEntries(), {});
-  const res = run(['state', 'set', '--node', 'add-gate-probe', '--axis', 'progress', '--value', 'planned', '--reason', '探针', '--owner', 'atlas-engine', '--sidecar', sidecar]);
+  const res = run(['state', 'set', '--node', 'add-gate-probe', '--axis', 'progress', '--value', 'planned', '--reason', '探针', '--owner', 'atlas-engine', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(res.code, 0);
   assert.ok(readNodes(sidecar)['add-gate-probe']);
 });
@@ -106,14 +106,14 @@ test('⑧ 新建节点 add-* 前缀 → 放行（共享侧车第二项目并集�
 test('⑨ 存量无前缀节点 grandfather → 仍可写（P6 存量归 doctor 提示，写路径不拦）', () => {
   const legacy = { owner: '一线席位', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [], history: [] };
   const { sidecar } = tmpAtlas(sharedEntries(), { 'diagram-legacy': legacy });
-  const res = run(['state', 'set', '--node', 'diagram-legacy', '--axis', 'progress', '--value', 'in_progress', '--reason', '存量可写', '--owner', '一线席位', '--sidecar', sidecar]);
+  const res = run(['state', 'set', '--node', 'diagram-legacy', '--axis', 'progress', '--value', 'in_progress', '--reason', '存量可写', '--owner', '一线席位', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(res.code, 0);
   assert.equal(readNodes(sidecar)['diagram-legacy'].progress, 'in_progress');
 });
 
 test('⑩ 席位不在清单 → exit 1 rule=seat_gate（set 路径）', () => {
   const { sidecar } = tmpAtlas(sharedEntries(), {});
-  const res = run(['state', 'set', '--node', 'demo-a-x', '--axis', 'progress', '--value', 'planned', '--reason', 'r', '--owner', 'intruder', '--sidecar', sidecar]);
+  const res = run(['state', 'set', '--node', 'demo-a-x', '--axis', 'progress', '--value', 'planned', '--reason', 'r', '--owner', 'intruder', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(res.code, 1);
   assert.equal(res.receipt.diagnostics[0].rule, 'seat_gate');
   assert.match(res.receipt.diagnostics[0].evidence, /一线席位, pi, owner/);
@@ -129,7 +129,7 @@ test('⑪ settle 路径席位门：外来席位 → seat_gate（中央闸覆盖�
 
 test('⑫ 条目无 seats 字段 → 席位不限（渐进启用，不锁旧用法）', () => {
   const { sidecar } = tmpAtlas([{ project: 'solo', umbrella: 'solo-add', sidecar: 'atlas-state.json' }], {});
-  const res = run(['state', 'set', '--node', 'solo-any', '--axis', 'progress', '--value', 'planned', '--reason', 'r', '--owner', 'anyone', '--sidecar', sidecar]);
+  const res = run(['state', 'set', '--node', 'solo-any', '--axis', 'progress', '--value', 'planned', '--reason', 'r', '--owner', 'anyone', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(res.code, 0);
 });
 
@@ -139,4 +139,32 @@ test('⑬ 读命令不设席位门：state get 无需 owner，外来上下文照
   const res = run(['state', 'get', '--node', 'demo-a-read', '--sidecar', sidecar]);
   assert.equal(res.code, 0);
   assert.equal(res.receipt.data.node, 'demo-a-read');
+});
+
+for (const patch of [{project:23},{project:''},{project:'../demo'},{project:'a/b'}, {seats:'trusted'}, {seats:null}, {seats:['pi',23]}, {sidecar:null}]) {
+  test('B3 malformed explicit authorization fails closed ' + JSON.stringify(patch), () => {
+    const {dir, sidecar} = tmpAtlas([{project:'demo',sidecar:'atlas-state.json',...patch}], {});
+    try {
+      const before = fs.readFileSync(sidecar,'utf8');
+      assert.throws(() => loadProjectGate(sidecar), {code:'project_gate_config_invalid'});
+      const r = run(['state','set','--node','demo-new','--axis','progress','--value','planned','--reason','probe','--owner','pi','--sidecar',sidecar,'--class','task']);
+      assert.equal(r.code,1);
+      assert.equal(r.receipt.diagnostics[0].rule,'project_gate_config_invalid');
+      assert.equal(fs.readFileSync(sidecar,'utf8'),before);
+    } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+  });
+}
+
+test('B3 empty seats denies every seat and mixed mapped entries preserve seat union',()=>{
+  for (const entries of [
+    [{project:'demo',sidecar:'atlas-state.json',seats:[]}],
+    [{project:'demo',sidecar:'atlas-state.json'},{project:'other',sidecar:'atlas-state.json',seats:['pi']}],
+  ]) {
+    const {dir,sidecar}=tmpAtlas(entries,{});
+    try {
+      const gate=loadProjectGate(sidecar);
+      assert.ok(!seatAllowed('outside',gate.seats));
+      assert.equal(seatAllowed('pi',gate.seats),entries.length===2);
+    } finally {fs.rmSync(dir,{recursive:true,force:true});}
+  }
 });

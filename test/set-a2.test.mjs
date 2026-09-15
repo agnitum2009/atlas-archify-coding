@@ -35,7 +35,7 @@ function readSidecar(sidecarPath) {
 test('① 违表 set 被拒：exit 1 illegal_transition + 裁定④提示文案，节点不动不落历史', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  const init = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位'], sidecar);
+  const init = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(init.code, 0);
 
   // in_progress→planned 不在迁移表（合法目标 verified|blocked）
@@ -56,8 +56,8 @@ test('① 违表 set 被拒：exit 1 illegal_transition + 裁定④提示文案�
 test('② 初始化例外：新节点任意状态直接写（免表）；同值写入不触发校验', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  // 节点不存在 → 初始化免表：planned 直达 blocked（迁移表外路径；0.17.0 起 verified/settled 属终态守卫另行拦截，见 state-import.test.mjs）
-  const created = run(['state', 'set', '--node', 'n2', '--axis', 'progress', '--value', 'blocked', '--reason', '播种', '--owner', '一线席位'], sidecar);
+  // 节点不存在 → 初始化免表：planned 直达 blocked（迁移表外路径；0.17.0 起 verified/settled 属终态守卫另行拦截，见 state-import.test.mjs）；O3 起建号需 --class
+  const created = run(['state', 'set', '--node', 'n2', '--axis', 'progress', '--value', 'blocked', '--reason', '播种', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(created.code, 0);
   assert.equal(created.receipt.data.to, 'blocked');
   assert.equal(created.receipt.data.receipt.rule, 'A2-init');
@@ -78,9 +78,12 @@ test('③ 首写轴例外：该轴尚无值（节点已存在）直接写；写�
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
   // 播种节点：缺 progress 轴（模拟该轴尚无值的既有节点）
-  seed(sidecar, { n3: { owner: '一线席位', truth: 'candidate', ledger: 'clean', evidence: ['spec/proj/x.json:1'], history: [] } });
+  // 真实证据文件（完成声称要求锚可解析，2026-09-15 缺陷3；本用例只关心 A2 首写例外）
+  const evFile = path.join(dir, 'ev.md');
+  fs.writeFileSync(evFile, 'evidence\n');
+  seed(sidecar, { n3: { owner: '一线席位', truth: 'candidate', ledger: 'clean', evidence: [evFile + ':1'], history: [] } });
 
-  const first = run(['state', 'set', '--node', 'n3', '--axis', 'progress', '--value', 'verified', '--reason', '首写', '--owner', '一线席位'], sidecar);
+  const first = run(['state', 'set', '--node', 'n3', '--axis', 'progress', '--value', 'verified', '--reason', '首写', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(first.code, 0);
   assert.equal(first.receipt.data.receipt.rule, 'A2-init'); // 首写免表
 
@@ -95,7 +98,7 @@ test('③ 首写轴例外：该轴尚无值（节点已存在）直接写；写�
 test('④ --correction 纠错通道：违表放行 + history corrected:true + 回执 A2-correction；--reason 仍必填', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  run(['state', 'set', '--node', 'n4', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位'], sidecar);
+  run(['state', 'set', '--node', 'n4', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--class', 'task'], sidecar);
 
   // 违表（in_progress→planned）+ --correction → 放行
   const fixed = run(['state', 'set', '--node', 'n4', '--axis', 'progress', '--value', 'planned', '--reason', '纠错回退', '--owner', '一线席位', '--correction'], sidecar);
@@ -134,7 +137,7 @@ test('⑤ truth 前进 --correction 不免除回执：无 --receipt = receipt_re
   seed(sidecar, { n5: { owner: '一线席位', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [], history: [] } });
 
   // candidate→effective 既违表又是 truth 前进：--correction 绕过 A2，但回执门禁照拦
-  const noReceipt = run(['state', 'set', '--node', 'n5', '--axis', 'truth', '--value', 'effective', '--reason', '纠错推进', '--owner', '一线席位', '--correction'], sidecar);
+  const noReceipt = run(['state', 'set', '--node', 'n5', '--axis', 'truth', '--value', 'effective', '--reason', '纠错推进', '--owner', '一线席位', '--correction', '--class', 'task'], sidecar);
   assert.equal(noReceipt.code, 1);
   assert.equal(noReceipt.receipt.diagnostics[0].rule, 'receipt_required');
   assert.notEqual(noReceipt.receipt.diagnostics[0].rule, 'illegal_transition', 'correction 应先放行 A2，拦点应落在回执门禁');
@@ -142,6 +145,8 @@ test('⑤ truth 前进 --correction 不免除回执：无 --receipt = receipt_re
   // 补回执 → 放行；history 事件带 corrected:true + receipt 字段
   const receiptFile = path.join(dir, 'r5.json');
   fs.writeFileSync(receiptFile, '{}', 'utf8');
+  // S3：truth 生效也需要可解析证据；此例继续只验证回执与 A2 纠错。
+  assert.equal(run(['state', 'evidence-add', '--node', 'n5', '--locator', receiptFile + ':1'], sidecar).code, 0);
   const ok = run(['state', 'set', '--node', 'n5', '--axis', 'truth', '--value', 'effective', '--reason', '纠错推进', '--owner', '一线席位', '--correction', '--receipt', receiptFile], sidecar);
   assert.equal(ok.code, 0);
   assert.equal(ok.receipt.data.receipt.rule, 'A2-correction');
@@ -162,7 +167,7 @@ test('⑥ truth 回退经 --correction 放行且无需回执；无旗标时被 A
   seed(sidecar, { n6: { owner: '一线席位', truth: 'effective', progress: 'planned', ledger: 'clean', evidence: [], history: [] } });
 
   // 回退（effective→candidate）无旗标：违表被拒（先于回执判定，回退本非前进）
-  const bad = run(['state', 'set', '--node', 'n6', '--axis', 'truth', '--value', 'candidate', '--reason', '回退', '--owner', '一线席位'], sidecar);
+  const bad = run(['state', 'set', '--node', 'n6', '--axis', 'truth', '--value', 'candidate', '--reason', '回退', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(bad.code, 1);
   assert.equal(bad.receipt.diagnostics[0].rule, 'illegal_transition');
 
@@ -183,7 +188,7 @@ test('⑥ truth 回退经 --correction 放行且无需回执；无旗标时被 A
 test('⑦ transition 路径行为回归不变（A2/A3/A4 全保）；合法 set 变更过表放行', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  run(['state', 'set', '--node', 'n7', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位'], sidecar);
+  run(['state', 'set', '--node', 'n7', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--class', 'task'], sidecar);
 
   // 合法 set 变更（in_progress→blocked 在迁移表内）：放行，receipt.rule=A2
   const legal = run(['state', 'set', '--node', 'n7', '--axis', 'progress', '--value', 'blocked', '--reason', '阻塞', '--owner', '一线席位'], sidecar);
@@ -207,4 +212,70 @@ test('⑦ transition 路径行为回归不变（A2/A3/A4 全保）；合法 set 
   assert.equal(wrongOwner.receipt.diagnostics[0].rule, 'owner_mismatch');
 
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+for (const scenario of [
+  { name: 'cancelled count', axis: 'progress', value: 'cancelled', progress: 'planned', evidence: [] },
+  { name: 'verified count', axis: 'progress', value: 'verified', progress: 'in_progress', evidence: [] },
+  { name: 'verified bad anchor', axis: 'progress', value: 'verified', progress: 'in_progress', evidence: ['missing:1'] },
+  { name: 'settled event', axis: 'ledger', value: 'settled', progress: 'in_progress', evidence: [] },
+]) {
+  test('S3 set actual correction marks event and receipt: ' + scenario.name, (t) => {
+    const dir = tmpDir(); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const sidecar = path.join(dir, 'atlas-state.json');
+    seed(sidecar, { n: { owner: '一线席位', progress: scenario.progress, truth: 'candidate', ledger: 'backlog', evidence: scenario.evidence.map(x => path.join(dir, x)), history: [] } });
+    const result = run(['state', 'set', '--node', 'n', '--axis', scenario.axis, '--value', scenario.value, '--owner', '一线席位', '--reason', 'repair', '--correction'], sidecar);
+    assert.equal(result.code, 0, result.stdout);
+    assert.equal(readSidecar(sidecar).nodes.n.history.at(-1).corrected, true);
+    assert.equal(result.receipt.data.receipt.rule, 'A2-correction');
+  });
+}
+
+test('S3 cancelled creation requires evidence; correction is recorded even on init', (t) => {
+  const dir = tmpDir(); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const sidecar = path.join(dir, 'atlas-state.json');
+  const args = ['state', 'set', '--node', 'n', '--axis', 'progress', '--value', 'cancelled', '--owner', '一线席位', '--reason', 'retired', '--class', 'task'];
+  const rejected = run(args, sidecar);
+  assert.equal(rejected.code, 1);
+  assert.equal(rejected.receipt.diagnostics[0].rule, 'cancelled_requires_evidence');
+  assert.equal(fs.existsSync(sidecar), false);
+  const corrected = run([...args, '--correction'], sidecar);
+  assert.equal(corrected.code, 0, corrected.stdout);
+  assert.equal(corrected.receipt.data.receipt.rule, 'A2-correction');
+  assert.equal(readSidecar(sidecar).nodes.n.history.at(-1).corrected, true);
+});
+
+for (const operation of ['set', 'transition']) {
+  for (const evidence of [[], ['missing:1']]) {
+    test(`S3 ${operation} truth effective rejects ${evidence.length ? 'bad' : 'zero'} evidence despite receipt/correction`, (t) => {
+      const dir = tmpDir(); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+      const sidecar = path.join(dir, 'atlas-state.json');
+      const receipt = path.join(dir, 'receipt.md'); fs.writeFileSync(receipt, 'owner approves');
+      seed(sidecar, { n: { owner: '一线席位', progress: 'planned', truth: 'pending_confirmation', ledger: 'clean', evidence: evidence.map(x => path.join(dir, x)), history: [] } });
+      const before = fs.readFileSync(sidecar, 'utf8');
+      const target = operation === 'set' ? ['--value', 'effective'] : ['--from', 'pending_confirmation', '--to', 'effective'];
+      const result = run(['state', operation, '--node', 'n', '--axis', 'truth', ...target, '--reason', 'approve', '--owner', '一线席位', '--receipt', receipt, '--correction'], sidecar);
+      assert.equal(result.code, 1, result.stdout);
+      assert.equal(result.receipt.diagnostics[0].rule, evidence.length ? 'evidence_unresolvable' : 'verified_requires_evidence');
+      assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
+    });
+  }
+}
+
+test('S3 valid set with correction flag alone leaves normal history and receipt; bad legacy evidence does not block metadata or same-value writes', (t) => {
+  const dir = tmpDir(); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const sidecar = path.join(dir, 'atlas-state.json');
+  const proof = path.join(dir, 'proof.md'); fs.writeFileSync(proof, 'proof\n');
+  seed(sidecar, { n: { owner: '一线席位', progress: 'in_progress', truth: 'candidate', ledger: 'clean', evidence: [proof + ':1'], history: [] } });
+  const result = run(['state', 'set', '--node', 'n', '--axis', 'progress', '--value', 'verified', '--owner', '一线席位', '--reason', 'verify', '--correction'], sidecar);
+  assert.equal(result.code, 0, result.stdout);
+  assert.equal(result.receipt.data.receipt.rule, 'A2');
+  assert.equal(readSidecar(sidecar).nodes.n.history.at(-1).corrected, undefined);
+  fs.unlinkSync(proof);
+  for (const [axis, value] of [['progress', 'verified'], ['class', 'task']]) {
+    const repair = run(['state', 'set', '--node', 'n', '--axis', axis, '--value', value, '--owner', '一线席位', '--reason', 'metadata', '--correction'], sidecar);
+    assert.equal(repair.code, 0, repair.stdout);
+    assert.equal(readSidecar(sidecar).nodes.n.history.at(-1).corrected, undefined);
+    assert.notEqual(repair.receipt.data.receipt.rule, 'A2-correction');
+  }
 });

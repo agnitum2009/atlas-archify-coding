@@ -83,7 +83,7 @@ test('runDoctor --atlas：布局校验入 checks，data.unchecked 显式列出�
   try {
     scaffoldCompliant(dir);
     const d = runDoctor({ atlas: dir });
-    assert.equal(d.checks.length, 8); // 7 常规（含 cancelled-evidence）+ atlas-layout
+    assert.equal(d.checks.length, 9); // 8 常规（含 cancelled-evidence 与 O2 head-anchor-consistency）+ atlas-layout
     const c = d.checks.find((x) => x.name === 'atlas-layout');
     assert.ok(c && c.ok, '合规样例 atlas-layout 检查应 ok');
     assert.ok(Array.isArray(d.unchecked) && d.unchecked.length >= 5, 'data.unchecked 须具名披露');
@@ -93,6 +93,31 @@ test('runDoctor --atlas：布局校验入 checks，data.unchecked 显式列出�
     const d2 = runDoctor({ atlas: dir });
     assert.equal(d2.ok, false, '缺区须使 doctor overall failed');
     assert.equal(d2.checks.find((x) => x.name === 'atlas-layout').ok, false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// 2026-09-11（e-contract 全盘扫描 G6）：数据根纳入 git 版本控制后，.git/.gitignore/.gitattributes
+// 是版本控制必需件，显式放行；普通隐藏文件仍 warning、普通散文件仍 error（对照，防放行扩大化）。
+test('validateLayout P1：git 版本控制必需件（.git/.gitignore/.gitattributes）在根下不算平铺', () => {
+  const dir = tmpdir('layout-gitroot-');
+  try {
+    scaffoldCompliant(dir);
+    fs.mkdirSync(path.join(dir, '.git'), { recursive: true });
+    fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules/\n');
+    fs.writeFileSync(path.join(dir, '.gitattributes'), '* text=auto\n');
+    const r = validateLayout(dir);
+    assert.deepEqual(
+      r.diagnostics.filter((d) => d.rule === 'P1').map((d) => d.subject),
+      [],
+      'VCS 必需件不得入 P1',
+    );
+    fs.writeFileSync(path.join(dir, '.env.local'), 'x\n');
+    fs.writeFileSync(path.join(dir, 'notes.txt'), 'x\n');
+    const p1 = validateLayout(dir).diagnostics.filter((d) => d.rule === 'P1');
+    assert.ok(p1.some((d) => d.subject === '.env.local' && d.severity === 'warning'), '普通隐藏文件仍 warning');
+    assert.ok(p1.some((d) => d.subject === 'notes.txt' && d.severity === 'error'), '普通散文件仍 error');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

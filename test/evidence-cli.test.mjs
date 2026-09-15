@@ -24,7 +24,7 @@ test('evidence-add 写入绝对化（批二）：相对 locator 落账绝对形�
   const file = path.join(dir, 'real.ts');
   fs.writeFileSync(file, 'one\ntwo\nthree\n');
   const sidecar = path.join(dir, 'atlas-state.json');
-  const set = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar]);
+  const set = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(set.code, 0, set.stdout);
 
   // 相对 locator（相对测试进程 cwd）→ 落账为绝对形态（path.resolve against cwd）。
@@ -59,7 +59,7 @@ test('evidence-add 幂等（0.11.0）：同锚重复落 = 重新加持（刷新�
   // 0.12.0 夹具扩行：两锚需相距 >3 行，避开新增 evidence_near_duplicate 近邻警告（本测试意图是幂等非近邻）。
   fs.writeFileSync(file, 'one\ntwo\nthree\nfour\nfive\nsix\n');
   const sidecar = path.join(dir, 'atlas-state.json');
-  run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar]);
+  run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar, '--class', 'task']);
 
   const first = run(['state', 'evidence-add', '--node', 'n1', '--locator', file + ':1', '--sidecar', sidecar]);
   assert.equal(first.code, 0);

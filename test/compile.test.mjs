@@ -34,7 +34,7 @@ test('compileAtlas：在途节点注入 tag 并入焦点章节；已销账节点
   const b = out.components.find((c) => c.id === 'b');
   const u = out.components.find((c) => c.id === 'untracked');
   assert.equal(a.tag, PROGRESS_TAGS.in_progress);
-  assert.equal(b.tag, PROGRESS_TAGS.verified);
+  assert.equal(b.tag, '✅ 已销账');
   assert.equal(u.tag, undefined);
   assert.deepEqual(focus, ['a']);
   assert.equal(out.meta.views[0].id, 'current-focus');
@@ -101,3 +101,56 @@ test('compileAtlas：无 states 的 diagram 不受影响（states 循环空转�
   assert.equal(focus.length, 0);
 });
 
+test('compileAtlas：verified 独立验证与销账使用不同标签', () => {
+  for (const [ledger, tag] of [['clean', '✅ 已验证'], ['backlog', '✅ 已验证'], ['settled', '✅ 已销账']]) {
+    const { out } = compileAtlas({ components: [{ id: 'n', tag: '作者标签' }] }, { nodes: { n: { progress: 'verified', ledger } } });
+    assert.equal(out.components[0].tag, tag);
+  }
+});
+
+for (const original of [undefined, '', '作者', PROGRESS_TAGS.verified]) {
+  test(`owned tags restore original ${JSON.stringify(original)} across idempotence and removal`, () => {
+    const source = { components: [{ id: 'x', ...(original === undefined ? {} : { tag: original }) }], states: [{ id: 'x', tag: '状态作者' }] };
+    const snapshot = structuredClone(source);
+    const ledger = { nodes: { x: { progress: 'verified', ledger: 'clean' } } };
+    const first = compileAtlas(source, ledger);
+    const firstSnapshot = structuredClone(first.out);
+    const repeated = compileAtlas(first.out, ledger, { previousOwnedTags: first.ownedTags });
+    assert.deepEqual(repeated.ownedTags, first.ownedTags);
+    const second = compileAtlas(repeated.out, { nodes: {} }, { previousOwnedTags: repeated.ownedTags });
+    assert.deepEqual(second.out.components, source.components);
+    assert.deepEqual(second.out.states, source.states);
+    assert.deepEqual(second.ownedTags, []);
+    assert.deepEqual(source, snapshot);
+    assert.deepEqual(first.out, firstSnapshot);
+  });
+}
+
+test('owned tags restore before ambiguous binding and preserve later author edits', () => {
+  const first = compileAtlas({ components: [{ id: 'x', tag: '作者' }] }, { nodes: { x: { progress: 'verified' } } });
+  const ambiguous = { nodes: { a: { specRefs: ['x'], progress: 'verified' }, b: { specRefs: ['x'], progress: 'verified' } } };
+  const second = compileAtlas(first.out, ambiguous, { previousOwnedTags: first.ownedTags });
+  assert.equal(second.out.components[0].tag, '作者');
+  first.out.components[0].tag = '作者后改';
+  assert.equal(compileAtlas(first.out, { nodes: {} }, { previousOwnedTags: first.ownedTags }).out.components[0].tag, '作者后改');
+});
+
+test('unknown ownership preserves and discloses legacy status tags', () => {
+  for (const tag of [...Object.values(PROGRESS_TAGS), '✅ 已销账']) {
+    const result = compileAtlas({ states: [{ id: 'x', tag }] }, { nodes: {} });
+    assert.equal(result.out.states[0].tag, tag);
+    assert.deepEqual(result.unknownOwnership, [{ collection: 'states', id: 'x', tag }]);
+  }
+});
+
+test('explicit old tag wording is restored; malformed and duplicate ownership rejected', () => {
+  const entry = { collection: 'components', id: 'x', written: '旧引擎文字', original: { present: false } };
+  assert.equal(Object.hasOwn(compileAtlas({ components: [{ id: 'x', tag: entry.written }] }, {}, { previousOwnedTags: [entry] }).out.components[0], 'tag'), false);
+  for (const previousOwnedTags of [null, {}, [entry, entry], [{ ...entry, collection: 'other' }], [{ ...entry, id: '' }], [{ ...entry, written: 3 }], [{ ...entry, extra: true }], [{ ...entry, original: { present: true } }], [{ ...entry, original: { present: false, value: '' } }]]) {
+    assert.throws(() => compileAtlas({ components: [{ id: 'x' }] }, {}, { previousOwnedTags }), { code: 'bad_input' });
+  }
+});
+
+test('duplicate diagram identities cannot produce ambiguous ownership receipts', () => {
+  assert.throws(() => compileAtlas({ components: [{ id: 'x' }, { id: 'x' }] }, { nodes: { x: { progress: 'verified' } } }), { code: 'bad_input' });
+});

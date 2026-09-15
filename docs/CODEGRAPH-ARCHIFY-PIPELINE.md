@@ -49,3 +49,5 @@
 - 不把 codegraph 读进引擎内核（lib/ 零引用保持；可退出=删纪律文本即零残留）；
 - 不动 archify schema（外部上游）；
 - 不用 codegraph 的行号/存在性当最终证据（提名不是证据）。
+
+覆盖口径：只有实际执行同仓索引查询的边才计入 coverage.checked；无索引、跨仓与图内自锚先分类为未检查，显式 kind 不得跳过此范围判断。真实查询后无边才计 withoutEvidence。

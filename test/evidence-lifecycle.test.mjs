@@ -34,7 +34,7 @@ function seedWorkspace(nodeId) {
   fs.writeFileSync(path.join(dir, 'a.ts'), 'alpha\nbravo\ncharlie\n');
   fs.writeFileSync(path.join(dir, 'b.ts'), 'one\ntwo\n');
   const sidecar = path.join(dir, 'atlas-state.json');
-  const set = run(['state', 'set', '--node', nodeId, '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--sidecar', sidecar]);
+  const set = run(['state', 'set', '--node', nodeId, '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--class', 'task', '--sidecar', sidecar]);
   assert.equal(set.code, 0, set.stdout);
   return { dir, sidecar, a1: path.join(dir, 'a.ts') + ':1', b2: path.join(dir, 'b.ts') + ':2' };
 }
@@ -42,6 +42,29 @@ function seedWorkspace(nodeId) {
 function readNode(sidecar, nodeId) {
   return loadSidecar(sidecar).nodes[nodeId];
 }
+
+// sa-21 配套（2026-09-14）：--reason 入 history —— evidence-add/reanchor 此前接受该旗标（state 旗标白名单
+// 内）但静默丢弃，落锚理由无处存。现写入对应 history 事件；缺省不写字段（旧调用零变化）。
+test('evidence-add/reanchor --reason 入 history 事件（缺省不写；旧调用零变化）', () => {
+  const { dir, sidecar, a1, b2 } = seedWorkspace('rs1');
+  const add = run(['state', 'evidence-add', '--node', 'rs1', '--locator', a1, '--reason', '过渡锚：主检出路径待合并后生效', '--sidecar', sidecar]);
+  assert.equal(add.code, 0, add.stdout);
+  const ev = readNode(sidecar, 'rs1').history.filter((h) => h.kind === 'evidence-add');
+  assert.equal(ev.length, 1);
+  assert.equal(ev[0].reason, '过渡锚：主检出路径待合并后生效');
+
+  const add2 = run(['state', 'evidence-add', '--node', 'rs1', '--locator', b2, '--sidecar', sidecar]);
+  assert.equal(add2.code, 0, add2.stdout);
+  const ev2 = readNode(sidecar, 'rs1').history.filter((h) => h.kind === 'evidence-add');
+  assert.equal(ev2.length, 2);
+  assert.equal(Object.prototype.hasOwnProperty.call(ev2[1], 'reason'), false, '未传 --reason 不写字段');
+
+  const re = run(['state', 'evidence-reanchor', '--node', 'rs1', '--from', b2, '--to', b2, '--reason', '刷新哈希', '--sidecar', sidecar]);
+  assert.equal(re.code, 0, re.stdout);
+  const rev = readNode(sidecar, 'rs1').history.filter((h) => h.kind === 'evidence-reanchor');
+  assert.equal(rev[0].reason, '刷新哈希');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
 
 test('evidence-remove 成功：数组与 meta 双清、history 记事件、回执形状 {node, removed, remaining}', () => {
   const { dir, sidecar, a1, b2 } = seedWorkspace('r1');
@@ -121,7 +144,7 @@ test('evidence-reanchor 成功（drifted 处置规范路径）：旧走新来、
   const res = run(['state', 'evidence-reanchor', '--node', 'r5', '--from', a1, '--to', b2, '--sidecar', sidecar]);
   assert.equal(res.code, 0, res.stdout);
   assert.equal(res.receipt.status, 'ok');
-  assert.deepEqual(res.receipt.data, { node: 'r5', from: a1, to: b2, hash: readNode(sidecar, 'r5').evidenceMeta[b2].h });
+  assert.deepEqual(res.receipt.data, { node: 'r5', from: a1, to: b2, hash: readNode(sidecar, 'r5').evidenceMeta[b2].h, anchorRoot: { gate: 'inactive', matched: null, exempted: false, source: null } });
 
   const node = readNode(sidecar, 'r5');
   assert.deepEqual(node.evidence, [b2], '旧锚走、新锚来（长度 1——中途无零证据瞬间，声称节点 A3 全程不破）');
@@ -221,4 +244,20 @@ test('CAS 路径：成功操作恰 +1 revision 且锁释放（与 store 测试�
   assert.equal(loadSidecar(sidecar).revision, revMid + 1, 'reanchor 单次 save：revision 恰 +1（原子性=一次 CAS 写入）');
   assert.equal(fs.existsSync(sidecar + '.lock'), false);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('S3 cancelled cannot remove last evidence even with correction; removing bad anchors remains possible', (t) => {
+  const { dir, sidecar, a1 } = seedWorkspace('cancel');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const bad = path.join(dir, 'missing.ts') + ':1';
+  for (const locator of [a1, bad]) assert.equal(run(['state', 'evidence-add', '--node', 'cancel', '--locator', locator, '--sidecar', sidecar]).code, 0);
+  assert.equal(run(['state', 'set', '--node', 'cancel', '--axis', 'progress', '--value', 'cancelled', '--reason', 'retire', '--owner', '一线席位', '--correction', '--sidecar', sidecar]).code, 0);
+  assert.equal(run(['state', 'evidence-remove', '--node', 'cancel', '--locator', a1, '--sidecar', sidecar]).code, 0, 'remaining bad anchor must not block removal');
+  const before = fs.readFileSync(sidecar, 'utf8');
+  const rejected = run(['state', 'evidence-remove', '--node', 'cancel', '--locator', bad, '--correction', '--sidecar', sidecar]);
+  assert.equal(rejected.code, 1, rejected.stdout);
+  assert.equal(rejected.receipt.diagnostics[0].rule, 'verified_requires_evidence');
+  assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
+  assert.equal(run(['state', 'evidence-add', '--node', 'cancel', '--locator', a1, '--sidecar', sidecar]).code, 0);
+  assert.equal(run(['state', 'evidence-remove', '--node', 'cancel', '--locator', bad, '--sidecar', sidecar]).code, 0);
 });

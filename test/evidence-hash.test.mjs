@@ -76,7 +76,7 @@ test('evidence-add 落哈希：evidenceMeta 值精确（trim 后 sha256 前 12�
   const f = path.join(dir, 'real.ts');
   fs.writeFileSync(f, 'one\ntwo  \nthree\n');
   const sidecar = path.join(dir, 'atlas-state.json');
-  const set = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar]);
+  const set = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(set.code, 0, set.stdout);
   const add = run(['state', 'evidence-add', '--node', 'n1', '--locator', f + ':2', '--sidecar', sidecar]);
   assert.equal(add.code, 0, add.stdout);
@@ -92,7 +92,7 @@ test('evidence-add 落哈希：evidenceMeta 值精确（trim 后 sha256 前 12�
 test('evidence-add 行读取失败不阻断落锚：文件缺仍成功写入锚，无 evidenceMeta 条目（=unhashed）', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar]);
+  run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar, '--class', 'task']);
   const add = run(['state', 'evidence-add', '--node', 'n1', '--locator', path.join(dir, 'ghost.ts') + ':1', '--sidecar', sidecar]);
   assert.equal(add.code, 0, '锚已过格式校验，读取失败不阻断落锚：' + add.stdout);
   const side = JSON.parse(fs.readFileSync(sidecar, 'utf8'));

@@ -39,7 +39,7 @@ function readSidecar(p) {
 test('版本戳：state set 产生的 history 事件含 engine=package.json version', () => {
   const dir = tmpDir();
   const sidecar = seedSidecar(dir);
-  const r = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--sidecar', sidecar]);
+  const r = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(r.code, 0, r.stdout);
   const sc = readSidecar(sidecar);
   assert.equal(sc.nodes.n1.history.length, 1);
@@ -50,7 +50,9 @@ test('版本戳：state set 产生的 history 事件含 engine=package.json vers
 
 test('版本戳：state settle 产生的 history 事件含 engine=package.json version', () => {
   const dir = tmpDir();
-  const sidecar = seedSidecar(dir, { n1: { owner: '一线席位', truth: 'candidate', progress: 'in_progress', ledger: 'backlog', evidence: ['data/x.md:1'], history: [] } });
+  const evFile = path.join(dir, 'ev.md');
+  fs.writeFileSync(evFile, 'evidence\n'); // 完成声称要求锚可解析（2026-09-15 缺陷3）
+  const sidecar = seedSidecar(dir, { n1: { owner: '一线席位', truth: 'candidate', progress: 'in_progress', ledger: 'backlog', evidence: [evFile + ':1'], history: [] } });
   const r = run(['state', 'settle', '--node', 'n1', '--reason', '验收通过', '--owner', '一线席位', '--sidecar', sidecar]);
   assert.equal(r.code, 0, r.stdout);
   const sc = readSidecar(sidecar);

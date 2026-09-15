@@ -171,3 +171,12 @@ test('validateLayout v3：根下 v2 平铺门户 = warning 非 error（存量宽
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('B3 conflicting registered umbrella owners produce registry warning',()=>{
+  const root=tmpdir('layout-conflict-');
+  try {
+    scaffoldV3(root);
+    fs.writeFileSync(path.join(root,'state','projects.json'),JSON.stringify({schemaVersion:1,projects:[{project:'demo',umbrella:'demo-add'},{project:'other',umbrella:'demo-add'}]}));
+    assert.ok(validateLayout(root).diagnostics.some(d=>d.rule==='layout.registry' && d.severity==='warning' && /demo-add/.test(d.evidence)));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});

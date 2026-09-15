@@ -127,3 +127,33 @@ test('P5 畸形形式仍 warning（git+非十六进制/短 SHA/裸 SHA），空�
     fs.rmSync(atlas, { recursive: true, force: true });
   }
 });
+
+// 2026-09-11（e-contract 全盘扫描 G6）：data/<项目>/ 的提交级证据可属该项目**源仓**
+// （state/projects.json sourcePath），而非数据根自身——实证 data/add/add-command-progress.csv
+// 记的是 atlas-engine 提交。根仓未命中回退源仓；两处皆无才报 broken（不伪报）。
+test('P5 跨仓证据：SHA 属项目 sourcePath 源仓时不再报 broken；两仓皆无仍报', () => {
+  const src = gitRepoWithCommit('p5-src-');
+  const atlas = fs.mkdtempSync(path.join(os.tmpdir(), 'p5-xrepo-'));
+  try {
+    scaffoldAtlas(atlas);
+    fs.mkdirSync(path.join(atlas, 'state'), { recursive: true });
+    fs.writeFileSync(
+      path.join(atlas, 'state', 'projects.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        projects: [{ project: 'demo', umbrella: 'demo-add', sourcePath: src.dir, firstSeen: '260817', portals: [] }],
+      }) + '\n',
+    );
+    const ghost = '0123456789abcdef0123456789abcdef01234567';
+    writeCsv(atlas, ['src-row,git ' + src.sha, 'ghost-row,git ' + ghost]);
+    // 数据根自身非 git 仓、无 ATLAS_GIT_ROOT：唯一候选 = 该项目源仓。
+    const r = withEnv('ATLAS_GIT_ROOT', undefined, () => validateLayout(atlas));
+    const broken = r.diagnostics.filter((x) => x.rule === 'p5-sha-broken');
+    assert.equal(broken.length, 1, '仅源仓也没有的幽灵 SHA 报 broken');
+    assert.equal(broken[0].subject, 'data/demo/progress.csv:3');
+    assert.ok(broken[0].evidence.includes('源仓'), '诊断须显示已尝试源仓，便于定位');
+  } finally {
+    fs.rmSync(src.dir, { recursive: true, force: true });
+    fs.rmSync(atlas, { recursive: true, force: true });
+  }
+});

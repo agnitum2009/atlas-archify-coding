@@ -1,24 +1,8 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.17.0",
+  "sourceVersion": "0.19.0",
   "files": [
-    {
-      "path": ".codegraph/.gitignore",
-      "sha256": "47c0dacebca9f56c"
-    },
-    {
-      "path": ".codegraph/codegraph.db",
-      "sha256": "0afebc59024dd0a5"
-    },
-    {
-      "path": ".codegraph/codegraph.db-shm",
-      "sha256": "fd4c9fda9cd3f9ae"
-    },
-    {
-      "path": ".codegraph/codegraph.db-wal",
-      "sha256": "e3b0c44298fc1c14"
-    },
     {
       "path": ".github/workflows/ci.yml",
       "sha256": "09c2543b23d241ac"
@@ -41,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "11e18157ca8bf5c0"
+      "sha256": "14f5b638fb9d0979"
     },
     {
       "path": "SECURITY.md",
@@ -53,23 +37,23 @@
     },
     {
       "path": "docs/CODEGRAPH-ARCHIFY-PIPELINE.md",
-      "sha256": "a4d4ab8805ecfe83"
+      "sha256": "e47567d628bea8b0"
     },
     {
       "path": "docs/DEFENSIVE.md",
-      "sha256": "c375dd3be259a873"
+      "sha256": "baffdec578cb6213"
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "3af99cb42bedf064"
+      "sha256": "d6ae911a96f4697f"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
-      "sha256": "68d4dbe114296837"
+      "sha256": "75f72a7deef0111e"
     },
     {
       "path": "docs/USAGE.md",
-      "sha256": "f7bb404933a41578"
+      "sha256": "5acd7f92e9aba996"
     },
     {
       "path": "fixtures/atlas-seed/add-state-axes.json",
@@ -80,24 +64,36 @@
       "sha256": "5e7580acb78eb765"
     },
     {
+      "path": "lib/anchor-roots.mjs",
+      "sha256": "03ed81bc2a1b5d7c"
+    },
+    {
+      "path": "lib/atlas-data.mjs",
+      "sha256": "7fe4156706b12486"
+    },
+    {
+      "path": "lib/cli-options.mjs",
+      "sha256": "2e29ef8e7e55cb1b"
+    },
+    {
       "path": "lib/cli-util.mjs",
-      "sha256": "5532c30ee4af5400"
+      "sha256": "968924b0147c15ad"
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "ef059890ef1a42c7"
+      "sha256": "f626097cbc165241"
     },
     {
       "path": "lib/compile.mjs",
-      "sha256": "9f998a2d37efe788"
+      "sha256": "ac58ba508479bc87"
     },
     {
       "path": "lib/diff.mjs",
-      "sha256": "fb2f541531d55855"
+      "sha256": "babd73810356b489"
     },
     {
       "path": "lib/doctor.mjs",
-      "sha256": "9605c9d7014fcc56"
+      "sha256": "ca941ee0b66d4e14"
     },
     {
       "path": "lib/envelope.mjs",
@@ -105,23 +101,23 @@
     },
     {
       "path": "lib/evidence.mjs",
-      "sha256": "3a2bb8e20bf247dd"
+      "sha256": "25a8088005afe38a"
     },
     {
       "path": "lib/gate.mjs",
-      "sha256": "1c3edbede85a0a61"
+      "sha256": "8ea95b6067279072"
     },
     {
       "path": "lib/init.mjs",
-      "sha256": "42bc62df83f20a7a"
+      "sha256": "3ddc202dfe7f51a9"
     },
     {
       "path": "lib/layout.mjs",
-      "sha256": "fdea736bd7cee6db"
+      "sha256": "06ab6ceef63ae7ce"
     },
     {
       "path": "lib/lessons.mjs",
-      "sha256": "2f085a837547ab32"
+      "sha256": "a8ed3b47d38bc34d"
     },
     {
       "path": "lib/notice.mjs",
@@ -129,31 +125,43 @@
     },
     {
       "path": "lib/project-gate.mjs",
-      "sha256": "a2454af0f943c1f2"
+      "sha256": "9931cb1b83e17cb3"
+    },
+    {
+      "path": "lib/projects-registry.mjs",
+      "sha256": "745a10ef099e296a"
     },
     {
       "path": "lib/report.mjs",
-      "sha256": "6f17639315c85ffc"
+      "sha256": "5dc41b4b5f1b1cb9"
     },
     {
       "path": "lib/resolve-archify.mjs",
       "sha256": "1ccbdaf8ef442bda"
     },
     {
+      "path": "lib/spec-id.mjs",
+      "sha256": "3752cf5631a24a88"
+    },
+    {
       "path": "lib/state-machine.mjs",
-      "sha256": "bc3a2bb6b9f826e3"
+      "sha256": "a018ee136946fb88"
+    },
+    {
+      "path": "lib/state-policy.mjs",
+      "sha256": "fe225b7361428288"
     },
     {
       "path": "lib/store.mjs",
-      "sha256": "32ed8169de212b19"
+      "sha256": "d61f1af8ed0cbb3d"
     },
     {
       "path": "lib/trace.mjs",
-      "sha256": "42a63d4ba157862c"
+      "sha256": "7a4ce3e9a33acb13"
     },
     {
       "path": "lib/truth-receipt.mjs",
-      "sha256": "1d5f2b9325473681"
+      "sha256": "1826bd969839ff02"
     },
     {
       "path": "lib/version.mjs",
@@ -161,7 +169,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "7ad2d9df8753f7ef"
+      "sha256": "19a40763bd1f63cb"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -169,15 +177,15 @@
     },
     {
       "path": "scripts/build-portal.mjs",
-      "sha256": "170bb85b3aa8fa46"
+      "sha256": "890a23f57639f35a"
     },
     {
       "path": "scripts/check-codegraph-freshness.mjs",
-      "sha256": "090bd900a04895a5"
+      "sha256": "119c9d0ad79634ca"
     },
     {
       "path": "scripts/check-public-privacy.mjs",
-      "sha256": "15f89e40f35bb614"
+      "sha256": "016a70074a27a1af"
     },
     {
       "path": "scripts/reanchor-moved.mjs",
@@ -185,15 +193,11 @@
     },
     {
       "path": "scripts/reconcile-graph-edges.mjs",
-      "sha256": "e3e63d093f80c17d"
+      "sha256": "7eab7487dccde3ef"
     },
     {
       "path": "scripts/verify-contract-freshness.mjs",
       "sha256": "d6dbff1b49586c52"
-    },
-    {
-      "path": "scripts/verify-plugin-bundle.cjs",
-      "sha256": "3d368f97ca3a7d33"
     },
     {
       "path": "scripts/verify-release-version.mjs",
@@ -201,87 +205,111 @@
     },
     {
       "path": "specs/ADD-SPEC.md",
-      "sha256": "c4961c6bbaff018d"
+      "sha256": "c5a4f744180b4a96"
     },
     {
       "path": "specs/atlas-layout.md",
-      "sha256": "aebbd58e4b6ad7c2"
+      "sha256": "6c106bbedcf125ba"
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "4c6069ecdedb8924"
+      "sha256": "2a28d14f1007ca8d"
     },
     {
       "path": "specs/snapshot-policy.md",
-      "sha256": "3fa1647f75824793"
+      "sha256": "95040edb190024e7"
     },
     {
       "path": "test/a1a2a3d3.test.mjs",
       "sha256": "503faf1b2d6ba8b3"
     },
     {
+      "path": "test/anchor-roots.test.mjs",
+      "sha256": "6c479be900f8a4b7"
+    },
+    {
       "path": "test/archify-adapt.test.mjs",
-      "sha256": "925e3a6cee450df3"
+      "sha256": "a10c39956ff7a1dc"
+    },
+    {
+      "path": "test/atlas-data.test.mjs",
+      "sha256": "1602ceb972994526"
     },
     {
       "path": "test/auto-trace.test.mjs",
-      "sha256": "495f42aa2a600fe3"
+      "sha256": "31f5895e9825164a"
     },
     {
       "path": "test/build-portal.test.mjs",
-      "sha256": "7b6bdfd4d5647d51"
+      "sha256": "1567e022bbfa31b9"
     },
     {
       "path": "test/cli-error-codes.test.mjs",
-      "sha256": "03b0645d71e110d2"
+      "sha256": "b22add4f5c9afd8c"
     },
     {
       "path": "test/codegraph-freshness.test.mjs",
-      "sha256": "1228ea60d1746e5d"
+      "sha256": "a782d0d15b3e3db7"
+    },
+    {
+      "path": "test/compile-receipt.test.mjs",
+      "sha256": "af04d1260cbe5e34"
     },
     {
       "path": "test/compile.test.mjs",
-      "sha256": "d3f21fa8235f676a"
+      "sha256": "694afe944b1df10a"
     },
     {
       "path": "test/deprecated.test.mjs",
-      "sha256": "4df8d75ed39f52a0"
+      "sha256": "3991e5f2a482c4eb"
     },
     {
       "path": "test/diff-cli.test.mjs",
-      "sha256": "d8c2c8afb2ce497c"
+      "sha256": "59789838bc11ec6f"
     },
     {
       "path": "test/diff.test.mjs",
-      "sha256": "63c474e48b22c6f7"
+      "sha256": "58271a5444f1d4ba"
     },
     {
       "path": "test/doctor.test.mjs",
-      "sha256": "1640e3b23760058d"
+      "sha256": "9eacb7ec719bc84c"
     },
     {
       "path": "test/evidence-cli.test.mjs",
-      "sha256": "bf9f021b9d806c89"
+      "sha256": "f61dcdbac059b603"
     },
     {
       "path": "test/evidence-hash.test.mjs",
-      "sha256": "f6dce4cdde5eeefe"
+      "sha256": "6842863cc7cffb64"
     },
     {
       "path": "test/evidence-lifecycle.test.mjs",
-      "sha256": "2b64f53dee3d5572"
+      "sha256": "587c00421db01854"
     },
     {
       "path": "test/evidence.test.mjs",
       "sha256": "186c76d79ba60ed9"
     },
     {
+      "path": "test/fake-archify.mjs",
+      "sha256": "79fb599d87ce4752"
+    },
+    {
       "path": "test/field-2026-08-23.test.mjs",
-      "sha256": "7ec4ba4670d792fc"
+      "sha256": "6eaaa6002c104a4d"
     },
     {
       "path": "test/flag-guard.test.mjs",
-      "sha256": "d01c40544e2e7f99"
+      "sha256": "29cc6c331967e72a"
+    },
+    {
+      "path": "test/gate-detail.test.mjs",
+      "sha256": "ab0bd812fd3972e4"
+    },
+    {
+      "path": "test/head-anchor.test.mjs",
+      "sha256": "3ac3e2e25f1e5dd3"
     },
     {
       "path": "test/help-cli.test.mjs",
@@ -289,7 +317,7 @@
     },
     {
       "path": "test/init-cli.test.mjs",
-      "sha256": "0560fe37e636df25"
+      "sha256": "b6f330e11d23c688"
     },
     {
       "path": "test/layout-v2.test.mjs",
@@ -297,11 +325,11 @@
     },
     {
       "path": "test/layout-v3.test.mjs",
-      "sha256": "5b775c68a4328bcb"
+      "sha256": "32710da369ac0ef6"
     },
     {
       "path": "test/layout.test.mjs",
-      "sha256": "2e8e3560d30d2ddc"
+      "sha256": "08ff317edd91aefc"
     },
     {
       "path": "test/ledger-size-config.test.mjs",
@@ -309,39 +337,43 @@
     },
     {
       "path": "test/lessons-hit.test.mjs",
-      "sha256": "71f69693cd450778"
+      "sha256": "7788027cdd878d73"
     },
     {
       "path": "test/meta-node.test.mjs",
-      "sha256": "053ae5a202b7a3d6"
+      "sha256": "1ba916128d152206"
     },
     {
       "path": "test/nonaccounts.test.mjs",
-      "sha256": "f562b9851d0f7db8"
+      "sha256": "5d3d4e09a338c413"
     },
     {
       "path": "test/notice.test.mjs",
-      "sha256": "f1ea9a63d1202d92"
+      "sha256": "444b62c7f8b5315e"
+    },
+    {
+      "path": "test/o3-class-axis.test.mjs",
+      "sha256": "39831e3365d7afab"
     },
     {
       "path": "test/p5-sha.test.mjs",
-      "sha256": "26bead895343b7db"
+      "sha256": "d93113ef750853c6"
     },
     {
       "path": "test/project-gate.test.mjs",
-      "sha256": "ebbbe2743d3bf6c0"
+      "sha256": "1e74d5f79f687f76"
     },
     {
       "path": "test/reconcile-graph-edges.test.mjs",
-      "sha256": "141d1f421e3a02a8"
+      "sha256": "3fd0d1f64c421ee5"
     },
     {
       "path": "test/report-a1.test.mjs",
-      "sha256": "09dc21849e178706"
+      "sha256": "7b51236c13b52436"
     },
     {
       "path": "test/report-gate.test.mjs",
-      "sha256": "989f8b8c3e071bca"
+      "sha256": "32aae2e06af26d89"
     },
     {
       "path": "test/report-replay.test.mjs",
@@ -353,39 +385,63 @@
     },
     {
       "path": "test/set-a2.test.mjs",
-      "sha256": "1143131502fceca6"
+      "sha256": "1b425e841e5def0f"
     },
     {
       "path": "test/settle-binding.test.mjs",
-      "sha256": "64be812a444048c8"
+      "sha256": "df4f23c4fac3ad8f"
     },
     {
       "path": "test/state-cli.test.mjs",
-      "sha256": "634f72ad7c781147"
+      "sha256": "4812d81f13e75246"
+    },
+    {
+      "path": "test/state-closure.test.mjs",
+      "sha256": "4b1bd7e628ad1a75"
     },
     {
       "path": "test/state-import.test.mjs",
-      "sha256": "f9f8eb6e1d91eab6"
+      "sha256": "a32004afe430f0ae"
     },
     {
       "path": "test/state-machine.test.mjs",
       "sha256": "065903db3093d010"
     },
     {
+      "path": "test/state-policy.test.mjs",
+      "sha256": "2d343f5cea6c3a9a"
+    },
+    {
+      "path": "test/state-sidecar-identity.test.mjs",
+      "sha256": "33f785a02b73947c"
+    },
+    {
+      "path": "test/state-transition-guard.test.mjs",
+      "sha256": "980d58d429c88dbc"
+    },
+    {
       "path": "test/store.test.mjs",
-      "sha256": "2fccf876c6f644a5"
+      "sha256": "1e82bc43f2cca3fb"
+    },
+    {
+      "path": "test/trace-identity.test.mjs",
+      "sha256": "be38ab99e3932ec7"
     },
     {
       "path": "test/trace-lessons.test.mjs",
-      "sha256": "1b2caa718cc06393"
+      "sha256": "1ffc721720c979c8"
     },
     {
       "path": "test/truth-receipt.test.mjs",
-      "sha256": "9f670dd1cd940018"
+      "sha256": "4f574aa1ffbbab30"
+    },
+    {
+      "path": "test/usage-flow.test.mjs",
+      "sha256": "71f53a514338f61b"
     },
     {
       "path": "test/version-stamp.test.mjs",
-      "sha256": "a45dcd5122057e6d"
+      "sha256": "cae42cff316fb600"
     }
   ]
 }

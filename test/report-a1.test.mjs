@@ -280,7 +280,11 @@ test('A1e：class 已声明节点豁免图绑定核对（classExempted 计数）
   const r = buildReport(sidecar, { specs: [specOf(['bound-node'])] });
   const unmatched = r.warnings.filter((w) => w.rule === 'a1-unmatched-account');
   assert.deepEqual(unmatched.map((w) => w.subject), ['structural-unbound']);
-  assert.equal(r.a1.classExempted, 3, '三个已分类节点全部豁免：' + JSON.stringify(r.a1));
+  // 2026-09-15（缺陷4）：先判「是否已绑定」，class 豁免只统计**未绑定**的已分类节点——
+  // bound-node 已入图 ⇒ 计入 coverage.matched（旧口径把它算作 classExempted，等于把「已绑定」写成「豁免」）。
+  assert.equal(r.a1.classExempted, 2, '仅未绑定的已分类节点计入豁免：' + JSON.stringify(r.a1));
+  assert.equal(r.a1.coverage.matched, 1, '已绑定的已分类节点入 matched：' + JSON.stringify(r.a1.coverage));
+  assert.equal(r.a1.coverage.denominator, 4, '分母 = ledgerNodes - metaExempted，如实给数');
   assert.equal(r.a1.warnings, 1, '仅未分类未绑定节点成警：' + JSON.stringify(r.a1));
 });
 
@@ -297,7 +301,7 @@ test('A3：图件 id 与节点 id 仅差 demo-b- 前缀或大小写 ⇒ 归一�
     schemaVersion: 1,
     nodes: { 'demo-b-contract-center': nodeOf({ class: 'task' }) },
   };
-  const r = buildReport(sidecar, { specs: [specOf(['Contract-Center'])] });
+  const r = buildReport(sidecar, { specs: [specOf(['Contract-Center'])], specNames: ['diagram-x'] });
   assert.equal(r.a1.diagramLocalIds, 0, JSON.stringify(r.a1));
   assert.equal(r.warnings.filter((w) => w.rule === 'a1-unaccounted-node').length, 0);
 });

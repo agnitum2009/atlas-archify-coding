@@ -8,17 +8,9 @@
 
 ## 治理（增长控制开发规范批一#2/#4，2026-08-15）
 
-**预算硬顶**：命令数 ≤ 11（当前 **10**——v0.10.0 移除 evidence 顶层命令后**腾出 1 个名额**；硬顶不随实数回落，理由：退役的目的是为增长让路（负责人 2026-08-17 令），若硬顶跟着降则等于永久冻结能力面，违反 Lehman 法则 6「功能内容须持续增长以维持适用性」。占用该名额仍须过能力准入五问 + 出具采用率基线，见 docs/ADOPTION-BASELINE-2026-08-17.md）；全仓唯一旗标总数 ≤ 50（当前 47——0.17.0 state import 增 source/cutoff；scripts/verify-contract-freshness.mjs 从注册表 flags 字段聚合统计，不 grep 文本）。超限 = 门禁 exit 1 并打印「预算超限=强制一次显式决定:提预算或退一个旗标」——加项必须显式换入，禁止静默膨胀。
+**预算硬顶**：命令数 ≤11、全仓唯一旗标 ≤50；占用数由 `scripts/verify-contract-freshness.mjs` 从注册表计算。新增能力仍须过下列准入五问；超限必须显式换入或退役，不随本批修复提高预算。
 
-**本体边界（负责人裁定 2026-08-17，前置于下列五问）**：ADD 的问题域 = **已开工、中后期失去进度掌控的项目**
-（「开了头不知道如何收」）。**从零开始的项目不是本工具的场景**——这类工具已极多，兼顾会让本体累贅，
-什么都做反而做不好。故 **第 0 问：这个能力服务的是「中后期项目重获进度掌控」，还是「更好地开一个新项目」？
-后者一律拒**，不进入下列五问。
-
-> 实据与重分类（同日实测）：空目录上 `init/doctor/state set/evidence-add/settle/evidence-reanchor` 全链其实跑得通
-> （设计期以 ADR 为实相落锚，代码落地后 reanchor 转移）；但 init 种子图 `components: []` 过不了 archify 的
-> `minItems: 1`、且 init 回执零指引。**按本边界，这不是缺陷而是场景外，不予修补**——显式记于此，
-> 以免日后被当成未修债重新捡起（即 36-R1 查证里那类「假债」的反面防范）。
+**本体边界（负责人裁定 2026-08-17，前置于下列五问）**：ADD 的问题域 = **已开工、中后期失去进度掌控的项目**（「开了头不知道如何收」）。**从零开始的项目不是本工具的场景**——这类工具已极多，兼顾会让本体累贅，什么都做反而做不好。故 **第 0 问：这个能力服务的是「中后期项目重获进度掌控」，还是「更好地开一个新项目」？后者一律拒**，不进入下列五问。空目录上 init 链实测可跑但属场景外，不予修补（防被当成未修债反复捡起）。
 
 **能力准入五问**（过了第 0 问才问；新命令/新旗标/新能力入内核前逐条回答，任一不过即拒）：
 1. 它是否改变「什么被判为真」？（是 = 内核变更，需裁定+版本+契约+测试四件套）
@@ -29,18 +21,13 @@
 
 **废弃政策（两段式）**：标 deprecated（--help 标注 + 回执 warning 诊断——severity=warning 的 deprecated_command 诊断指明替代路径与移除版本，退出码与 data 不变）→ 存活一个 minor 周期 → 次 minor 删除，删除理由与替代路径入 RELEASES。首批已走完两段全程：evidence 顶层命令、lessons hit 子命令（0.9.0 标记 → v0.10.0 物理移除，deprecated_command 诊断码随之退役；理由与替代路径入 RELEASES [0.10.0] Breaking 节；判据与实测口径见 docs/ADOPTION-BASELINE-2026-08-17.md）。
 
-**旗标白名单粒度**（批一#2）：注册表 flags 字段 = 唯一机器源（usage 给人看，flags 给机器查）；粒度 = 命令组统一并集（state/diff/trace/lessons/notice 的子命令共用命令组白名单）；一切 '--' 开头未登记旗标 = exit 1 bad_args，消息带未知旗标名 + 该命令合法旗标清单（含拼错，如 --sidcar）。
+**旗标白名单粒度**：lib/cli-options.mjs 统一声明命令范围、类型和解析键名，派生注册表 flags 与解析器布尔集合；按命令组并集校验。未知旗标或缺少必填参数 = failed/exit 1 bad_args。重复带值参数保留聚合；--remove 裸旗标为 true，兼容显式 true/false，其他布尔旗标不吞后续位置参数。
 
 **注入文本行数预算**（2026-08-17，与命令/旗标预算同一治理精神，Sculley 死分支处方同源）：SKILL.md 核心纪律条目 ≤ 10 条、单条 ≤ 6 行——「防注入块无限膨胀」的自我约束；超出须先退役一条或经开发规范程序上调，禁止静默膨胀。
 
-**规范/文档行数预算**（0.8.0 扩面，plan-tree 吸收补齐——同一治理精神从注入文本扩到规范与文档）：specs/ 单件 ≤ 250 行、docs/ 单件 ≤ 120 行；超出先拆或退役，不得静默膨胀。**本节不自报当前行数**——旧版记录必腐烂（这正是 Status rots，与文档测试数漂移同病）；要读数请现跑 `wc -l specs/*.md docs/*.md`。
+**规范/文档行数预算**：specs/ 单件 ≤260 行、docs/ 单件 ≤240 行；沿用 2026-09-14 显式换入，本批不扩容。超出先合并重复说明或退役；当前读数可用 `wc -l specs/*.md docs/*.md` 查看；执行检查以所在仓 CI 为准。
 
-**版本纪律（semver 判据，2026-08-17 成文——此前只存于 RELEASES 自引，督导指出后落位）**：
-
-- **minor**（0.x.0）：错误码/退出码/旗标语义/迁移表/侧车结构 任一变更（含新增规则码入附录 A）；先例：0.4.0 增 a1-evidence-drifted、0.6.0 增 locator_not_found、0.8.0 增 anchor-empty-line/anchor-binary。
-- **patch**（0.x.y）：纯增可选字段且有缺省兜底、纯纪律/文档增量；先例：0.3.1 codegraph 纪律、0.6.4 ready-check 纪律。
-- **破坏性三定义**（见 RELEASES 头部）：(a) 拒绝了昨天接受的输入 (b) 改变既有字段/退出码语义 (c) 改变默认行为——任一命中即在 RELEASES 立 Breaking 节并如实标类型。
-
+**版本纪律（semver 判据，2026-08-17 成文）**：minor（0.x.0）= 错误码/退出码/旗标语义/迁移表/侧车结构任一变更（含新增规则码入附录 A）；patch（0.x.y）= 纯增可选字段且有缺省兜底、纯纪律/文档增量。破坏性三定义（见 RELEASES 头部）：(a) 拒绝昨天接受的输入 (b) 改变既有字段/退出码语义 (c) 改变默认行为——任一命中即立 Breaking 节并如实标类型。
 ## 1. init
 
 用途：新项目一键初始化 **v3 版式**图谱目录（atlas-layout.md §〇-v3：七区 + 项目一级子目录）+ 状态侧车 + INDEX.md（项目注册表）+ state/projects.json 机器可读项目注册表——init 产物零手工迁移直通 build-portal --project 与 doctor --atlas（0.7.0 修复 init↔portal 版式断链，demo-b holdout 对抗实验）。
@@ -48,39 +35,40 @@
 项目名派生（0.7.0，零新旗标）：显式 --diagram-id 取其首段（第一个连字符前）；未给 --diagram-id 取 --dir 的 basename；清洗为 [a-z0-9-]（小写、非法字符折叠为单个连字符、去首尾连字符，与 build-portal slugify 同则）；派生为空 = failed exit 1 bad_args。派生结果随回执 data.project 返回（调用方可见）。
 版式（v3）：七区（spec/artifacts/evidence/data/state/rulings/history）+ 项目一级子目录 spec/<项目>/、evidence/<项目>/、data/<项目>/、artifacts/<项目>/（模块目录 <模块>-<YYMMDD>/ 由交付/build-portal 流程按需建）；主 spec 落 spec/<项目>/<diagram-id>.json；INDEX.md 增项目注册表段；state/projects.json 写入注册条目 { project, umbrella: <项目>-add, sourcePath: null, firstSeen, portals: [] }。
 输出：{ root, project, diagram_spec, state_sidecar, index, created, template }
-约束：目标目录已存在 atlas-state.json 时拒绝（不覆盖）。
-
+约束：目标目录已存在 atlas-state.json 时拒绝（不覆盖）；显式 diagram-id 与门户 project/umbrella 必须为合法单段身份，禁止穿越/绝对路径/控制字符。全部输出先验实际父路径不逃出图谱根；首写使用排他创建，竞争产生的文件保留。多文件初始化不承诺事务。
 ## 2. state
-
 用途：节点状态读写与迁移。
 子命令：
 - state get --node <id>：读三轴当前值。
-- state set --node <id> --axis truth|progress|ledger --value <v> [--receipt <文件路径>] [--correction]（truth 轴前进写入必填 --receipt，见下）：直接置值（须带 --reason 与 owner 校验）。A2 迁移表校验（2026-08-15 裁定④，set 不再架空 A2）：对已存在节点的轴值变更同样按 ADD-SPEC §二 迁移表校验，违表 = exit 1、与 transition 同码 rule=illegal_transition，消息附「set 现过 A2 校验（2026-08-15 裁定④）；确属纠错请加 --correction」；两例外免表直接写——(a) 初始化（节点不存在，或该轴尚无值=首次写），(b) 显式 --correction 纠错旗标（绕过 A2 表；仍必填 --reason；放行的 history 事件带 corrected:true 留痕，成功回执 receipt.rule=A2-correction）。同值写入（from==to，无变更）不触发校验。--correction 不免除 truth 回执门禁（前进仍必填 --receipt）；truth 回退经 --correction 放行且无需回执。 可选 `--kind meta`（0.15.0，建号时标账务/元节点，如边证据节点/图登记节点）：A1 的 `a1-unmatched-account` 对 kind='meta' 跳过（豁免通道早存在，此前 CLI 无入口）；**kind 不可改**——已存在节点传 --kind 即 exit 1 bad_args。
+- state set --node <id> --axis truth|progress|ledger --value <v> [--receipt <文件路径>] [--correction]（truth 轴前进写入必填 --receipt，见下）：直接置值（须带 --reason 与 owner 校验）。A2 迁移表校验（2026-08-15 裁定④，set 不再架空 A2）：对已存在节点的轴值变更同样按 ADD-SPEC §二 迁移表校验，违表 = exit 1、与 transition 同码 rule=illegal_transition，消息附「set 现过 A2 校验（2026-08-15 裁定④）；确属纠错请加 --correction」；两例外免表直接写——(a) 初始化（节点不存在，或该轴尚无值=首次写），(b) 显式 --correction 纠错旗标（绕过 A2 表；仍必填 --reason；实际绕过规则的 history 事件带 corrected:true 留痕，成功回执 receipt.rule=A2-correction）。同值写入（from==to，无变更）不触发校验。--correction 不免除 truth 回执门禁（前进仍必填 --receipt）；truth 回退经 --correction 放行且无需回执。 可选 `--kind meta`（0.15.0，建号时标账务/元节点，如边证据节点/图登记节点）：A1 的 `a1-unmatched-account` 对 kind='meta' 跳过（豁免通道早存在，此前 CLI 无入口）；**kind 不可改**——已存在节点传 --kind 即 exit 1 bad_args。
 - state transition --node <id> --axis <axis> --from <s> --to <t> [--receipt <文件路径>]（truth 轴前进写入必填，见下）：按 ADD-SPEC §二 迁移表校验，违规输出诊断（from, to, axis, rule）。
 - state evidence-add --node <id> --locator <文件:行号>：登记证据（A3 前提）。**同 locator 重复落锚幂等**（0.11.0，自嗜狗食发现）：
   已存在的锚只刷新 evidenceMeta 哈希（=「重新加持」，drifted 的规范补救），**不往 evidence 数组重复插入**，回执附 warning `evidence_reblessed` 明示；修复前会真重复插入，而 drifted 诊断消息自己写着「须复核后重新 evidence-add」——照官方推荐路径做每修一次漂移就塞一条重复锚。换锚请用 evidence-reanchor（语义不同：移锚而非加持）。**存储形态绝对化**（2026-08-15 批二）：格式校验（parseLocator 正则）通过后按 process.cwd() path.resolve 绝对化落账，已是绝对的原样；写边不校验文件存在/行界（lint 属读方——report/doctor，语义不变），旧相对锚仍被读方按 --root 解析（兼容读）。**落锚同时写锚行哈希**（锁口② 2026-08-16）：读目标行计算 trim 后内容 sha256 前 12 hex，写入节点 evidenceMeta[锚]={h, at}（可选增量字段，语义见 §5）；行读取失败不阻断落锚（哈希缺失=unhashed）；重复落同锚刷新哈希（复核后重新 evidence-add 即钉新内容）。
-- state evidence-remove --node <id> --locator <锚>（0.6.0，一线席位 一线实战反馈）：移除该节点 evidence 数组中的指定锚——输入锚按 evidence-add 同法绝对化后匹配（落账形态=绝对，须传当初落账的同一形态）；不在数组 = failed exit 1 **locator_not_found**。成功：移除锚 + 同步删除 evidenceMeta 对应键（孤儿 meta 边界由此关闭，见 §5）+ history 记 kind='evidence-remove' 事件（含 locator），经 saveSidecar 走 CAS+锁；回执 data = { node, removed, remaining }。**A3 守卫**：节点声称对齐实相（progress=verified / ledger=settled / truth∈{effective,closed}，与 §6 A1 声称判定同语义）且移除后 evidence 长度归零 = failed exit 1 复用 **verified_requires_evidence**，消息写明「移除会使声称对齐节点失去全部证据（A3）；请先 evidence-add 新锚再移除，或用 evidence-reanchor 原子替换」；失败信封 data 附 lessonPrompt（B4 同模式）。
+- state evidence-remove --node <id> --locator <锚>（0.6.0，一线席位 一线实战反馈）：移除该节点 evidence 数组中的指定锚——输入锚按 evidence-add 同法绝对化后匹配（落账形态=绝对，须传当初落账的同一形态）；不在数组 = failed exit 1 **locator_not_found**。成功：移除锚 + 同步删除 evidenceMeta 对应键（孤儿 meta 边界由此关闭，见 §5）+ history 记 kind='evidence-remove' 事件（含 locator），经 saveSidecar 走 CAS+锁；回执 data = { node, removed, remaining }。**A3 守卫**：节点声称对齐实相（progress∈{verified,cancelled} / ledger=settled / truth∈{effective,closed}）且移除后 evidence 长度归零 = failed exit 1 复用 **verified_requires_evidence**，消息写明「移除会使声称对齐节点失去全部证据（A3）；请先 evidence-add 新锚再移除，或用 evidence-reanchor 原子替换」；失败信封 data 附 lessonPrompt（B4 同模式）。
 - state evidence-reanchor --node <id> --from <旧锚> --to <新锚>（0.6.0）：drifted 处置的规范路径——**原子改锚，先验后改，任何一步失败零写入**。①旧锚必须存在（绝对化匹配，否则 locator_not_found；格式坏 = bad_locator）；②新锚过 evidence-add 同款校验（格式 lint + 绝对化）再加**行存在（file_missing）/行界（line_out_of_bounds）lint**——比 evidence-add 写边更严，理由：改锚即 drifted 处置，新锚必须真实可解析，否则处置落空为 broken/unhashed；③一次 saveSidecar 内完成「移除旧锚（含其 evidenceMeta 键）+ 追加新锚（含新行哈希）」——**中途绝不出现证据为零的瞬间，故 A3 天然不受威胁，无需额外守卫**（设计理由：把移除+追加合并为单次 CAS 写入，若拆两步则中间态可被 A3 拦截/被他席位观察）；④history 记 kind='evidence-reanchor' 事件（含 from/to）。回执 data = { node, from, to, hash }（hash=新锚目标行哈希；极端竞态下读取失败为 null=unhashed）。幂等边界：--from === --to 时按刷新哈希处理（重读目标行钉新哈希与时间戳，evidence 数组不动，与 evidence-add 重复落锚同语义）；新锚已在 evidence 中（to≠from）视为合并去重（移除旧锚不重复追加，新锚哈希刷新）。
-- state settle --node <id> --reason --owner：销账跨轴事件（progress in_progress→verified + ledger backlog→settled 同回执双写；A3 无证据拒绝；A4 owner 校验）。｜ state import --node <id> --reason --owner --locator <文件:行号> [--source <来源系统>] [--cutoff <截止日期>]（0.17.0，路线一裁定）：**历史/迁移导入的唯一合法跨轴写**，与 settle 并列为仅有的两条 ledger→settled 写入路径（蓝本 = Liquibase MARK_RAN 独立 EXECTYPE）——原子双写 progress=verified + ledger=settled + 证据锚（写边同 evidence-add 校验/绝对化/锚行哈希）+ history kind='import'（含 locator/source/cutoff 溯源字段）。只登记**新节点或零执行史节点**（progress=planned 且 ledger=clean），已有执行史 = exit 1 import_conflict（执行闭环请用 state settle）；已 settled = already_settled；属主不符 = owner_mismatch（A4）；建号校验（id 白名单/L1 前缀门/L2 席位门）与 set 同则。回执 receipt.rule=A2-cross-axis-import，含 dualWrite:true、provenance:'imported'（与执行闭环永久可区分）与 data.next（report 提醒，同 settle）。
+- state settle --node <id> --reason --owner：销账跨轴事件（前态 progress∈{in_progress,verified} 且 ledger∈{clean,backlog}；同事件写 verified+settled、history+notice，仅推进一次 revision；A3 无证据/坏锚拒绝；A4 owner 校验；其他前态及重复销账拒绝）。｜ state import --node <id> --reason --owner --locator <文件:行号> [--class <分类>] [--source <来源系统>] [--cutoff <截止日期>]（0.17.0，路线一裁定）：**历史/迁移导入的唯一合法跨轴写**，与 settle 并列为仅有的两条 ledger→settled 写入路径（蓝本 = Liquibase MARK_RAN 独立 EXECTYPE）——原子双写 progress=verified + ledger=settled + 证据锚（写边同 evidence-add 校验/绝对化/锚行哈希）+ history kind='import'（含 locator/source/cutoff；后两者省略写 null，旧缺失仍读作未知；显式 class 校验后落节点和事件，不覆盖已有不同分类，省略保持无分类兼容）。只登记**新节点或零执行史节点**（progress=planned 且 ledger=clean），已有执行史 = exit 1 import_conflict（执行闭环请用 state settle）；已 settled = already_settled；属主不符 = owner_mismatch（A4）；建号校验（id 白名单/L1 前缀门/L2 席位门）与 set 同则。回执 receipt.rule=A2-cross-axis-import，含 dualWrite:true、provenance:'imported'（与执行闭环永久可区分）与 data.next（report 提醒，同 settle）。
 - state block --node <id> --reason --owner [--with-backlog]：阻塞跨轴事件（progress in_progress→blocked；--with-backlog 时 ledger clean→backlog 双写）。
 - settle/block/import 成功同次写入自动投递一条席位通知 notice（2026-08-15 清单 B3：from=--owner 值，kind=settled|blocked，summary=--reason，readBy 初始空，revision 只随该次保存推一次；import 投递 kind=settled 且 summary 带 [import] 前缀以便席位区分来源；详见 §11）。
 输出：{ node, axis, from, to, receipt }（set 的 receipt.rule 三态：A2=过表校验通过 / A2-init=初始化或首写免表 / A2-correction=纠错通道放行；settle/block 输出 { node, from, to, receipt }（to 为双轴对象）。settle 成功回执另含 data.next = 「销账五动作第4步：atlas-engine report --sidecar <本次调用实际 sidecar 路径> 生成销账回执」（2026-08-15 实战反馈修补：销账五动作第 4 步 report 曾整批漏做，实战反馈档（2026-08-15）；纯增字段，非破坏）。settle 成功回执另含 data.lessonPrompt = 「本刀有无新教训？有则 lessons add 回写（S5a 欠账教训）」（2026-08-15 清单 B4 防膨胀回写提示）；A3 拦截失败回执（settle/transition 的 verified_requires_evidence）同样在 failed 信封 data 附带 lessonPrompt（与 data.next 同模式纯增字段）。
-约束：transition 违反迁移表 = status failed + diagnostics；跨轴事件必须同回执双写；sidecar 首次使用（文件缺失）由 set 自动初始化空账本（仅限初始化语义）。set 违反迁移表 = status failed + diagnostics（rule=illegal_transition，消息带裁定④注记与 --correction 纠错出口，见上）。**set 终态守卫（0.17.0，路线一裁定）**：progress→verified 无证据 = exit 1 verified_requires_evidence（与 transition/settle 同构，**init 首写不再豁免**——终态声称必须证据绑定）；ledger→settled 一律 = exit 1 settled_requires_event（A2 §2.4：只能经 settle/import 跨轴事件写入，set 直达含 init 首写会破坏双写不变量）。两守卫同值原地写（from==to，无状态变更）均不拦；--correction 为唯一显式出口（history corrected:true 留痕——守卫命中但 A2 表合法时 admittedCorrection 不覆盖此标记，由守卫自身打标）。
-truth 轴回执门禁（2026-08-15 负责人裁定，提案③；ADD-SPEC §2.5）：truth 前进写入（candidate→pending_confirmation→effective→closed 各步，含 set 跳级前进）必须 --receipt <负责人本地回执文件>；未给 = receipt_required，文件不存在 = receipt_not_found（诊断带解析后绝对路径）；存在则放行并把绝对路径落 history 事件 receipt 字段 + 节点 truthReceipts {to, receipt, at}；机器只校验存在性不校验语义。非 truth 轴与 truth 非前进写入传入 --receipt 一律忽略（语义完全不变）。
-history 事件引擎戳（2026-08-15 增长控制开发规范批一#1）：state 写路径（set/evidence-add/transition/settle/block/import）每条 history 事件增可选字段 engine=引擎版本号（lib/version.mjs），标识该条账由哪个引擎语义写入；旧事件无此字段照常解析（snapshot-policy §5.2 登记）。
+写边政策由 lib/state-policy.mjs 统一判定：仅 set 可在侧车缺失时建账，其他 state 操作返回 sidecar_missing。set/transition→verified、settle/import、truth→effective/closed 要求非空且可解析证据；→cancelled 只要求非空。set 的 progress 纠错及 set/transition 的 ledger 事件豁免保持原边界；truth 证据无纠错豁免，transition 不豁免 A2。仅实际豁免 A2 或证据/事件规则才记 corrected:true 与 receipt.rule=A2-correction；同值或无关字段写不重验旧证据。
+truth 轴回执门禁：前进写入必须 --receipt <负责人本地普通文件>；写边将缺失/null 初态视为 candidate（不改变历史统计）。未给=receipt_required，不存在=receipt_not_found，目录等非普通文件=receipt_not_file，stat 失败=receipt_unreadable；允许指向普通文件的 symlink。通过后绝对路径写 history.receipt 与 truthReceipts {to,receipt,at}；机器不读/校验业务语义。非 truth 轴及原地/回退写入忽略 --receipt；correction 不豁免本门。
+history 写事件带 engine 版本；旧字段缺省仍兼容，详见 snapshot-policy §5.2。
+state active 保留原 count/activeCount/nodes 执行口径；新增 pendingSettlement={count,nodes}，按 id 排序列出所有 verified/backlog 节点（不按 class 过滤）。条目为 {id,className,progress,ledger,owner}。
 
 ## 3. compile
 
 用途：sidecar 状态合并进 archify spec（tag 注入 + meta.views 首章「当前焦点」）→ 产出可渲染 spec。注入面：architecture 族 components + lifecycle 族 states（0.6.1 起；图账同 id 约定 = 图中节点 id 即侧车节点 id，同名才注入；无同名节点的 state 保留作者 tag 不动）。
-输入：--diagram <archify-spec.json> --sidecar <atlas-state.json> --out <compiled.json>。
-输出：{ out, sha256, injected: { tags: n, focus: [ids] } }
+输入：--diagram <archify-spec.json> --sidecar <atlas-state.json> --out <compiled.json> [--previous-receipt <上轮成功compile回执.json>]。
+输出：{ out, sha256, injected: { tags, focus, bindings, ambiguous, ownedTags, outputPath, diagramName, unknownOwnership, note } }。ownedTags 按 collection/id 记录 written 与 original={present,value?}；outputPath 为绝对路径，diagramName 保留原图作用域。
 语义（2026-08-15 负责人显示契约）：
-- **完整+焦点双呈现**：tag = 执行轴标签（▶ 进行中 / ✅ 已销账 / ⛔ 阻塞 / ◐ 计划中 / ✕ 取消）直接标在完整图节点上（components 与 states 同法，0.6.1 起 lifecycle 图账联动）；progress=in_progress 的节点进入 meta.views 首章「当前焦点（在途 n）」。
+- **完整+焦点双呈现**：tag = 执行轴标签（▶ 进行中 / ✅ 已验证 / ⛔ 阻塞 / ◐ 计划中 / ✕ 取消；仅 verified 且 ledger=settled 标为 ✅ 已销账）直接标在完整图节点上（components 与 states 同法，0.6.1 起 lifecycle 图账联动）；progress=in_progress 的节点进入 meta.views 首章「当前焦点（在途 n）」。
 - 空焦点不发声章节（archify schema focus minItems=1；不造假焦点）；views 上限 5 截断。
-约束：输出必须通过 archify validate（gate 命令内校验）；sidecar 中引用不存在节点的状态 = failed + diagnostics。compile 幂等（tag/views 每次由 sidecar 全量重算）。
+约束：门禁仍由 gate 执行。初次以原 spec 重编；复用编译产物时显式提供上轮 schemaVersion=1 成功回执，输入须匹配其绝对输出路径与 JSON 序列化 SHA256，身份/所有权形状/重复键不符在写输出前拒绝。先恢复上轮拥有的标签，再按当前绑定重注入；保留作者标签缺失、空串与文本区别。无回执旧产物中的状态措辞不能证明归属：未绑定/歧义时保留并列入 unknownOwnership，提示回原 spec 重编。
 自动留痕（2026-08-15 清单 B1，语义变化明示）：compile 原为只读命令，现运行后（成功与失败都记）默认向 --sidecar 追加一条 kind='command' 轨迹事件（detail={ command, params:{ diagram, sidecar, out }, result:{ injected, sha256 } }），CAS revision 随写推进；--no-trace 关闭（重复跑审计不想涨账时用）；留痕失败降级为 diagnostics 一条 severity=warning（rule=trace_degraded），主结果照出不阻断。
 
 ## 4. diff
+
+subject 保留普通点分路径；字面反斜杠、点号、# 分别转义，空键用 \e，根用 #。同一路径数组与对象互换产生一条 changed（before/after 为完整子树），按路径段抑制其后代重复行；同类型空/非空沿用拍平 added/removed，数组仍按索引对齐。
 
 用途：双 spec 差异 + 状态时间线。
 子命令：
@@ -120,7 +108,7 @@ nonClaims（显式声明的机器不可判项）：truth 轴业务生效性需�
 
 用途：串行三闸（archify validate → deliver → visual-check），全绿才过。
 输入：--diagram <compiled.json> --out <out.html> [--sidecar <path>] [--no-trace]。**推荐落点（0.10.0，holdout #2 P0）**：--out 应落 `artifacts/<项目>/<模块>-<YYMMDD>/` 下；若 --out 父目录正好是某 atlas 的 `artifacts/<项目>/` 根（祖父目录名==artifacts 且图谱根下有 spec/<项目>/），gate 与 visual-check 生成物直落项目根会触发布局 P2（doctor --atlas 判 error——照官方快乐路径做会把自家 atlas 打成 failed）——gate 在写产物前判定该形状，回执 diagnostics 追加 warning 级诊断 **gate_out_placement**（消息给出建议路径 `artifacts/<项目>/<模块>-<YYMMDD>/`，日期取当天）；**不阻断、不改退出码、不自动移动文件**（移动用户指定的输出路径太越权）。
-流程：调用 archify CLI（耦合基线 v2.14.0，doctor 机器探测实际版本并提示低于基线）依次执行；任一非零退出即停止并汇总诊断（0.14.0 起失败尾附内核结构化诊断与处置建议摘要——validate/deliver 解析 diagnostics[]，visual-check 解析子项状态，0.14.1 修正三闸声称）。
+流程：调用 archify CLI（耦合基线 v2.14.0，doctor 机器探测实际版本并提示低于基线）依次执行；任一非零退出即停止并汇总诊断（0.14.0 起失败尾附内核结构化诊断与处置建议摘要——validate/deliver 解析 diagnostics[]，visual-check 解析子项状态，0.14.1 修正三闸声称）。 成功须 validate 非空 checks 逐项 ok=true、composition.status=pass/summary.errors=0；deliver 的 checkCount 为正安全整数、checksPassed 同值，compositionStatus=pass/errors=0，不钉死检查数量。visualReview 必须 pending，artifact 的 path/bytes/sha256 与本次交付一致；mtime 须在 deliver 启止窗口两端各容忍1秒内，过旧/未来都拒绝。
 输出：{ validate: 回执, deliver: 回执, visual_check: 回执, final: "pass"|"fail" }；fail 信封 data 附 lessonPrompt（2026-08-15 清单 B4，纯增字段）。
 约束：绝不宣称 pass 当任一闸非零；visual-check 收据的 visualReview 保持 pending（人工视觉复核不自动过关）。任一闸失败时回执 tail 必带可诊断消息（0.8.0 修复，holdout 遗留缺陷1：坏内核只盯 stdout → 冒号后空白）——子进程 **stdout 与 stderr 尾部**各截断（保尾部=最新错误行，合计 ≤900 字符，注记行计入预算）；**0.10.0 起（holdout #2 P2a）tail 生成时过滤不可打印字节**（保留 \n\t，其余非打印字符替换为 ·，并注明「已过滤 N 个不可打印字节」——二进制内核如 ARCHIFY_BIN=/bin/ls 实测 918 字符里 23% 是 ELF 不可打印字节），且**无条件附已解析路径与来源**（env/path/fallback/override，不再只在全空时提示）；两者皆空时明写「内核无输出（可能不是 archify 可执行文件），已解析路径=<source> → <路径>」，绝不给空白消息。
 自动留痕（2026-08-15 清单 B1）：显式传入 --sidecar 时，运行后（成功与失败都记）向侧车追加一条 kind='command' 轨迹事件（detail={ command, params:{ diagram, out }, result:{ final, stage, gates } }）；不传 --sidecar 保持原行为（只读不留痕）；--no-trace 关闭；留痕失败降级为 diagnostics 一条 severity=warning（rule=trace_degraded），主结果照出不阻断。
@@ -131,7 +119,7 @@ nonClaims（显式声明的机器不可判项）：truth 轴业务生效性需�
 子命令：trace add --kind tool_call|decision|diagram_diff|evidence|ruling|command --actor <name> [--note] [--node <id>]；trace list [--node <id>] [--since <ISO8601>]；trace replay --node <id> [--since <ISO8601>]。
 输出：add → { event, anchors }；list → { count, events }；replay → { node, current, events }。
 --since（A2，2026-08-15 清单，沿用 diff --since 先例补齐）：含边界（at == since 计入）截窗——list 过滤 trace 事件，replay 过滤**三源合并后**时间线（state+trace+lesson 合并排序后统一过滤）；缺省行为完全不变。
-约束：kind 枚举硬校验；node 锚定时回写 node.traceRefs（Ontology anchors 关系机器化）；--since 格式非法（Date.parse 不可解析）= failed exit 1 rule=bad_args，消息带 ISO8601 示例（2026-08-15T00:00:00.000Z）。
+约束：kind 枚举硬校验；显式 node 须为账本自有节点，未知或继承属性返回 node_not_found 且零写入；锚定后回写 node.traceRefs。旧悬空轨迹仍可读。trace/replay/lessons recent 按可解析时间排序，等时稳定；无效旧时间置后按原文字典序排列；--since 格式非法（Date.parse 不可解析）= failed exit 1 rule=bad_args，消息带 ISO8601 示例（2026-08-15T00:00:00.000Z）。
 kind='command' 与 detail（2026-08-15 清单 B1 增补）：gate/compile/report 三命令运行后（成败均记）自动追加 kind='command' 事件，携带可选 detail={ command, params, result } 结构化摘要；手动 trace add --kind command 同枚举合法。state set/transition/evidence-add/settle/block **不自动记 trace**——这些写入已有 history 账覆盖（replay 三源合并的 state 源），重复记 trace 会污染三源合并时间线；detail 字段为可选，旧事件无 detail 照常解析。
 detail 引擎戳（2026-08-15 增长控制开发规范批一#1）：自动留痕（autoTrace，lib/cli-util.mjs）的 detail 增可选字段 engine=引擎版本号，标识该条轨迹由哪个引擎语义写出；手动 trace add 无 detail 不涉；旧事件无此字段照常解析（snapshot-policy §5.2 登记）。
 
@@ -150,7 +138,7 @@ A1 过滤（2026-08-15 清单）：lessons list --recent <N> 按 at 倒序取最
 用途：环境自检；--atlas 追加图谱布局校验（lib/layout.mjs 执行 atlas-layout.md 的机器可判定部分）。
 输入：--sidecar <path>（可选）；--atlas <图谱目录>（可选）；--stats（2026-08-15 批二：账本侧派生度量，**必须显式同传 --sidecar**，缺 = bad_args exit 1——度量全部派生自侧车，无侧车无账可统计）。
 检查项（error 级，任一不通过 = failed exit 1）：node>=18；archify-kernel（解析来源 source=env|path|fallback|none 随回执披露；none = fail-closed：本检查不通过、gate 停 archify-missing，绝不伪装成功；**0.8.0 增**：source=fallback 时 detail 附 warning 级提示「正在使用机器相关回退路径，建议设 ARCHIFY_BIN 使其可移植」——回退常量=本机便利默认、非契约的一部分，见 lib/resolve-archify.mjs 常量旁注释；提示不改 ok/exit 语义）；sidecar（可读性）；experience-pool（经验池条数，开工必读纪律）；--atlas 时追加 atlas-layout（error/warning 计数，明细在 data.layout.diagnostics；其中 P5 证据列为双形态 文件:行号 / git <sha>（2026-08-15 裁定①），SHA 存在性按 图谱目录 git 仓 → ATLAS_GIT_ROOT 解析根逐条校验，不在仓 = error p5-sha-broken，无根或 git 调用失败时不报噪音、unchecked 具名披露）。
---atlas 布局校验的版式识别（2026-08-15 负责人令，atlas-layout.md §〇；2026-08-16 v3 增量见 §〇-v3）：spec/ 下有一级子目录 = v2/v3 多项目版式——校验项目子目录结构、artifacts/<项目>/<模块>-<YYMMDD>/ 命名（模块-YYMMDD 正则）、INDEX 项目注册（P4 以项目为单位）；门户自 v3 起为两级 `<伞名>/<伞名>-<YYMMDD>/`（伞名 ^(.+)-add$，伞内只允许期目录：其它条目/期名前缀与伞名不符/期目录缺 index.html = error layout.portal；伞名项目段优先按 state/projects.json 注册表对齐，注册表缺失/未登记回退去掉 -add 后首段/边界前缀匹配项目名，不在册 = error）；根下 v2 平铺门户 `<项目>-add-<YYMMDD>` = warning「v2 平铺门户已过时，建议迁入伞目录（见 atlas-layout v3）」不判 error（存量宽容；结构校验照跑：项目名不在册/缺 index.html 仍 error）；v1 平铺（文件直接在 spec/ 下）= **已废弃**——0.9.0 塌缩：只发一条 warning「v1 平铺版式已废弃，请迁移至 v3（见 atlas-layout §〇-v3）；其详细布局校验已于 v0.9.0 停止」并直接返回（不再跑整条校验链；保持 warning 级 exit 0 语义，不判死旧目录；符号链接垫片不计平铺违规、伞内符号链接同样跳过——此豁免对 v2/v3 照旧）；v1 旧校验链描述已入 RELEASES 0.9.0 前条目史实区。spec JSON 可解析性（0.10.0，holdout #2 P2c）：遍历 spec/<项目>/*.json 尝试 JSON.parse，失败 = **error layout.spec-unparsable**（指明文件与解析错误首行；只验可解析性，schema 校验属 archify validate / compile——坏 spec 不再活到 compile 才炸）；P6 节点前缀纪律（v2 账本隔离，warning 级）：节点 id 不以任何已知项目名前缀开头 = warning（项目名集合取自 spec/ 一级子目录名；diagram-* 元节点与 kind=meta 豁免）——需与 --sidecar 联动，显式给了才验，不给不报噪音；**0.10.0 起聚合封顶（holdout #2 P1）**：最多逐条列前 5 个节点 id，其余以计数汇总为一条（形如「另有 N 个节点同类，共 M 个」，与 emptyLine/binary 采样封顶风格一致）——此前逐条打印，306 个无前缀节点实测打出 306 条相同 warning。写路径硬门见错误码表 project_prefix_gate/seat_gate（0.13.0，注册表 opt-in：条目 sidecar 字段映射本侧车才激活；存量 grandfather）。
+--atlas 布局校验的版式识别（2026-08-15 负责人令，atlas-layout.md §〇；2026-08-16 v3 增量见 §〇-v3）：spec/ 下有一级子目录 = v2/v3 多项目版式——校验项目子目录结构、artifacts/<项目>/<模块>-<YYMMDD>/ 命名（模块-YYMMDD 正则）、INDEX 项目注册（P4 以项目为单位）；门户自 v3 起为两级 `<伞名>/<伞名>-<YYMMDD>/`（伞名 ^(.+)-add$，伞内只允许期目录：其它条目/期名前缀与伞名不符/期目录缺 index.html = error layout.portal；伞名项目段优先按 state/projects.json 注册表对齐，注册表缺失/未登记回退去掉 -add 后按最长项目边界前缀匹配；注册冲突则 layout.registry 警告，不在册 = error）；根下 v2 平铺门户 `<项目>-add-<YYMMDD>` = warning「v2 平铺门户已过时，建议迁入伞目录（见 atlas-layout v3）」不判 error（存量宽容；结构校验照跑：项目名不在册/缺 index.html 仍 error）；v1 平铺（文件直接在 spec/ 下）= **已废弃**——0.9.0 塌缩：只发一条 warning「v1 平铺版式已废弃，请迁移至 v3（见 atlas-layout §〇-v3）；其详细布局校验已于 v0.9.0 停止」并直接返回（不再跑整条校验链；保持 warning 级 exit 0 语义，不判死旧目录；符号链接垫片不计平铺违规、伞内符号链接同样跳过——此豁免对 v2/v3 照旧）；v1 旧校验链描述已入 RELEASES 0.9.0 前条目史实区。spec JSON 可解析性（0.10.0，holdout #2 P2c）：遍历 spec/<项目>/*.json 尝试 JSON.parse，失败 = **error layout.spec-unparsable**（指明文件与解析错误首行；只验可解析性，schema 校验属 archify validate / compile——坏 spec 不再活到 compile 才炸）；P6 节点前缀纪律（v2 账本隔离，warning 级）：节点 id 不以任何已知项目名前缀开头 = warning（项目名集合取自 spec/ 一级子目录名；diagram-* 元节点与 kind=meta 豁免）——需与 --sidecar 联动，显式给了才验，不给不报噪音；**0.10.0 起聚合封顶（holdout #2 P1）**：最多逐条列前 5 个节点 id，其余以计数汇总为一条（形如「另有 N 个节点同类，共 M 个」，与 emptyLine/binary 采样封顶风格一致）——此前逐条打印，306 个无前缀节点实测打出 306 条相同 warning。写路径硬门见错误码表 project_prefix_gate/seat_gate（0.13.0，注册表 opt-in：条目 sidecar 字段映射本侧车才激活；存量 grandfather）。freshness 观测分母独立取全部有效注册 sourcePath ∪ 锚仓 ∪ 显式仓，以绝对规范路径/realpath 去重并输出 path。同名仓分别观测；注册事实读取不推断授权。历史落点优先显式 atlas-<project> 文件名、映射项目、唯一项目或唯一 hint；歧义回退 basename 并披露 projectReason，不搬迁旧历史。
 检查项（warning 级，2026-08-15 批二：ok:false **不使 exit 1**——数据债不阻断环境自检，理由：失效锚/大账本是积累的数据债，doctor 的职责是让环境可自检并给出提示，若数据债使 doctor 全红，环境自检本身被债阻断，债反而无人可查）：
 - evidence-resolvability：遍历全部节点证据锚做三态解析（锁口② 2026-08-16 升级：lib/evidence.mjs anchorState；旧相对锚按 process.cwd() 解析）——broken（文件缺/行越界，语义不变）/ drifted（行都在但内容哈希不匹配）/ ok（哈希匹配）；无哈希锚=unhashed（存量，不算 drifted）。broken>0 或 drifted>0 时 ok:false：broken 附站位无关性提示「锚应为绝对路径，详见 report --spec 的 A1 对账」，drifted 附「锚内容已漂移，须复核后重新 evidence-add」——A1 a/b/c 规则不依赖 spec 却曾锁在 report --spec 之后，失效/漂移锚由此在日常操作面可闻。**0.8.0 增锚质量 warning（与三态正交叠加，皆 warning 级绝不升 error）**：目标行 trim 后为空计 emptyLine（规则码 anchor-empty-line）、文件疑似二进制（前 8KB 含 NUL）计 binary（规则码 anchor-binary）——任一 >0 同样使本检查 ok:false（仍 warning 级，不使 exit 1）；理由与形状语义见 §5「锚质量 warning」。data.evidenceResolvability = { total, ok, broken, drifted, unhashed, brokenNodes, driftedNodes, emptyLine, binary, emptyLineNodes, binaryNodes }（brokenNodes/driftedNodes/emptyLineNodes/binaryNodes = 失效/漂移/空行/二进制锚所在节点 id 各前 5 个，去重按遍历序）。
 - 节点样例列表封顶（0.10.2）：brokenNodes / driftedNodes / emptyLineNodes / binaryNodes 均只逐条列前 5 个去重节点 id，
@@ -173,21 +161,24 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 - notice ack --seat <名> [--id <notice-id>] [--sidecar <path>]：把该席位记入 readBy；无 --id=全部未读确认；幂等（已确认不重复计）；回执 { seat, confirmed（本次新确认数）, ids }。
 - notice add --kind note --node <id> --summary <text> --from <名> [--sidecar <path>]：手动跨席位喊话；kind 硬校验只接受 note（settled|blocked 为 settle/block 自动投递专属，手动伪造 = bad_kind）。
 输出：list → { count, notices }；ack → { seat, confirmed, ids }；add → { notice }。
-约束：ack 缺 --seat = bad_seat；ack --id 指向不存在条目 = notice_not_found；空 summary 拒绝（empty_summary，与 empty_lesson 同例）；notice add 不校验 node 存在性（与 trace add 同例：话题锚点不硬绑）。revision 递增即触发他席位重读语义（B3 立案原义）。
+约束：ack 缺 --seat = bad_seat；ack --id 指向不存在条目 = notice_not_found；空 summary 拒绝（empty_summary，与 empty_lesson 同例）；notice add 不校验 node 存在性（话题锚点不硬绑；trace add 的显式 node 则须存在）。revision 递增即触发他席位重读语义（B3 立案原义）。
 
 ## 附录 A 错误码（diagnostics.rule，2026-08-15 增补）
 
 | 错误码 | 来源 | 退出码 | 语义与补救 |
 | --- | --- | --- | --- |
 | sidecar_conflict | store.mjs CAS：持锁重读磁盘 revision ≠ 待写 revision | 1 | 并发写被拦截；补救 = 重新 load 后在最新数据上重放变更再保存 |
-| sidecar_locked | store.mjs 写锁超时（缺省 5000ms，可由环境变量 ATLAS_LOCK_TIMEOUT_MS 覆盖缺省值；陈旧锁——持有进程 PID 死亡或锁龄 >30s——自动接管，不占此码） | 1 | 另一席位持锁中；补救 = 等待/重试。接管加固（2026-08-15）：锁内容增随机 token，接管闭环 = 判陈旧→unlink→O_EXCL 重抢→回读核对 token 一致才算持有；pid 复用残余风险下 30s 锁龄兜底为接受的有界风险 |
+| sidecar_locked | store.mjs 写锁超时（缺省 5000ms，可由环境变量 ATLAS_LOCK_TIMEOUT_MS 覆盖缺省值） | 1 | 另一席位持锁中；补救 = 等待/重试。**2026-09-15 起不再自动接管任何已有锁**（死 PID/超龄锁同样 fail-closed——零依赖环境无安全的跨平台「比较并删除他人锁」原语，TOCTOU 会误删活锁）：确认所有写者停止后人工删除锁文件 |
 | sidecar_readonly | store.mjs 写前守卫（0.7.0，demo-b holdout 缺陷1）：目标侧车存在且无写权限——权限位无写位（root 等特权同样受判：保护意图先于 euid 豁免）或 accessSync W_OK 被拒（ACL/只读挂载等） | 1 | 只读=保护意图，fail-loud 拒写，文件内容与权限均未动（此前 tmp+rename 原子写只需目录写权限，会静默穿过并把权限重置为 umask）；补救 = 如确需写入请 chmod +w 解除保护后重试 |
 | illegal_transition | state set/transition：轴值变更/迁移违反 A2 迁移表（set 路径自 2026-08-15 裁定④ 起生效，不再架空） | 1 | set 违表消息附「set 现过 A2 校验（2026-08-15 裁定④）；确属纠错请加 --correction」，纠正后 history 事件 corrected:true 留痕；transition 补救 = 沿合法路径逐级迁移，或经 set --correction 纠错 |
+| transition_from_mismatch | state transition（2026-09-15）：--from 不等于节点当前轴值——前态必须如实申报，伪造 from 不得跳级（修复前只校 from/to 表内合法性，可从 planned 伪造 in_progress 直达 verified） | 1 | 补救 = 先 state get 核对当前状态，from 填真实现值；纠错走 state set --correction |
 | sidecar_bad_revision | store.mjs：revision 非非负整数 | 1（load 路径） | sidecar 数据损坏，fail-loud |
 | unknown_template | init：--template 非 minimal\|demo | 1 | 未知模板不静默降级到缺省（用户输入校验失败，非 internal） |
 | bad_spec | report：--spec 文件不可读或非 JSON | 1 | spec 输入坏 |
 | receipt_required | state set/transition：truth 轴前进写入未携带 --receipt（--correction 不免除本门禁，2026-08-15 裁定④） | 1 | 真相轴推进需负责人本地回执文件（开发规范：Owner 真相需目标本地回执，机器不自证）；补救 = 补 --receipt <回执文件路径>（建议归位 <图谱目录>/rulings/receipts/，软约定） |
-| receipt_not_found | state set/transition：--receipt 指向的文件不存在 | 1 | 补救 = 提供已存在的回执文件（诊断 subject 为解析后绝对路径）；机器只校验存在性，语义属负责人 |
+| receipt_not_found | state set/transition：--receipt 文件不存在 | 1 | 提供现存普通文件；机器不校验业务语义 |
+| receipt_not_file | state set/transition：--receipt 不是普通文件（如目录） | 1 | 提供普通文件或指向它的链接 |
+| receipt_unreadable | state set/transition：无法检查回执文件状态 | 1 | 检查文件权限/路径；不作为缺失回执放行 |
 | p5-sha-broken | layout P5：git <sha> 证据列在解析出的 git 根（图谱目录自身仓或 ATLAS_GIT_ROOT）中不存在 | 1 | 提交级事实声称失效；补救 = 核对 SHA，或设 ATLAS_GIT_ROOT 指向含该提交的仓（无可用根时不报此码，改 unchecked 披露） |
 | trace_degraded | gate/compile/report 自动留痕（B1）写侧车失败 | 不阻断（warning） | 留痕失败降级为 severity=warning 诊断附在主结果回执 diagnostics（含 ok 信封），主功能照出；补救 = 核对侧车可读可写/CAS 重试，或 --no-trace 显式关闭 |
 | lesson_not_found | lessons retire：--id 指向的经验条目不存在 | 1 | 补救 = 先 lessons list 核对 id |
@@ -198,16 +189,16 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 | invalid_state_value | state set：--value 不在该轴状态集 | 1 | 用户输入校验失败；补救 = 查该轴状态集 |
 | invalid_node_id | state set/import（0.12.0，实战反馈档-2026-08-23）：新建节点 id 不合 ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$（修前管道符/换行可静默建号且无删除原语）；只拦新建，既存畸形 id 仍可读改（存量清理通道） | 1 | 用户输入校验失败；补救 = 换合法 id |
 | project_prefix_gate | state set/import（0.13.0，负责人令 2026-08-27 L1 前缀硬门）：新建节点 id 不以本侧车项目前缀开头（激活条件 = 同目录 projects.json 条目 sidecar 字段映射本侧车；共享侧车取并集如 demo-a\|add；只拦新建，存量 grandfather，P6 doctor warning 继续管存量） | 1 | 越界拦截；补救 = 换 <项目名>- 前缀 id 或换正确 --sidecar |
-| seat_gate | state set/transition/settle/block/import（0.13.0，L2 席位门）：--owner 不在映射条目 seats 并集（条目无 seats = 不限；注册表 opt-in 渐进启用） | 1 | 越权拦截；补救 = 用授权席位或经负责人扩 seats |
+| seat_gate | state set/transition/settle/block/import（0.13.0，L2 席位门）：--owner 不在映射条目 seats 并集（仅映射条目全部缺省 seats 时不限；显式数组保持并集语义，空数组可限制全部席位；sidecar 缺省不激活门禁） | 1 | 越权拦截；补救 = 用授权席位或经负责人扩 seats |
 | invalid_from_state | state transition：--from 不在该轴状态集 | 1 | 用户输入校验失败；补救 = 沿合法状态迁移 |
 | invalid_to_state | state transition：--to 不在该轴状态集 | 1 | 用户输入校验失败；补救 = 沿合法状态迁移 |
-| node_not_found | state get/evidence-add/evidence-remove/evidence-reanchor/transition/settle/block、trace replay、report --replay：节点不存在 | 1 | 补救 = 核对节点 id；report 内联 replay 时该条带 error 字段，不整体失败 |
+| node_not_found | state get/evidence-add/evidence-remove/evidence-reanchor/transition/settle/block、trace add/replay、report --replay：节点不存在或仅为继承属性 | 1 | 补救 = 核对节点 id；report 内联 replay 时该条带 error 字段，不整体失败 |
 | owner_mismatch | state set/transition/settle/block/import：写入者非节点属主（A4 单一真相拥有者） | 1 | 补救 = 用属主 --owner 写 |
 | already_settled | state settle/import：ledger 已是 settled 终态 | 1 | 幂等终态拒绝重复销账/重复导入 |
 | bad_locator | state evidence-add/remove/reanchor、state import、report 证据 lint（读方）：locator 非严格 文件:行号（parseLocator 正则；全角冒号典型触发，处置见 DEFENSIVE.md §3） | 1 | 补救 = 改半角冒号/补行号 |
 | locator_not_found | state evidence-remove/evidence-reanchor：指定锚（绝对化后）不在该节点 evidence 数组 | 1 | 补救 = 核对锚字符串（evidence-add 落账即绝对化，须传当初落账的同一形态，即同一 cwd 下的同一相对形态或绝对形态） |
 | verified_requires_evidence | state set/transition/settle/evidence-remove（A3）：progress→verified 无证据（0.17.0 起 set 同责，init 首写不豁免）；或移除会使声称对齐节点（progress=verified / ledger=settled / truth∈{effective,closed}）失去全部证据 | 1 | 补救 = 先 state evidence-add；历史导入用 state import；或改用 state evidence-reanchor 原子替换（移除+追加单次写入，不出现零证据瞬间）；失败信封 data 附 lessonPrompt（B4） |
-| settled_requires_event | state set（A2 §2.4，0.17.0 路线一裁定）：ledger→settled 经 set 直达（含 init 首写）——只能经 state settle（执行闭环）或 state import（历史导入）跨轴事件写入；同值原地写不拦 | 1 | 补救 = 执行闭环用 state settle；历史导入用 state import；确属纠错加 --correction（history corrected:true） |
+| settled_requires_event | state set/transition（A2 §2.4，0.17.0 路线一裁定；2026-09-15 起 transition 直达同拦）：ledger→settled 只能经 state settle（执行闭环）或 state import（历史导入）跨轴事件写入；同值原地写不拦 | 1 | 补救 = 执行闭环用 state settle；历史导入用 state import；确属纠错加 --correction（history corrected:true） |
 | import_conflict | state import（0.17.0）：目标节点已有执行史（progress≠planned 或 ledger≠clean）——import 只登记新节点或零执行史节点的历史闭环 | 1 | 补救 = 执行闭环用 state settle；确需重登记先 --correction 修正轴值 |
 | import_unmarked | report（0.17.0 存量清洗，常开不依赖 --spec）：节点 ledger=settled 但 history 无 settle/import 事件（存量直达赋值或手工写账遗存） | 不阻断（warning） | 补救 = 历史导入事实用 state import 补登事件；误直达用 state set --correction 修正 |
 | cancelled_requires_evidence | state set/transition（A3，2026-09-14）：progress→cancelled 无证据——取消是终态声明，须锚定被取代/退役依据 | 1 | 补救 = 先 state evidence-add 锚定取消理由（KB 页、审计报告、退役声明等） |
@@ -237,18 +228,32 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 | spec_ref_not_found | state spec-ref --remove：ref 不在该节点 specRefs[]（A3 认领面） | 1 | 补救 = 核对已认领清单；追加时去掉 --remove（幂等） |
 | anchor-empty-line | doctor evidence-resolvability（0.8.0，锚质量）：锚目标行 trim 后为空——空行无证据语义（:360 漂移教训） | 不阻断（warning） | 补救 = 复核后 state evidence-reanchor 改锚到实际内容行；写入边不拦截（lint 属读方，理由见 §5） |
 | anchor-binary | doctor evidence-resolvability（0.8.0，锚质量）：锚目标文件疑似二进制（前 8KB 含 NUL 字节）——二进制无证据行语义 | 不阻断（warning） | 补救 = 改锚到可读证据行；写入边不拦截（lint 属读方，理由见 §5） |
+| anchor_root_denied | state evidence-add/reanchor 写边（O1，2026-09-14 设计件 O1）：目标锚不在锚根白名单（白名单 = 侧车 atlas 根 ∪ projects.json 各 sourcePath ∪ <侧车同目录>/anchor-roots.json ∪ --allow-root；registry·config 来源过滤 dist/.next/临时目录/机外介质）；门为 opt-in——projects.json 与 anchor-roots.json 都不存在时不激活，自由侧车旧调用零硬 fail | 1 | 补救 = 把证据移到登记仓/atlas 根内，或 --allow-root <根>（单次）、anchor-roots.json（持久）；存量错根锚走 anchor-root-exemptions.json 一次性豁免（首跑生成） |
+| anchor_root_grandfathered | state evidence-add/reanchor 写边（O1）：目标锚命中 <侧车同目录>/anchor-root-exemptions.json 的存量豁免条目——放行但发 warning（不追溯改写、不静默跳过） | 不阻断（warning） | 复核后 evidence-reanchor 回白名单内并删除该清单条目 |
+| anchor_root_rejected | state evidence-add/reanchor 写边（O1）：--allow-root 传入的根被拒（非绝对路径已按 cwd 解析 / 根过大 / dist·.next 段）；仅对显式传入的根发声 | 不阻断（warning） | 改用合法的绝对根路径 |
+| a3-head-mismatch | report / doctor（O2，2026-09-14 设计件 O2）：progress=verified 节点的锚在 git HEAD 存在但行内容与工作树不同，或 HEAD 版行数少于锚行号（锚所在仓取自己的 HEAD；no-git 仓不报） | report 1；doctor 不阻断（warning 级检查 head-anchor-consistency） | 不自动改锚：先把目标行提交到 HEAD，或 evidence-reanchor 到 HEAD 内已提交行 |
+| a1-evidence-uncommitted | report / doctor（O2）：progress=verified 节点的锚指向不在 git HEAD 的文件（工作树-only，未提交且未被 .gitignore 排除）——未提交文件不得当「已对齐实相」的证据 | report 1；doctor 不阻断（warning 级） | 先 git add/commit 目标文件并重新 evidence-add 钉哈希，或改锚到 HEAD 内证据行；gitignored 生成物另计（不报本码） |
+| class_required | state set（O3，2026-09-14 设计件 O3）：新建节点的首个写入未声明 class 轴（账务分类）——建号必填（只约束**新建**，存量含历史无 class 节点不受限，不追溯补分类） | 1 | 二选一：`--axis class --value <declared\|registry\|container\|task\|debt\|batch-gated\|trigger-gated>`，或在本次写入带 `--class <同类值>`（与轴写入同事件留痕，**不改写已有分类**——重分类走 --axis class） |
+| unclassified_nodes | state active（O3）：本账存在无 class 轴且未完成的节点——它们单列在回执 unclassified[] 并计入 count，不再从默认活帐视图静默漏出 | 不阻断（warning） | 逐个 state set --axis class 补分类（新节点 O3 起建号即必填） |
 | gate_out_placement | gate（0.10.0，holdout #2 P0）：--out 父目录正好是某 atlas 的 artifacts/<项目>/ 根（祖父目录名==artifacts 且图谱根下有 spec/<项目>/）——生成物直落项目根会触发布局 P2 | 不阻断（warning） | 附在 gate 回执 diagnostics（成败均附），消息给建议落点 artifacts/<项目>/<模块>-<YYMMDD>/（日期取当天）；不改退出码、不自动移动文件；补救 = --out 改落模块-日期目录 |
 | layout.spec-unparsable | doctor --atlas 布局校验（0.10.0，holdout #2 P2c）：spec/<项目>/*.json 不可 JSON.parse | 1 | 坏 spec 不再活到 compile 才炸；补救 = 按消息指明的文件与解析错误首行修正 JSON 语法（schema 校验属 archify validate / compile） |
-| sidecar_missing | store.mjs：侧车文件不存在——trace/lessons/notice 全子命令一律 failed（0.12.0 行为反转：此前成文「缺省空账本初始化不报此码」，实战隐藏 112 经验+59 通知整个战役周期；实战反馈档-2026-08-23 P0-1） | 1 | 补救 = 显式 --sidecar 指真实账本；新账本走 init；state set 保留 :68 成文创世语义（仅 set，非附件命令） |
+| sidecar_missing | store.mjs：侧车文件不存在——trace/lessons/notice 全子命令一律 failed（0.12.0 行为反转：此前成文「缺省空账本初始化不报此码」，实战隐藏 112 经验+59 通知整个战役周期；实战反馈档-2026-08-23 P0-1） | 1 | 补救 = 显式 --sidecar 指真实账本；新账本走 init；仅合法 state set 保留创世；state active/get/import 等其余子命令均报缺账 |
 | sidecar_unreadable | store.mjs：侧车存在但不可读 | 1 | 补救 = 检查权限/占用 |
 | sidecar_invalid_json | store.mjs：侧车非合法 JSON | 1 | fail-loud，不猜测修复；无双前缀原样呈现 |
 | sidecar_bad_schema | store.mjs：侧车 schemaVersion 不兼容 | 1 | fail-loud |
 | sidecar_bad_shape | store.mjs：侧车结构坏（如 notices 非数组） | 1 | fail-loud |
 | sidecar_error | CLI 侧车读取兜底：store 抛错但 e.code 缺失 | 1 | 兜底码，正常不可达（store 错误均带自身码） |
-| gate_<stage> | gate：三闸（validate→deliver→visual_check）任一非零退出即停，rule=gate_<当前闸名> | 1 | 修复 = 按对应闸诊断处理；fail 信封 data 附 lessonPrompt（B4） |
-
-注（2026-08-15 增补；双前缀/吞码两缺陷修复后实况，替代旧「实测披露」）：store 错误码在 diagnostics.rule 原样呈现——load 路径与 save 路径均无二次前缀（如 rule=sidecar_invalid_json，非 sidecar_sidecar_invalid_json）；sidecar_conflict / sidecar_locked / sidecar_readonly（0.7.0 增）属可操作运行态，由 CLI 以 status failed、exit 1、rule=自身错误码呈现（不再落入 internal/exit 2）。测试：test/cli-error-codes.test.mjs。
-退役码史实（0.10.0）：deprecated_command（两段式废弃第一阶段提示码）与 bad_file（evidence lint --file 专用）随 evidence 顶层命令/lessons hit 子命令移除而不再有发射方，本表同批清理——旧回执数据中的该两码按本 RELEASES/0.9.0 条目释义。
-unknown_template 曾用 exit 2，与总纲「2=内部错误」存在归类张力；已按总纲推导归位 exit 1（2026-08-15）：未知模板名是用户输入校验失败，非内部错误。
-契约保鲜门禁（2026-08-15 D6）：scripts/verify-contract-freshness.mjs 对账 --help ↔ 本文档章节、代码字面错误码 ↔ 附录 A 表——代码有而附录缺 = exit 1 列名清单（新增码必须同步入表），附录有而代码无 = warning 不阻断（历史码宽容）；gate_<stage> 为模板行不参与字面量反向核对。
-注入通道门禁（2026-08-16，门禁五件→六件；0.11.3 增第七件 scripts/verify-size-budgets.mjs——本节所有行数预算此前零门禁，写了不执行=不存在，现机器执行）：仓内两通道由 verify-injection-freshness 咬着，部署侧仓外注入块（<宿主注入块> 等，路径四级解析 --path > ADD_DEPLOY_INJECTION 环境变量 > 已知候选存在即取 > 无）由 scripts/verify-deploy-injection.mjs 对账——CORE_TERMS ∪ DEPLOY_TERMS（公共词表 scripts/injection-terms.mjs，新增纪律块必须去登记否则门禁不咬）+ 注册表命令名（现十条）逐一词界必含；部署文件在引擎仓外、CI runner 上不存在 → exit 0 skipped 优雅跳过（CI 上不假红；对账真实战场是本地部署机）；harness 专属候选路径只落 scripts/ 适配器层，lib/ 内核不知 harness 存在。
+| sidecar_write_failed | store.mjs：提交前底层写入失败（磁盘与调用对象均未推进、revision 回滚、tmp 清理）；与同档提交边界 sidecar_commit_unknown 同属保存失败分层 | 1 | 回执 data.commit.committed=false；按 causeCode/消息核对磁盘/权限/文件系统后重试 |
+| sidecar_commit_unknown | store.mjs：rename 已发布但目录 fsync 失败或不支持——内容已提交、持久性未知，不伪装零写入 | 1 | 回执 data.commit={committed:true,revision,durability,path}；先重新 loadSidecar 读磁盘值再决定是否重跑 |
+| sidecar_lock_failed | store.mjs：锁创建或锁内容写入失败（非 EEXIST）——未进入写阶段 | 1 | 核对目录可写/文件系统；残留锁须确认归属后人工删除 |
+| sidecar_path_unresolvable | store.mjs：sidecar 路径为断链 symlink 或无法解析——不按「新账本」凭空回落 | 1 | 修复链接或显式传真实账本路径 |
+| sidecar_hardlinked | store.mjs：sidecar 为硬链接（nlink>1）——无法保证跨路径单锁与发布边界，保守拒写 | 1 | 使用独立账本文件，或解除硬链接后统一真实路径 |
+| gate_<stage> | gate：三闸（validate→deliver→visual_check）任一非零退出即停，rule=gate_<当前闸名>；图 spec 前置读取失败另见 gate_bad_diagram | 1 | 修复 = 按对应闸诊断处理；fail 信封 data 附 lessonPrompt（B4） |
+| gate_bad_diagram | gate：--diagram 不可读或非合法 JSON（图型探测前置失败） | 1 | 修正 spec JSON 后重跑 |
+| evidence_missing | report（默认面）与 state 完成声称守卫：声称对齐实相但证据数为 0（progress=verified 保持既有码 verified_requires_evidence） | 1 | 先 state evidence-add 绑定可解析证据；历史闭环用 state import |
+| evidence_unresolvable | report（默认面）与 state set·transition·settle·import 完成声称守卫：证据锚存在但格式/文件/行界任一不可解析 | 1 | 修正路径/行号后重新 evidence-add，或 evidence-reanchor 到可解析锚 |
+| a1-ambiguous-id | report --spec（A1）：图件 id 解析到多个账本节点——歧义不绑定 | 不阻断（warning） | 改名消歧，或 state spec-ref 图限定认领 |
+| a1-nonaccounts-scope-unknown | report --spec（A1）：库调用未提供图名，nonAccounts 声明无法按图作用域解释——声明不生效且逐条披露 | 不阻断（warning） | 用 CLI（自动供图名）或改按图声明/认领 |
+| anchor_roots_config_invalid | 写边锚根门禁配置（anchor-roots.json / anchor-root-exemptions.json）已存在但不可读、非 JSON 或形状不符——坏配置不解除门禁 | 1 | 修复或移走该配置文件后重试 |
+| project_gate_config_invalid | state set/transition/settle/block/import（L1/L2 门）：projects.json 不可读/非 JSON/形状不符，或显式 sidecar 声明畸形、匹配条目的 project/seats 畸形——坏配置不解除门禁 | 1 | 修复或移走注册表后重试 |
+注：store 错误码在 diagnostics.rule 原样呈现（load/save 无双前缀）；sidecar_conflict/sidecar_locked/sidecar_readonly 等可操作运行态以 failed/exit 1/自身码呈现（不落 internal/exit 2，测试 test/cli-error-codes.test.mjs）；退役码与旧语义史实在 RELEASES 相应版本释义。契约保鲜由 verify-contract-freshness 及所在仓 CI 所列检查机器执行。

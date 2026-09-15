@@ -53,8 +53,8 @@
 
 ### 5.3 读方立场：未知字段默认容忍
 
-- 现行为写实（lib/store.mjs:29-53）：loadSidecar 只硬校验 schemaVersion、nodes 形状、revision 类型、
-  notices 数组形状；其余未知字段一律静默容忍——不拒绝、不告警，原样保留于返回对象。
+- load/save 共用 validateSidecarShape：校验 schemaVersion、nodes/已知数组与记录形状、revision；未知字段原样保留，不拒绝、不告警。
+- 节点 traceRefs、通知 readBy 校验字符串数组（缺失/null 保留消费方空数组兼容）；history/trace/lessons 已消费的非空缺省标量字段校验字符串，lessons.hits 为非负安全整数。history.from/to 仍允许对象，未知事件 kind 不收紧；保存拒绝发生在写锁/落盘之前。
 - 政策方向：容忍为默认，且论证方向与 demo-harness 官方仓相反，需明示。demo-harness 立场是「宁可拒绝造成不便，
   不可静默丢数据」——旧读方看不懂新数据时，拒绝优于静默丢弃。但 ADD 侧车取反：① 拒绝会让旧引擎
   读不了新侧车，多席位版本混跑时共享账本整体停摆，代价远大于「旧引擎不识别新字段」；② 本仓读写

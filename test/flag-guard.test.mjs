@@ -27,7 +27,7 @@ function tmpDir() {
 test('未知旗标 --sidcar：exit 1 bad_args 带合法清单，且不静默新建平行账本', () => {
   const dir = tmpDir();
   const typoPath = path.join(dir, 'atlas-state.json');
-  const r = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidcar', typoPath]);
+  const r = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidcar', typoPath, '--class', 'task']);
   assert.equal(r.code, 1);
   assert.equal(r.receipt.status, 'failed');
   assert.equal(r.receipt.diagnostics[0].rule, 'bad_args');
@@ -74,10 +74,47 @@ test('合法旗标回归：注册表全部 flags 白名单经 parseArgs 逐一�
   }
 });
 
+test('remove 布尔解析：裸旗标及旧 true/false 明确取值，其他布尔不消费普通词', async () => {
+  const { parseArgs } = await import('../lib/cli-util.mjs');
+  assert.deepEqual(parseArgs(['--remove'], ['remove']), { remove: true });
+  assert.deepEqual(parseArgs(['--remove', 'true'], ['remove']), { remove: true });
+  assert.deepEqual(parseArgs(['--remove', 'false'], ['remove']), { remove: false });
+  assert.deepEqual(parseArgs(['--remove', '--node', 'n1'], ['remove', 'node']), { remove: true, node: 'n1' });
+  for (const flag of ['with-backlog', 'no-trace', 'correction', 'brief', 'all', 'stats']) {
+    assert.throws(() => parseArgs(['--' + flag, 'false'], [flag]), /无法识别的参数：false/);
+  }
+  assert.throws(() => parseArgs(['--remove', 'yes'], ['remove']), /无法识别的参数：yes/);
+});
+
+test('重复带值旗标保持聚合，单个值及布尔键名保持兼容', async () => {
+  const { parseArgs } = await import('../lib/cli-util.mjs');
+  assert.deepEqual(parseArgs(['--spec', 'a', '--spec', 'b', '--replay', 'x', '--replay', 'y', '--node', 'n1', '--node', 'n2']), {
+    spec: ['a', 'b'], replay: ['x', 'y'], node: ['n1', 'n2'],
+  });
+  assert.deepEqual(parseArgs(['--spec', 'a', '--with-backlog', '--no-trace']), { spec: 'a', withBacklog: true, noTrace: true });
+});
+
+for (const form of [[], ['true'], ['false']]) {
+  test('spec-ref --remove ' + (form[0] || '裸旗标') + '：认领后的删除行为与布尔值一致', (t) => {
+    const dir = tmpDir();
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const sidecar = path.join(dir, 'atlas-state.json');
+    fs.writeFileSync(sidecar, JSON.stringify({ schemaVersion: 1, nodes: { n1: { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [], history: [] } } }));
+    const command = ['state', 'spec-ref', '--node', 'n1', '--ref', 'component', '--sidecar', sidecar];
+    assert.equal(run(command).code, 0);
+    const result = run([...command, '--remove', ...form]);
+    assert.equal(result.code, 0, result.stdout);
+    const node = JSON.parse(fs.readFileSync(sidecar, 'utf8')).nodes.n1;
+    const removed = form[0] !== 'false';
+    assert.deepEqual(node.specRefs, removed ? [] : ['component']);
+    assert.equal(node.history.filter((event) => event.kind === 'spec-ref-remove').length, removed ? 1 : 0);
+  });
+}
+
 test('合法旗标端到端回归：state set / report --no-trace / trace add 正常路径不受影响', () => {
   const dir = tmpDir();
   const sidecar = path.join(dir, 'atlas-state.json');
-  const set = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar]);
+  const set = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(set.code, 0, set.stdout);
   const rep = run(['report', '--sidecar', sidecar, '--no-trace']);
   assert.equal(rep.code, 0, rep.stdout);
@@ -113,10 +150,10 @@ test('三向对账红路：临时拷贝注入未登记旗标（flags 有、usage
     fs.cpSync(path.join(ROOT, sub), path.join(dir, sub), { recursive: true });
   }
   fs.copyFileSync(path.join(ROOT, 'package.json'), path.join(dir, 'package.json'));
-  const regPath = path.join(dir, 'lib', 'commands.mjs');
+  const regPath = path.join(dir, 'lib', 'cli-options.mjs');
   const reg = fs.readFileSync(regPath, 'utf8');
-  assert.ok(reg.includes("init: ['dir', 'title'"), '注入锚点漂移');
-  fs.writeFileSync(regPath, reg.replace("init: ['dir', 'title'", "init: ['dir', 'bogus-flag', 'title'"));
+  assert.ok(reg.includes('export const OPTIONS = {'), '注入锚点漂移');
+  fs.writeFileSync(regPath, reg.replace('export const OPTIONS = {', "export const OPTIONS = {\n  'bogus-flag': { commands: ['init'], type: 'value', key: 'bogus-flag' },"));
   const res = spawnSync(process.execPath, [path.join(dir, 'scripts', 'verify-contract-freshness.mjs')], { cwd: dir, encoding: 'utf8' });
   assert.equal(res.status, 1);
   assert.ok(res.stderr.includes('init:bogus-flag'), res.stderr);

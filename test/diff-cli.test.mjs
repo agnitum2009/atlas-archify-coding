@@ -39,3 +39,20 @@ test('diff spec：base/head 差异行与汇总；diff state：since 过滤时间
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+
+test('diff spec CLI reports container replacement and escaped literal keys', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'diff-cli-structure-'));
+  try {
+    const baseFile = path.join(dir, 'base.json');
+    const headFile = path.join(dir, 'head.json');
+    fs.writeFileSync(baseFile, JSON.stringify({ components: [{ id: 'a' }], 'a.b': 1, '#': 1 }));
+    fs.writeFileSync(headFile, JSON.stringify({ components: { 0: { id: 'a' } }, a: { b: 1 }, '#': 2 }));
+    const result = run(['diff', 'spec', '--base', baseFile, '--head', headFile]);
+    assert.equal(result.code, 0);
+    assert.deepEqual(result.receipt.data.summary, { added: 1, removed: 1, changed: 2 });
+    assert.deepEqual(result.receipt.data.rows.map((row) => row.subject), ['\\#', 'a.b', 'a\\.b', 'components']);
+    assert.equal(result.receipt.data.rows.find((row) => row.subject === 'components').kind, 'changed');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

@@ -97,3 +97,122 @@ test('用法守卫：无任何输入 → exit 2（不猜路径）', () => {
   assert.equal(r.code, 2);
   assert.equal(r.receipt.diagnostics[0].rule, 'bad_args');
 });
+
+// ---------- O4（2026-09-14 设计件 §2 O4）：判据换源 + JSONL append-only ----------
+
+// 造一个「看起来像 atlas」的目录：<atlas>/state/{projects.json, atlas-<project>.json}
+function makeAtlas(project, repoAbs) {
+  const atlas = fs.mkdtempSync(path.join(os.tmpdir(), 'fresh-atlas-'));
+  fs.mkdirSync(path.join(atlas, 'state'), { recursive: true });
+  fs.writeFileSync(path.join(atlas, 'state', 'projects.json'), JSON.stringify({ schemaVersion: 1, projects: [{ project, umbrella: project + '-add', sourcePath: repoAbs, sidecar: 'atlas-' + project + '.json' }] }, null, 2));
+  const sidecar = path.join(atlas, 'state', 'atlas-' + project + '.json');
+  fs.writeFileSync(sidecar, JSON.stringify({ schemaVersion: 1, revision: 0, nodes: { [project + '-n1']: { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [path.join(repoAbs, 'a.ts') + ':1'], history: [] } } }));
+  return { atlas, sidecar, stateDir: path.join(atlas, 'state') };
+}
+
+function writeMarker(repo, daysAgo) {
+  fs.mkdirSync(path.join(repo, '.codegraph'), { recursive: true });
+  const marker = path.join(repo, '.codegraph', 'last-sync.json');
+  fs.writeFileSync(marker, JSON.stringify({ at: new Date(Date.now() - daysAgo * 86400000).toISOString(), tool: 'codegraph sync' }) + '\n');
+  return marker;
+}
+
+test('O4 marker 优先：last-sync.json 时间戳入判据（source=marker）；db 更新时取二者较新（db-mtime-newer）', () => {
+  const { repo } = makeRepo('m1', { commitDaysAgo: 0, indexDaysAgo: 5 }); // db mtime = 5 天前
+  writeMarker(repo, 0); // marker = 现在
+  const r = run(['--repo', repo, '--json']);
+  assert.equal(r.code, 0, r.out);
+  const row = r.receipt.data.rows[0];
+  assert.equal(row.indexSource, 'marker', '有 marker 且更新時须取 marker：' + r.out);
+  assert.equal(row.state, 'fresh');
+
+  // 反过来：db mtime 较新 → 取 db（二者较新），source=db-mtime-newer，不当成假绿以外的异类
+  const { repo: repo2 } = makeRepo('m2', { commitDaysAgo: 0, indexDaysAgo: 0 });
+  writeMarker(repo2, 9);
+  const r2 = run(['--repo', repo2, '--json']);
+  assert.equal(r2.receipt.data.rows[0].indexSource, 'db-mtime-newer');
+  assert.equal(r2.receipt.data.rows[0].state, 'fresh');
+});
+
+test('O4 不再取目录 max mtime：只读查询/旁文件被摸新不得刷绿（真 lag 5 天必 stale）', () => {
+  const { repo } = makeRepo('m3', { commitDaysAgo: 0, indexDaysAgo: 5 });
+  // 模拟「一次只读查询摸了目录内旁文件（-shm/-wal/日志）」：造一个新 mtime 的旁文件
+  fs.writeFileSync(path.join(repo, '.codegraph', 'codegraph.db-shm'), 'touch');
+  const r = run(['--repo', repo, '--json']);
+  assert.equal(r.code, 1, '目录内旁文件被摸新不得刷绿（旧 newestIndexMtime 的假绿形态）：' + r.out);
+  assert.equal(r.receipt.data.rows[0].state, 'stale');
+  assert.equal(r.receipt.data.rows[0].indexSource, 'db-mtime');
+  assert.equal(r.receipt.data.rows[0].mtimeFallback, true, '无 marker 须显式标 mtime 回退');
+  assert.ok(r.receipt.diagnostics.some((d) => d.rule === 'mtime_fallback'), '回退须发 mtime_fallback warning');
+});
+
+test('O4 --source mtime（回滚档）：只读 db mtime，不发 mtime_fallback；非法值 exit 2', () => {
+  const { repo } = makeRepo('m4', { commitDaysAgo: 0, indexDaysAgo: 5 });
+  writeMarker(repo, 0);
+  const r = run(['--repo', repo, '--json', '--source', 'mtime']);
+  assert.equal(r.code, 1, '显式 mtime 档只认 db mtime → 5 天前 = stale：' + r.out);
+  assert.equal(r.receipt.data.source, 'mtime');
+  assert.ok(!r.receipt.diagnostics.some((d) => d.rule === 'mtime_fallback'));
+  const bad = run(['--repo', repo, '--json', '--source', 'nope']);
+  assert.equal(bad.code, 2);
+  assert.equal(bad.receipt.diagnostics[0].rule, 'bad_args');
+});
+
+test('O4 落盘：<atlas>/data/<project>/codegraph-freshness.jsonl 只追加一行/次（目录不存在即建）', () => {
+  const { repo } = makeRepo('m5', { commitDaysAgo: 0, indexDaysAgo: 0 });
+  writeMarker(repo, 0);
+  const { atlas, sidecar } = makeAtlas('demo', repo);
+  const logPath = path.join(atlas, 'data', 'demo', 'codegraph-freshness.jsonl');
+  assert.ok(!fs.existsSync(logPath), '前置：data/<project>/ 不存在');
+
+  const r1 = run(['--sidecar', sidecar, '--json']);
+  assert.equal(r1.code, 0, r1.out);
+  assert.ok(fs.existsSync(logPath), '须自建目录并落盘：' + r1.out);
+  const lines1 = fs.readFileSync(logPath, 'utf8').trim().split('\n');
+  assert.equal(lines1.length, 1, '一次运行一行');
+  const line = JSON.parse(lines1[0]);
+  assert.equal(line.command, 'check-codegraph-freshness');
+  assert.equal(line.project, 'demo');
+  assert.equal(line.atlas, atlas);
+  assert.equal(line.source, 'manifest');
+  assert.equal(line.counts.fresh, 1);
+  assert.equal(line.rows[0].repo, path.basename(repo));
+  assert.equal(line.rows[0].indexSource, 'marker');
+
+  const r2 = run(['--sidecar', sidecar, '--json']);
+  assert.equal(r2.code, 0, r2.out);
+  assert.equal(fs.readFileSync(logPath, 'utf8').trim().split('\n').length, 2, '只追加不覆盖（历史可回溯）');
+  assert.equal(r1.receipt.data.jsonl.written[0], logPath, '回执须报落点');
+});
+
+test('O4 无 atlas 语境不落盘（自由侧车零副作用）；project 名优先取侧车文件名', () => {
+  const { repo } = makeRepo('m6', { commitDaysAgo: 0, indexDaysAgo: 0 });
+  const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'fresh-plain-'));
+  const sc = path.join(plain, 'sc.json');
+  fs.writeFileSync(sc, JSON.stringify({ schemaVersion: 1, revision: 0, nodes: { n1: { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [path.join(repo, 'a.ts') + ':1'], history: [] } } }));
+  const r = run(['--sidecar', sc, '--json']);
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(r.receipt.data.jsonl.written, [], '非 atlas 版式不得落盘');
+  assert.ok(!fs.existsSync(path.join(plain, 'data')), '不得凭空造 data/ 目录');
+});
+
+test('B3 canonical source-only registry covers two same-name repos without activating gate', async () => {
+  const {loadProjectGate} = await import('../lib/project-gate.mjs');
+  const a = makeRepo('demo',{commitDaysAgo:1,indexDaysAgo:0});
+  const b = makeRepo('demo',{commitDaysAgo:0,indexDaysAgo:8});
+  try {
+    const sc = path.join(a.dir,'sc.json');
+    fs.writeFileSync(sc,JSON.stringify({nodes:{}}));
+    const reg = path.join(a.dir,'projects.json');
+    const bytes = JSON.stringify({schemaVersion:1,projects:[{project:'demo',sourcePath:a.repo},{project:'demo',sourcePath:b.repo}]});
+    fs.writeFileSync(reg,bytes);
+    const alias = path.join(a.dir,'alias'); fs.symlinkSync(a.repo,alias,'dir');
+    const r = run(['--sidecar',sc,'--repo',alias,'--json']);
+    assert.equal(r.code,1,r.out);
+    assert.equal(r.receipt.data.denominator,'2 仓');
+    assert.equal(r.receipt.data.counts.stale,1);
+    assert.deepEqual(r.receipt.data.rows.map(r=>r.path).sort(),[a.repo,b.repo].sort());
+    assert.equal(fs.readFileSync(reg,'utf8'),bytes);
+    assert.equal(loadProjectGate(sc),null);
+  } finally { for (const x of [a,b]) fs.rmSync(x.dir,{recursive:true,force:true}); }
+});

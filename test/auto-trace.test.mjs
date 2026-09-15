@@ -78,7 +78,7 @@ test('B1 gate：--no-trace 关闭留痕；--sidecar 缺失时降级 warning 不�
   const missing = path.join(dir, 'no-such-state.json');
   const r2 = run(['gate', '--diagram', bad, '--out', path.join(dir, 'o2.html'), '--sidecar', missing]);
   assert.equal(r2.code, 1, 'gate 主结果（三闸 fail）照常输出');
-  assert.ok(r2.receipt.diagnostics.some((d) => d.rule === 'gate_validate' || d.rule === 'gate_archify-missing'));
+  assert.ok(r2.receipt.diagnostics.some((d) => d.rule === 'gate_validate-failed' || d.rule === 'gate_archify-missing'));
   const degraded = r2.receipt.diagnostics.find((d) => d.rule === 'trace_degraded');
   assert.ok(degraded, '留痕失败应降级为 diagnostics warning');
   assert.equal(degraded.severity, 'warning');
@@ -167,7 +167,7 @@ test('B1 降级：侧车目录只读时 report 主结果照出（exit 0）+ trac
 test('B1 边界：state 写命令不自动留痕（history 已覆盖）；trace add --kind command 手动合法', () => {
   const dir = tmpDir();
   const sidecar = seedSidecar(dir);
-  const set = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--sidecar', sidecar]);
+  const set = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(set.code, 0);
   assert.equal(readSidecar(sidecar).trace, undefined, 'state set 不自动记 trace（replay 三源合并防污染）');
 
@@ -175,4 +175,20 @@ test('B1 边界：state 写命令不自动留痕（history 已覆盖）；trace 
   assert.equal(add.code, 0);
   assert.equal(add.receipt.data.event.kind, 'command', 'command 入 kind 枚举');
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('autoTrace bad explicit node degrades without changing preloaded sidecar', async () => {
+  const { autoTrace } = await import('../lib/cli-util.mjs');
+  const dir = tmpDir();
+  try {
+    const p = seedSidecar(dir);
+    const sc = { schemaVersion: 1, nodes: {}, unknown: 'keep' };
+    const before = structuredClone(sc);
+    const disk = fs.readFileSync(p, 'utf8');
+    const warning = autoTrace('report', { sidecar: p }, { node: 'constructor', result: { ok: true } }, sc);
+    assert.equal(warning.rule, 'trace_degraded');
+    assert.equal(warning.severity, 'warning');
+    assert.deepEqual(sc, before);
+    assert.equal(fs.readFileSync(p, 'utf8'), disk);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

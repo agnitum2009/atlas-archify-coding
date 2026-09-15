@@ -33,9 +33,9 @@ function seedSidecar(dir, over) {
   return p;
 }
 
-test('runDoctor：七项检查齐全；archify 缺失时 fail-closed 检出；新增三项 warning 级检查不使整体 failed', () => {
+test('runDoctor：八项检查齐全；archify 缺失时 fail-closed 检出；新增 warning 级检查不使整体 failed', () => {
   const d = runDoctor({});
-  assert.equal(d.checks.length, 7);
+  assert.equal(d.checks.length, 8);
   assert.equal(d.checks[0].name, 'node>=18');
   assert.equal(d.checks[1].name, 'archify-kernel');
 
@@ -50,8 +50,12 @@ test('runDoctor：七项检查齐全；archify 缺失时 fail-closed 检出；�
   assert.ok(names.includes('ledger-size'));
   const ev = d.checks.find((c) => c.name === 'evidence-resolvability');
   const ls = d.checks.find((c) => c.name === 'ledger-size');
+  const hc = d.checks.find((c) => c.name === 'head-anchor-consistency');
   assert.equal(ev.warning, true);
   assert.equal(ls.warning, true);
+  assert.equal(hc.warning, true, 'O2 head-anchor-consistency 为 warning 级数据债');
+  assert.equal(hc.ok, false, '无 sidecar 时未检');
+  assert.ok(hc.detail.includes('未检'), hc.detail);
   assert.equal(ev.ok, false);
   assert.equal(ls.ok, false);
   assert.ok(ev.detail.includes('未检'), ev.detail);

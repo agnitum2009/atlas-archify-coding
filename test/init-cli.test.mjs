@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { scaffoldAtlas } from '../lib/init.mjs';
 import { loadSidecar } from '../lib/store.mjs';
 
 const BIN = new URL('../bin/atlas-engine.mjs', import.meta.url).pathname;
@@ -196,4 +197,52 @@ test('零手工迁移端到端：init（v3）→ build-portal --project 直通 �
   assert.deepEqual(layoutErrors, [], 'layout 明细零 error');
 
   fs.rmSync(base, { recursive: true, force: true });
+});
+
+
+test('init rejects path identities before writes', () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'init-boundary-'));
+  const opts = {title:'race', diagramType:'architecture', diagramId:'demo-map', template:'minimal'};
+  try {
+    for (const diagramId of ['../escape', '/absolute', 'demo/escape', 'demo\\escape', '.', '..']) {
+      const dir = path.join(base, 'target');
+      assert.throws(() => scaffoldAtlas(dir, {...opts, diagramId}), {code:'bad_args'});
+      assert.equal(fs.existsSync(dir), false);
+    }
+  } finally { fs.rmSync(base, {recursive:true, force:true}); }
+});
+
+test('init preserves a competing sidecar at exclusive creation', () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'init-race-'));
+  const opts = {title:'race', diagramType:'architecture', diagramId:'demo-map', template:'minimal'};
+  try {
+    const dir = path.join(base, 'race');
+    const stateFile = path.join(dir, 'state/atlas-state.json');
+    const original = fs.writeFileSync;
+    fs.writeFileSync = (p, ...args) => {
+      if (p === stateFile && !fs.existsSync(p)) original(p, '{"competitor":true}');
+      return original(p, ...args);
+    };
+    try { assert.throws(() => scaffoldAtlas(dir, opts), {code:'atlas_exists'}); }
+    finally { fs.writeFileSync = original; }
+    assert.equal(fs.readFileSync(stateFile, 'utf8'), '{"competitor":true}');
+  } finally { fs.rmSync(base, {recursive:true, force:true}); }
+});
+
+test('init preflights every output against symlink escapes', () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'init-symlink-'));
+  try {
+    for (const output of ['state', 'spec', 'rulings', 'INDEX.md']) {
+      const root = path.join(base, output.replace('.', '-') + '-atlas');
+      const outside = path.join(base, output.replace('.', '-') + '-outside');
+      fs.mkdirSync(root); fs.mkdirSync(outside);
+      const destination = output === 'INDEX.md' ? path.join(outside, 'sentinel') : outside;
+      if (output === 'INDEX.md') fs.writeFileSync(destination, 'sentinel');
+      fs.symlinkSync(destination, path.join(root, output));
+      assert.throws(() => scaffoldAtlas(root, {title:'x', diagramType:'architecture', diagramId:'demo-map'}), {code:'bad_args'});
+      assert.deepEqual(fs.readdirSync(root), [output]);
+      assert.deepEqual(fs.readdirSync(outside), output === 'INDEX.md' ? ['sentinel'] : []);
+      if (output === 'INDEX.md') assert.equal(fs.readFileSync(destination, 'utf8'), 'sentinel');
+    }
+  } finally { fs.rmSync(base, {recursive:true, force:true}); }
 });

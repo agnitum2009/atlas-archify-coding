@@ -39,6 +39,7 @@ function tmpWorkspace() {
 
 test('import  happy path：新节点原子双写 verified+settled，证据锚+哈希+溯源+notice 全落', () => {
   const { dir, sidecar, locator } = tmpWorkspace();
+  seed(sidecar, {});
   const r = run(['state', 'import', '--node', 'imp1', '--reason', '历史闭环导入', '--owner', '一线席位', '--locator', locator, '--source', 'legacy-ledger', '--cutoff', '2026-08-10'], sidecar);
   assert.equal(r.code, 0, r.stderr);
   assert.equal(r.receipt.data.receipt.rule, 'A2-cross-axis-import');
@@ -63,17 +64,19 @@ test('import  happy path：新节点原子双写 verified+settled，证据锚+�
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('import 缺 --locator 失败且零写入（requireArgs 既有 exit 2 同例）；锚格式坏 = bad_locator', () => {
+test('import 缺 --locator 为 bad_args 且零写入；锚格式坏 = bad_locator', () => {
   const { dir, sidecar } = tmpWorkspace();
-  // 缺必填参数（requireArgs 既有行为：抛错 → 顶层 catch internal exit 2，与 settle/block 同例，本批次不改）；
-  // 断言可验证语义：调用失败且不产生任何写入。
+  seed(sidecar, {});
+  const before = fs.readFileSync(sidecar, 'utf8');
+  // 缺必填参数属于调用错误；合法账本让目标诊断不被 sidecar_missing 遮蔽。
   const missing = run(['state', 'import', '--node', 'imp2', '--reason', 'x', '--owner', '一线席位'], sidecar);
-  assert.notEqual(missing.code, 0);
-  assert.equal(fs.existsSync(sidecar), false, '缺参失败不得落盘建账');
+  assert.equal(missing.code, 1);
+  assert.equal(missing.receipt.diagnostics[0].rule, 'bad_args');
+  assert.equal(fs.readFileSync(sidecar, 'utf8'), before, '缺参失败不得写入');
   const bad = run(['state', 'import', '--node', 'imp2', '--reason', 'x', '--owner', '一线席位', '--locator', 'no-line-number'], sidecar);
   assert.equal(bad.code, 1);
   assert.equal(bad.receipt.diagnostics[0].rule, 'bad_locator');
-  assert.equal(fs.existsSync(sidecar), false, '锚格式失败同样不得落盘建账');
+  assert.equal(fs.readFileSync(sidecar, 'utf8'), before, '锚格式失败不得写入');
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -101,9 +104,13 @@ test('import 只登记零执行史节点：in_progress=import_conflict，已 set
 
 test('set 终态守卫：init 直达 settled / backlog→settled 一律 settled_requires_event；--correction 放行并留痕', () => {
   const { dir, sidecar, locator } = tmpWorkspace();
-  const initDirect = run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'settled', '--reason', '直达', '--owner', '一线席位'], sidecar);
+  const initDirect = run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'settled', '--reason', '直达', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(initDirect.code, 1);
   assert.equal(initDirect.receipt.diagnostics[0].rule, 'settled_requires_event');
+  // O1–O5 合并注记：建号校验（O3 class_required）先于轴级终态守卫——无 class 的建号先被拒。
+  const classless = run(['state', 'set', '--node', 'n0', '--axis', 'ledger', '--value', 'settled', '--reason', '直达', '--owner', '一线席位'], sidecar);
+  assert.equal(classless.code, 1);
+  assert.equal(classless.receipt.diagnostics[0].rule, 'class_required');
 
   seed(sidecar, { n2: { owner: '一线席位', truth: 'candidate', progress: 'in_progress', ledger: 'backlog', evidence: [locator], history: [] } });
   const viaSet = run(['state', 'set', '--node', 'n2', '--axis', 'ledger', '--value', 'settled', '--reason', '绕过 settle', '--owner', '一线席位'], sidecar);
@@ -119,11 +126,11 @@ test('set 终态守卫：init 直达 settled / backlog→settled 一律 settled_
 
 test('set 终态守卫：init/写入 verified 无证据 = verified_requires_evidence；--correction 放行；同值原地写不拦', () => {
   const { dir, sidecar } = tmpWorkspace();
-  const initDirect = run(['state', 'set', '--node', 'v1', '--axis', 'progress', '--value', 'verified', '--reason', '直达', '--owner', '一线席位'], sidecar);
+  const initDirect = run(['state', 'set', '--node', 'v1', '--axis', 'progress', '--value', 'verified', '--reason', '直达', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(initDirect.code, 1);
   assert.equal(initDirect.receipt.diagnostics[0].rule, 'verified_requires_evidence');
 
-  const corrected = run(['state', 'set', '--node', 'v1', '--axis', 'progress', '--value', 'verified', '--reason', '显式纠错', '--owner', '一线席位', '--correction'], sidecar);
+  const corrected = run(['state', 'set', '--node', 'v1', '--axis', 'progress', '--value', 'verified', '--reason', '显式纠错', '--owner', '一线席位', '--correction', '--class', 'task'], sidecar);
   assert.equal(corrected.code, 0, corrected.stderr);
 
   // 同值原地写（无状态变更）不触发守卫——否则存量违例节点连 reason 更新都被锁死
@@ -151,3 +158,27 @@ test('report import_unmarked：存量 settled 无事件发 warning（不阻断�
   assert.deepEqual(remaining, ['legacy'], 'import 落账的节点不得再发 import_unmarked；存量未处理节点仍报');
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+for (const classification of [undefined, 'task', 'not-a-class']) {
+  test(`import optional class ${classification} and unknown provenance`, () => {
+    const { dir, sidecar, locator } = tmpWorkspace();
+    seed(sidecar, {});
+    const before = fs.readFileSync(sidecar, 'utf8');
+    const args = ['state', 'import', '--node', 'fresh', '--reason', 'legacy', '--owner', '一线席位', '--locator', locator];
+    if (classification !== undefined) args.push('--class', classification);
+    const r = run(args, sidecar);
+    if (classification === 'not-a-class') {
+      assert.equal(r.code, 1);
+      assert.equal(r.receipt.diagnostics[0].rule, 'invalid_state_value');
+      assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
+    } else {
+      assert.equal(r.code, 0, r.stdout);
+      const n = readSidecar(sidecar).nodes.fresh;
+      assert.equal(n.class, classification);
+      assert.equal(n.history[0].class, classification);
+      assert.equal(n.history[0].source, null);
+      assert.equal(n.history[0].cutoff, null);
+    }
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+}

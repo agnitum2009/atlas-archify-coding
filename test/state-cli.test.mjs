@@ -25,7 +25,7 @@ function tmpSidecar() {
 test('set → get → 非法迁移 → evidence → settle 全链（含 A2/A3/A4 门禁）', () => {
   const sidecar = tmpSidecar();
 
-  const created = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位'], sidecar);
+  const created = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(created.code, 0);
   assert.equal(created.receipt.status, 'ok');
   assert.equal(created.receipt.data.to, 'in_progress');
@@ -48,7 +48,10 @@ test('set → get → 非法迁移 → evidence → settle 全链（含 A2/A3/A4
   assert.equal(wrongOwner.code, 1);
   assert.equal(wrongOwner.receipt.diagnostics[0].rule, 'owner_mismatch');
 
-  const ev = run(['state', 'evidence-add', '--node', 'n1', '--locator', 'test/fake.ts:42'], sidecar);
+  // 2026-09-15（缺陷3）：完成声称要求锚可解析 ⇒ 夹具用真实证据文件（写边仍不校存在性，见下一条）
+  const evFile = path.join(path.dirname(sidecar), 'ev.md');
+  fs.writeFileSync(evFile, 'evidence line\n');
+  const ev = run(['state', 'evidence-add', '--node', 'n1', '--locator', evFile + ':1'], sidecar);
   assert.equal(ev.code, 0);
 
   const badLocator = run(['state', 'evidence-add', '--node', 'n1', '--locator', 'no-line-number'], sidecar);
@@ -71,7 +74,7 @@ test('set → get → 非法迁移 → evidence → settle 全链（含 A2/A3/A4
 
 test('实战反馈修补（实战反馈档（2026-08-15））：全角冒号提示 + settle next 指向 report', () => {
   const sidecar = tmpSidecar();
-  run(['state', 'set', '--node', 'fr1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位'], sidecar);
+  run(['state', 'set', '--node', 'fr1', '--axis', 'progress', '--value', 'in_progress', '--reason', '开工', '--owner', '一线席位', '--class', 'task'], sidecar);
 
   // 全角冒号：bad_locator 报错含可行动提示
   const fw = run(['state', 'evidence-add', '--node', 'fr1', '--locator', '测试（副本）.md：2'], sidecar);
@@ -79,9 +82,17 @@ test('实战反馈修补（实战反馈档（2026-08-15））：全角冒号提�
   assert.equal(fw.receipt.diagnostics[0].rule, 'bad_locator');
   assert.ok(fw.receipt.diagnostics[0].evidence.includes('全角冒号'));
 
-  // 中文括号 + 半角冒号：合法通过（格式层）
+  // 中文括号 + 半角冒号：合法通过（格式层；写边不校存在性——lint 属读方）
   const cjk = run(['state', 'evidence-add', '--node', 'fr1', '--locator', '测试（副本）.md:2'], sidecar);
   assert.equal(cjk.code, 0);
+
+  // 完成声称要求可解析锚（2026-09-15 缺陷3）：先移除上条不可解析锚，再落一条真实锚
+  const removed = run(['state', 'evidence-remove', '--node', 'fr1', '--locator', '测试（副本）.md:2'], sidecar);
+  assert.equal(removed.code, 0);
+  const frEv = path.join(path.dirname(sidecar), 'fr.md');
+  fs.writeFileSync(frEv, 'evidence\n');
+  const frAdd = run(['state', 'evidence-add', '--node', 'fr1', '--locator', frEv + ':1'], sidecar);
+  assert.equal(frAdd.code, 0);
 
   // settle 成功回执 next 指向 report 且带实际 sidecar 路径
   const settled = run(['state', 'settle', '--node', 'fr1', '--reason', '销账', '--owner', '一线席位'], sidecar);
@@ -95,7 +106,7 @@ test('实战反馈修补（实战反馈档（2026-08-15））：全角冒号提�
 
 test('block 跨轴事件：--with-backlog 双写 + 无 --with-backlog 只动 progress', () => {
   const sidecar = tmpSidecar();
-  run(['state', 'set', '--node', 'b1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位'], sidecar);
+  run(['state', 'set', '--node', 'b1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', '一线席位', '--class', 'task'], sidecar);
   const blocked = run(['state', 'block', '--node', 'b1', '--with-backlog', '--reason', '阻塞', '--owner', '一线席位'], sidecar);
   assert.equal(blocked.code, 0);
   assert.equal(blocked.receipt.data.to.progress, 'blocked');

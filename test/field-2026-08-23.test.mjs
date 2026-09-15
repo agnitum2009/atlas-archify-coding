@@ -45,7 +45,7 @@ test('P1-4 建号校验：畸形 id 拒绝、合法 id 通过、既存畸形节�
     assert.equal(r.code, 1, JSON.stringify(bad) + ' 应被拒');
     assert.equal(r.receipt.diagnostics[0].rule, 'invalid_node_id');
   }
-  const good = run(['state', 'set', '--node', 'demo-a-a.b_c-1', '--axis', 'ledger', '--value', 'clean', '--reason', 'r', '--owner', 'o', '--sidecar', sc], dir);
+  const good = run(['state', 'set', '--node', 'demo-a-a.b_c-1', '--axis', 'ledger', '--value', 'clean', '--reason', 'r', '--owner', 'o', '--sidecar', sc, '--class', 'task'], dir);
   assert.equal(good.code, 0, '点/下划线/连字符合法');
   // 既存畸形 id（历史遗留）仍可被改——只拦新建，否则存量清理都做不了
   // （2026-09-14 A3-cancelled 守卫：progress→cancelled 须先 evidence-add，与 verified 同构）
@@ -55,7 +55,7 @@ test('P1-4 建号校验：畸形 id 拒绝、合法 id 通过、既存畸形节�
   fs.writeFileSync(evFile, '// legacy cleanup anchor — 畸形 id 存量节点作废依据\n');
   const ev = run(['state', 'evidence-add', '--node', 'bad|legacy', '--locator', evFile + ':1', '--sidecar', sc], dir);
   assert.equal(ev.code, 0, '畸形 id 节点应可加证据锚');
-  const mut = run(['state', 'set', '--node', 'bad|legacy', '--axis', 'progress', '--value', 'cancelled', '--reason', '清理', '--owner', 'o', '--sidecar', sc], dir);
+  const mut = run(['state', 'set', '--node', 'bad|legacy', '--axis', 'progress', '--value', 'cancelled', '--reason', '清理', '--owner', 'o', '--sidecar', sc, '--class', 'task'], dir);
   assert.equal(mut.code, 0, '既存畸形节点须可改（此处作废清理）');
   fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -66,7 +66,7 @@ test('P3-8：同文件近邻（±3）加锚附 evidence_near_duplicate warning�
   fs.writeFileSync(f, Array.from({ length: 30 }, (_, i) => 'line-' + (i + 1) + '-content').join('\n'));
   const sc = path.join(dir, 'sc.json');
   fs.writeFileSync(sc, '{"schemaVersion":1,"nodes":{},"revision":0}');
-  run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', 'o', '--sidecar', sc], dir);
+  run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', 'o', '--sidecar', sc, '--class', 'task'], dir);
   run(['state', 'evidence-add', '--node', 'n1', '--locator', f + ':10', '--sidecar', sc], dir);
   const near = run(['state', 'evidence-add', '--node', 'n1', '--locator', f + ':12', '--sidecar', sc], dir);
   assert.equal(near.code, 0, '不拦截');
@@ -74,7 +74,7 @@ test('P3-8：同文件近邻（±3）加锚附 evidence_near_duplicate warning�
   assert.ok(near.receipt.diagnostics[0].supportedFixes[0].includes('evidence-reanchor'));
   const far = run(['state', 'evidence-add', '--node', 'n1', '--locator', f + ':20', '--sidecar', sc], dir);
   assert.equal(far.receipt.diagnostics, undefined, '>3 行不报');
-  run(['state', 'set', '--node', 'n2', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', 'o', '--sidecar', sc], dir);
+  run(['state', 'set', '--node', 'n2', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', 'o', '--sidecar', sc, '--class', 'task'], dir);
   const cross = run(['state', 'evidence-add', '--node', 'n2', '--locator', f + ':11', '--sidecar', sc], dir);
   assert.equal(cross.receipt.diagnostics, undefined, '跨节点不报（报告原文限定本节点）');
   fs.rmSync(dir, { recursive: true, force: true });
@@ -97,7 +97,7 @@ test('P0-2 脚本：纯移位自动识别+apply 镜像 reanchor 语义；弱行�
   fs.writeFileSync(f, 'alpha-content-1\nbeta-content-2\ngamma-content-3\n');
   const sc = path.join(dir, 'sc.json');
   fs.writeFileSync(sc, '{"schemaVersion":1,"nodes":{},"revision":0}');
-  run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', 'o', '--sidecar', sc], dir);
+  run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--reason', 'r', '--owner', 'o', '--sidecar', sc, '--class', 'task'], dir);
   run(['state', 'evidence-add', '--node', 'n1', '--locator', f + ':2', '--sidecar', sc], dir);
   // 移位：行前插两行
   fs.writeFileSync(f, 'NEW-A\nNEW-B\nalpha-content-1\nbeta-content-2\ngamma-content-3\n');

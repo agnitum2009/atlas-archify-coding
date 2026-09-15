@@ -42,6 +42,9 @@ export const FORBIDDEN_PATHS = [
   /^integrations\//, /^docs\/FIELD-REPORT/, /^docs\/INCIDENT-/, /^docs\/AUDIT-SUMMARY/,
   /^docs\/PROPOSALS-/, /^docs\/PENDING-/, /^docs\/OMP-/, /^docs\/ADOPTION-BASELINE/,
   /^docs\/METHODOLOGY-/, /^docs\/PLAN-TREE-/, /^docs\/CODEGRAPH-ADOPTION-/, /^docs\/ADD-PROJECT/,
+  // 裁定回执目录（2026-09-14 新增）：裁决/回执天然携带内部项目名、席位名、本机路径与治理用语，
+  // 属内部治理档——整体不投影（文件级脱敏不可靠，且回执的价值就在原样可读）。
+  /^rulings\//,
   /^REVIEW\.md$/, /^CHANGELOG\.md$/, /^scripts\/(verify-injection-freshness|verify-deploy-injection|injection-terms|deploy-injection-path|verify-size-budgets|verify-doc-test-count|unowned-oversize-scan|export-public)\.mjs$/,
   /^test\/(injection-freshness|deploy-injection|public-projection)\.test\.mjs$/,
 ];
@@ -50,16 +53,20 @@ export const FORBIDDEN_PATHS = [
 // 它校验"公开版此文件 == 内部版此文件字节一致"，豁免面因此不可被用来夹带改动。
 export const SELF_EXEMPT = ['scripts/check-public-privacy.mjs'];
 
-const SKIP_DIRS = new Set(['.git', 'node_modules', '.pi-lens', 'artifacts', '.aac-projection']);
-const TEXT_EXT = new Set(['.mjs', '.js', '.md', '.json', '.yml', '.yaml', '.txt', '.html', '.css']);
+// Only root Git metadata is outside the publication tree. No build/cache directories are skipped.
+export const SCAN_EXCLUDED_PATHS = ['.git'];
+const BINARY_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.woff', '.woff2']);
+const UTF8 = new TextDecoder('utf-8', { fatal: true });
 
 function walk(dir, rel = '', out = []) {
   for (const name of fs.readdirSync(dir, { withFileTypes: true })) {
     const r = rel ? rel + '/' + name.name : name.name;
     const abs = path.join(dir, name.name);
-    if (name.isDirectory()) {
-      if (!SKIP_DIRS.has(name.name)) walk(abs, r, out);
-    } else out.push(r);
+    if (!rel && SCAN_EXCLUDED_PATHS.includes(name.name)) continue;
+    if (name.isSymbolicLink()) throw new Error('公开树符号链接：' + r);
+    if (name.isDirectory()) walk(abs, r, out);
+    else if (name.isFile()) out.push(r);
+    else throw new Error('公开树不是普通文件：' + r);
   }
   return out;
 }
@@ -69,10 +76,14 @@ export function scanTree(root) {
   for (const rel of walk(root)) {
     if (SELF_EXEMPT.includes(rel)) continue;
     if (FORBIDDEN_PATHS.some((re) => re.test(rel))) hits.push({ file: rel, rule: '路径级禁止（内部治理档/宿主适配面）', line: 0, text: '' });
-    if (!TEXT_EXT.has(path.extname(rel))) continue;
+    const buf = fs.readFileSync(absOf(root, rel));
     let text;
-    try { text = fs.readFileSync(absOf(root, rel), 'utf8'); } catch { continue; }
-    if (/\0/.test(text.slice(0, 8192))) continue; // 二进制不扫
+    try { text = UTF8.decode(buf); }
+    catch {
+      if (BINARY_EXT.has(path.extname(rel).toLowerCase())) continue;
+      hits.push({ file: rel, rule: '非 UTF-8 且非允许二进制类型', line: 0, text: '' }); continue;
+    }
+    // Valid UTF-8 is always scanned, even if named as a binary format or containing NUL.
     text.split('\n').forEach((line, i) => {
       for (const f of FORBIDDEN) if (f.pat.test(line)) hits.push({ file: rel, rule: f.why, line: i + 1, text: line.trim().slice(0, 160), pat: String(f.pat) });
     });
@@ -84,7 +95,7 @@ const absOf = (root, rel) => path.join(root, rel);
 if (process.argv[1] && process.argv[1].endsWith('check-public-privacy.mjs')) {
   const arg = process.argv[2];
   if (arg === '--rules') {
-    console.log(JSON.stringify({ forPatterns: FORBIDDEN.map((f) => ({ pat: String(f.pat), why: f.why })), forbiddenPaths: FORBIDDEN_PATHS.map(String) }, null, 2));
+    console.log(JSON.stringify({ forPatterns: FORBIDDEN.map((f) => ({ pat: String(f.pat), why: f.why })), forbiddenPaths: FORBIDDEN_PATHS.map(String), scanExcludedPaths: SCAN_EXCLUDED_PATHS, binaryExtensions: [...BINARY_EXT] }, null, 2));
     process.exit(0);
   }
   if (!arg) { console.error('用法：check-public-privacy.mjs <目录> ｜ --rules'); process.exit(2); }
