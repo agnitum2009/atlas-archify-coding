@@ -87,7 +87,7 @@
 | verified | 表内 | 表内（待销账） | 表内 |
 | cancelled | 表内 | **表外**（取消的工作不可销账，欠账成孤儿） | **表外** |
 
-两条约束的来源不同：settled ⇒ verified 是 §2.4 双写不变量的成文（写边已由 settled_requires_event 守住）；cancelled ⇒ clean 是**新增观测约束**——写边今天仍允许先挂 backlog 再 cancelled，但取消后欠账无法经任何事件销账（settle 要求 in_progress/verified，import 要求 planned×clean），成永久孤儿，故先以 warning 统计。执法口径：本版只成文；report 对表外组合发 warning `cross_axis_unlisted`（常开、不阻断）；是否升 error / 是否在写边拦截待统计后另行裁定。
+两条约束的来源不同：settled ⇒ verified 是 §2.4 双写不变量的成文（写边已由 settled_requires_event 守住）；cancelled ⇒ clean 是**新增观测约束**。执法口径（0.21.1 收口，依据 2026-09-18 真实账本统计）：cancelled ⇒ clean 半边**写边拦截**（state set/transition progress→cancelled 而 ledger≠clean = failed `cancelled_requires_clean`，exit 1 零写入；`--correction` 显式核销通道保留，corrected:true 留痕）——统计证实该半边存量=0，零误伤；settled ⇒ verified 半边维持 warning 观测（写边已守住，存量只会来自 0.16.x 前直达赋值遗存，与 import_unmarked 同人群，清偿后 warning 自然归零），report 对表外组合发 warning `cross_axis_unlisted`（常开、不阻断、读方不修边）。
 
 ### 2.5 真相轴启用协议（2026-08-15 负责人裁定，提案③）
 

@@ -3,6 +3,26 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.21.1] - 2026-09-18
+
+裁定收尾批（0.21.0 留给下一版的二问落裁，依据同日真实账本统计：551 节点，cross_axis_unlisted=36，全部为 settled⇒verified 半边的历史直达遗存；cancelled⇒clean 半边存量=0。可机检项各有先红后绿测试 test/ruling-2026-09-18-followup.test.mjs，7 项）。
+
+### Breaking
+
+- (a) `state set/transition`：progress→cancelled 而 ledger≠clean = failed `cancelled_requires_clean`/exit 1（零写入）——0.21.0 成文的「写边仍允许先挂 backlog 再 cancelled」语义就此收口。零误伤依据：真实账本该半边存量 0；补救 = 先 state settle 核销欠账再取消，或 --correction 显式核销（corrected:true 留痕，与 settled_requires_event 同款）。
+
+### Fixed
+
+- report 失败信封（非 --brief）丢 warnings：errors>0 时 data 仅 {a1?, evidenceHead}，存量统计仪器（cross_axis_unlisted 等）恰在账本不健康时不可见——重演 0.4.0「藏明细」缺陷（evidenceHead 同型问题已修而 warnings 漏了）。修复 = data 补 warnings 全文；--brief 失败信封仍为计数（语义对称）。
+
+### Added
+
+- `which` 探测（lib/resolve-archify.mjs）补 5s 超时：裁定5「子进程不得无限挂起」的唯一 lib 内例外收口；超时按探测失败走既有回退链，fail-closed 不变，不伪装成功。
+
+### 观测口径（非行为）
+
+- cross_axis_unlisted 拆半裁定成文（ADD-SPEC §2.4.1 执法口径段）：settled⇒verified 半边维持 warning（写边已由 settled_requires_event 守住，36 条存量与 import_unmarked 同人群，清偿后归零）；cancelled⇒clean 半边升写边拦截（本版 Breaking 项）。
+
 ## [0.21.0] - 2026-09-18
 
 裁定批（负责人 2026-09-18 对 0.20.0「未纳入」清单逐项裁定；可机检项各有先红后绿测试 test/ruling-2026-09-18.test.mjs，5 项）。
@@ -85,66 +105,9 @@
 - 退役 `scripts/verify-doc-test-count.mjs（内部件，未随本版发布）` 及重复执行测试的 CI 步骤；日期明确的历史记录保留原观测。当前说明统一引用 `npm test` 输出，保留 Node 18/20/22/24 矩阵与其他验证器。
 - 修复证据及最终验收见本批实施报告；gate 的机器通过仍保留 visualReview=pending，存量账本/历史不会自动迁移，宿主技能不会自动部署。
 
-## [0.18.0] - 2026-09-14
-
-O1–O5 合并（分支 opt/o1-o5-20260914 × 主线 0.17.0）——「写边合法性 + 判据换源 + 逐闸可证」族。
-本条目由 demo-b 编排线在合并候选分支 `merge/o1-o5-candidate` 落笔（冲突解 c856fbd）；合并入 main 的时机与
-版本号由负责人在合并窗口确认。
-
-### Breaking（写边从「只校格式」升级为「校合法性」）
-
-- **O3 `class_required`**：**新建节点**的首个写入未声明 class 轴即拒（exit 1）——`--axis class --value <…>` 或本次写入带
-  `--class <值>` 二选一；只约束新建，存量无 class 节点不追溯。同批 `state active` 增 `unclassified[]`（无 class 且未完成的
-  节点单列并计入 count，不再从默认活帐视图静默漏出，`unclassified_nodes` warning）。属破坏性变更 (a)。
-- **O1 锚根白名单写边硬拦**：`state evidence-add` / `evidence-reanchor` 的目标锚不在白名单（侧车 atlas 根 ∪
-  `projects.json` 各 sourcePath ∪ `<侧车同目录>/anchor-roots.json` ∪ `--allow-root`）即拒（`anchor_root_denied`，exit 1）；
-  `--allow-root` 显式传入的根若非法（非绝对路径/根过大/dist·.next 段）落 `anchor_root_rejected`（warning）。存量错根锚
-  走 `<侧车同目录>/anchor-root-exemptions.json` 一次性 grandfathered 豁免（首跑快照，含 receipt 锚，豁免不静默）。属 (a)。
-- **O2 锚对 HEAD**：`report` 新增 error 码 `a1-evidence-uncommitted`（`progress=verified` 节点的锚指向不在 git HEAD 的
-  工作树-only 文件）；`a3-head-mismatch`（HEAD 同行内容不同 / HEAD 行数少于锚行号）在 report 为 error、doctor 为 warning
-  级 `head-anchor-consistency`。不自动改锚。属 (a)：既有一批工作树-only 锚自本版起报红。
-- **建号校验先于轴级守卫**（合并语义）：无 class 的建号先被 `class_required` 拒；已有 class 时 0.17.0 的终态守卫
-  （`settled_requires_event` / `verified_requires_evidence`）照常生效。
-- **2026-09-15 可靠性审核修复批**（独立审核直改主线，属破坏性变更 (a)）：
-  - **存储**：坏形状侧车（`nodes` 数组/顶层 null/字段类型错）load/save 均拒（`sidecar_bad_shape`），修复「写入后节点静默丢失」；
-    硬链接侧车保守拒写（`sidecar_hardlinked`）；断链 symlink fail-loud（`sidecar_path_unresolvable`）；**写锁不再自动接管**——
-    死 PID/超龄锁同样 `sidecar_locked` fail-closed（原「判陈旧→unlink→重抢」存在 TOCTOU 误删活锁窗口，零依赖环境无安全原语）；
-    提交边界显式化：rename 前失败回滚 revision 且权限不动，rename 后目录 fsync 失败返回 `sidecar_commit_unknown`（committed=true）。
-  - **证据完成声称**：`set/transition→verified`、`settle`、`import` 要求证据锚可解析（此前「有锚但指向不存在文件」可完成销账）；
-    `evidence-add`/`evidence-reanchor`/`import` 统一过锚根白名单（此前 import 绕过）。
-  - **transition 前态绑定**：`--from` 必须等于节点当前轴值（`transition_from_mismatch`）——修复前只校 from/to 表内合法性，
-    伪造 from 可跳级直达 verified；`transition` 直达 `ledger→settled` 同拦（`settled_requires_event`，与 set 同责）。
-  - **report 常开对账**：声称对齐节点零证据（`evidence_missing`）与不可解析锚（`evidence_unresolvable`）升级为 error（exit 1），
-    不再默认绿；HEAD 汇总增 verdict/checked/unchecked/exempt，broken/未检查不再计入「一致」。
-  - **gate 回执契约**：validate/deliver/visual-check 各自校验真实成功回执与产物（digest/bytes/目标文件），不再只看子进程
-    exit code——假内核 exit 0 无法伪造 pass；visual-check skipped 或子项失败 fail-closed。
-  - **图账映射统一**（`lib/spec-id.mjs`）：compile/report/settle 共用 exact→normalized→scoped specRefs 解析，多候选报
-    ambiguous 不静默误绑；class 豁免与 matched 分开披露。
-  - **边对账**：区分 typed directional hit / file-level nomination / reverse-only / kind mismatch，不再把任意双向文件关系
-    当作语义证明；漏边探测稳定排序并披露截断（`nominationTruncated`）。
-
-### Added
-
-- **O4 G-CG 判据换源**：新鲜度改读索引内部语义时间——`.codegraph/last-sync.json`（字段时间戳优先，退文件 mtime）与
-  `codegraph.db` mtime 取较新；**不再取 `.codegraph/` 目录内 max mtime**（读一次即刷绿=假绿）。无 marker 时回退 db mtime 并标
-  `mtime_fallback` warning；回滚档 `--source mtime`（只读 db mtime，仍不读目录 max）。marker 生产侧属 codegraph 契约。
-- **O5 gate 逐闸 detail append-only**：每次 gate 运行把逐闸结果（含 fail-fast 前未跑闸记 `skip`）追加一行 JSONL 到
-  `<atlas>/data/<project>/gate-detail.jsonl`，使「哪次哪个闸红」可回溯；与使用方仓 `gate-history.jsonl` 互不冲突。
-- O1：`--allow-root` 旗标；`anchor-roots.json` 显式登记；`lib/anchor-roots.mjs`（白名单解析/裁决/豁免快照）。
-
-### 验证
-
-- `npm test` **343/343 绿**（325 基线 + 审核修复批 16 + transition 守卫 2；含 anchor-roots 5·head-anchor·codegraph-freshness·gate-detail·o3-class-axis·state-import 6·state-transition-guard 2）；
-- 六件 verify 脚本全绿：`verify-contract-freshness` / `verify-size-budgets` / `verify-doc-test-count` / `verify-release-version`
-  / `verify-injection-freshness` / `verify-deploy-injection`；
-- 契约件按预算内维护（`specs/command-contract.md` 257 行 ≤ 260；合并期把两条史实注与两条门禁注各并一行，内容未删；09-15 审核批新增 `transition_from_mismatch` 行并改写 `sidecar_locked`/`settled_requires_event` 语义行）；
-- 文档测试数 315→343（README/REVIEW/USAGE/ADD-PROJECT×3/QUICKSTART-NONCODER）；
-- 合并冲突 2 处（`lib/commands.mjs` 旗标白名单取并集、set 事件留痕取「O3 class 赋值 + 0.17.0 终态守卫打标」；
-  `test/set-a2.test.mjs` 取 0.17.0 值 + O3 `--class`）。
-
 ---
 
-更早的 39 个版本（0.1.0 → 0.17.0）：
+更早的 40 个版本（0.1.0 → 0.18.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

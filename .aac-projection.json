@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.21.0",
+  "sourceVersion": "0.21.1",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "674fa4e3c16b8f4f"
+      "sha256": "8cafb687207bc207"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "3fdc2af51a8b82e9"
+      "sha256": "d397a85739a94407"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -81,7 +81,7 @@
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "29467265747311c6"
+      "sha256": "9b955202b4882564"
     },
     {
       "path": "lib/compile.mjs",
@@ -137,7 +137,7 @@
     },
     {
       "path": "lib/resolve-archify.mjs",
-      "sha256": "1ccbdaf8ef442bda"
+      "sha256": "e92bd95986afa00c"
     },
     {
       "path": "lib/spec-id.mjs",
@@ -149,7 +149,7 @@
     },
     {
       "path": "lib/state-policy.mjs",
-      "sha256": "fe225b7361428288"
+      "sha256": "8230ba005b27fea4"
     },
     {
       "path": "lib/store.mjs",
@@ -169,7 +169,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "b8a23055edb5b99d"
+      "sha256": "b6c1ff0d80bbab11"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -205,7 +205,7 @@
     },
     {
       "path": "specs/ADD-SPEC.md",
-      "sha256": "6bfbe3452333e112"
+      "sha256": "656100c8a137d01e"
     },
     {
       "path": "specs/atlas-layout.md",
@@ -213,7 +213,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "9e383dba3d9be411"
+      "sha256": "597940e02801aa18"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -386,6 +386,10 @@
     {
       "path": "test/resolve-archify.test.mjs",
       "sha256": "6f780605d8de50b1"
+    },
+    {
+      "path": "test/ruling-2026-09-18-followup.test.mjs",
+      "sha256": "097d069281e84e7f"
     },
     {
       "path": "test/ruling-2026-09-18.test.mjs",

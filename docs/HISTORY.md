@@ -3,6 +3,26 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.21.1] - 2026-09-18
+
+裁定收尾批（0.21.0 留给下一版的二问落裁，依据同日真实账本统计：551 节点，cross_axis_unlisted=36，全部为 settled⇒verified 半边的历史直达遗存；cancelled⇒clean 半边存量=0。可机检项各有先红后绿测试 test/ruling-2026-09-18-followup.test.mjs，7 项）。
+
+### Breaking
+
+- (a) `state set/transition`：progress→cancelled 而 ledger≠clean = failed `cancelled_requires_clean`/exit 1（零写入）——0.21.0 成文的「写边仍允许先挂 backlog 再 cancelled」语义就此收口。零误伤依据：真实账本该半边存量 0；补救 = 先 state settle 核销欠账再取消，或 --correction 显式核销（corrected:true 留痕，与 settled_requires_event 同款）。
+
+### Fixed
+
+- report 失败信封（非 --brief）丢 warnings：errors>0 时 data 仅 {a1?, evidenceHead}，存量统计仪器（cross_axis_unlisted 等）恰在账本不健康时不可见——重演 0.4.0「藏明细」缺陷（evidenceHead 同型问题已修而 warnings 漏了）。修复 = data 补 warnings 全文；--brief 失败信封仍为计数（语义对称）。
+
+### Added
+
+- `which` 探测（lib/resolve-archify.mjs）补 5s 超时：裁定5「子进程不得无限挂起」的唯一 lib 内例外收口；超时按探测失败走既有回退链，fail-closed 不变，不伪装成功。
+
+### 观测口径（非行为）
+
+- cross_axis_unlisted 拆半裁定成文（ADD-SPEC §2.4.1 执法口径段）：settled⇒verified 半边维持 warning（写边已由 settled_requires_event 守住，36 条存量与 import_unmarked 同人群，清偿后归零）；cancelled⇒clean 半边升写边拦截（本版 Breaking 项）。
+
 ## [0.21.0] - 2026-09-18
 
 裁定批（负责人 2026-09-18 对 0.20.0「未纳入」清单逐项裁定；可机检项各有先红后绿测试 test/ruling-2026-09-18.test.mjs，5 项）。
@@ -367,7 +387,7 @@ evidence_near_duplicate；sidecar_missing 为既有码扩发射路径）。
 - **(a) trace/lessons/notice 全子命令：侧车文件不存在从 exit 0 变 exit 1（rule=sidecar_missing）**。
   此前读路径凭空造空账（`lessons list` → ok/count:0）、写路径静默自建新账本——且该行为是契约
   附录 A 成文的设计选择（原文「不报此码」）；实战后果：注入块一度缺 --sidecar，112 条经验
-  + 59 条未读通知被隐藏整个战役周期（P0-1，vacuous green 家族）。现 fail-loud 并附出路
+  - 59 条未读通知被隐藏整个战役周期（P0-1，vacuous green 家族）。现 fail-loud 并附出路
   （显式 --sidecar / init）。拒绝报告方案二「缺省解析链」：向上搜索会静默挂上父项目侧车，
   错账污染 > 空账不可见（交叉验证双席背书）。state set 的 :68 成文创世语义不变。
 - **(a) state set 新建节点 id 白名单 `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`（rule=invalid_node_id）**。
@@ -449,10 +469,12 @@ evidence_near_duplicate；sidecar_missing 为既有码扩发射路径）。
 ### Added
 
 - **size-budgets 门禁增 scripts/ 观测项**（先测量、不设顶）。立项理由是实测的第三次增长转移：
+
   ```
   能力面被命令/旗标预算控住 → 增长转移到 docs（0.11.3 咬住）
                             → 又转移到 scripts/（单日 +2 件，1567 行 ≈ 内核的 48%，此前零约束）
   ```
+
   **每堵住一个泄压口，增长就换一个地方冒出来**——预算机制有效，但覆盖面永远慢半拍。
   故本项只测量不设顶，与 docs 同路数，避免用「再加一条规则」治「规则太多」。
 - **防御模式 #11：多口径指标只报一个 = 选择性报告**。实例：账本覆盖率文件级 7.8% vs
@@ -482,10 +504,12 @@ evidence_near_duplicate；sidecar_missing 为既有码扩发射路径）。
   （`data.exempted.byPath/byMarker/samples`），可审计。
 
   独立复现执行席的分类（实测，非采信）：
+
   ```
   platform-third-party：扫描 7430 → 路径豁免 791 → 计入分母的超限 0
   不加豁免：超限 791 / 无人负责 791   ← 正是它警告的分母虚胖
   ```
+
   **791 与执行席自报数字精确吻合**；回归：annotation-bff / sdk 路径豁免均为 0，自写代码零误伤。
 
 ### 记录：这一轮双方各自把对方的错补上了
@@ -524,6 +548,7 @@ platform-third-party  791 全部豁免，不再污染分母
 文件级覆盖   26/333 =  7.8%   ← 旧口径（严格，但与「归属粒度=限界上下文」的实践不匹配）
 上下文级覆盖 299/333 = 89.8%   ← 新口径（与执行席的归属粒度对齐）
 ```
+
 **7.8% 不是执行席的失职，是我的口径太机械**——它明确拒绝「为 316 个文件各建节点」，
 理由是「那是把账本当文件系统用」，这个判断正确。真正的缺口由新口径给出：
 **11 个上下文在账本内零证据锚**——appeal / commissioning / contract-center /
@@ -539,6 +564,7 @@ settlement-center / task-strategy-change / third-party-vertical / training-trial
 我方扫描覆盖 8 仓（含 business-integration-assets），漏 sdk（13 个从未进入我的 333）
 → 真实全域 = 9 仓；两边各自的「穷尽性」都只在自己划的圈里成立
 ```
+
 **我们各自在建分母机制，而各自的分母都漏了对方看见的那块。**
 这恰是执行席本轮新教训 `progress-denominator-before-percentage`（任何百分比先问分母从哪来）
 的最强实例——立即应用到了立规者自己身上。
@@ -1078,4 +1104,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 44 个版本全量保留；派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 45 个版本全量保留；派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
