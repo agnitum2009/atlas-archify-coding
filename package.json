@@ -1,9 +1,13 @@
 {
   "name": "atlas-archify-coding",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "type": "module",
   "description": "Atlas-Archify-Coding (aac) — 图谱驱动研发（ADD）L2 状态机层：三轴账本 + 证据锚 + 图账交叉对账 + 门禁执法；零运行时依赖。",
   "license": "MIT",
+  "repository": "github:agnitum2009/atlas-archify-coding",
+  "homepage": "https://github.com/agnitum2009/atlas-archify-coding#readme",
+  "bugs": { "url": "https://github.com/agnitum2009/atlas-archify-coding/issues" },
+  "files": ["bin/", "lib/", "specs/", "docs/USAGE.md", "README.md", "LICENSE", "SECURITY.md"],
   "bin": {
     "atlas-engine": "./bin/atlas-engine.mjs",
     "aac": "./bin/atlas-engine.mjs"
@@ -12,7 +16,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm test && node scripts/verify-contract-freshness.mjs && node scripts/verify-release-version.mjs && node scripts/check-public-privacy.mjs ."
   },
   "keywords": [
     "atlas-driven-development",

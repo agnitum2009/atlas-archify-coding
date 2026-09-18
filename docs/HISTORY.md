@@ -3,6 +3,33 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.20.0] - 2026-09-18
+
+审核修复批（第一性 × MECE × 奥卡姆审查，2026-09-18）：每项修复都先有复现测试（test/audit-2026-09-18.test.mjs，11 项）。
+
+### Breaking
+
+- (b) `state set` 建账须显式 `--sidecar`：缺省路径 `cwd/atlas-state.json` 缺失一律 `sidecar_missing`/exit 1，不再在 cwd 静默新建账本（幽灵账本 = 空态绿；契约 §2 已同步）。
+- (b) `transition` 的 from 比对把 truth 缺失/null 视为 `candidate`（与 truth 回执门禁同口径），存量节点不再被 `transition_from_mismatch` 卡死。
+
+### Fixed
+
+- 锚根白名单（O1）改用 realpath 判包含：图谱根内符号链接指向根外文件不再放行（`anchor_root_denied`）。
+- git 可执行文件不可用或被信号终止时，HEAD 锚比对归免检 `no-git`（带 `reason: git-unavailable:*`），report/doctor 不再把已提交的锚误判为 `a1-evidence-uncommitted`。
+- `diag()` 第 4 参 severity 生效：销账成功回执的 `a1-settle-unbound` 与 report 的 `missing_code_sha`/`missing_spec_sha` 现为 warning 级。
+- `autoTrace` 的侧车路径解析移入 try：断链 symlink 侧车只降级为 `trace_degraded`，不再把通过的 gate/compile/report 变成 exit 1。
+- `verify-contract-freshness` 补采 `requireRule('code')` 与 diag/requireRule 内三元首参发射的错误码：此前 4 个活码被误报为「附录 A 有而代码无」，且新码经助手发射可绕过门禁。
+
+### Docs / Packaging
+
+- USAGE 示例证据改落 `evidence/<项目>/<diagram-id>/receipt.json`（此前落 evidence/ 根，跑完 doctor 即 atlas-layout 报错）；QUICKSTART-NONCODER 重写为本仓可实际执行的三步。
+- 契约 §2 补 `state active`/`state spec-ref` 子命令行；`unknown_axis` 行补 class；README 不再声称文档行数有本仓门禁；DEFENSIVE §11 锚点注明上游件。
+- package.json 增 `files` 白名单（不再随包发布 test/、fixtures/ 与隐私黑名单脚本）、`repository`/`homepage`/`bugs`、`prepublishOnly`（npm test + 三门禁）。`.gitignore` 增 `.omc/`。
+
+### 未纳入本批（需负责人裁定）
+
+- 崩溃残留锁的显式恢复命令（`unlock`）、`--version` 旗标（全仓旗标预算已满 50/50）、ADD-SPEC 补 class 轴条文、跨轴合法组合矩阵、git 子进程超时、Windows 支持声明、`slugify`/路径守卫/git 根发现去重。
+
 ## [0.19.0] - 2026-09-15
 
 ### Breaking

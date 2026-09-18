@@ -57,8 +57,8 @@
 set -eu
 node "$ATLAS_ENGINE_BIN" init --dir demo-atlas --title Demo --diagram-id demo-system
 node "$ATLAS_ENGINE_BIN" state set --node demo-task --axis progress --value in_progress --class task --reason 开工 --owner reviewer --sidecar demo-atlas/state/atlas-state.json
-printf '%s\n' '交付证据' > demo-atlas/evidence/proof.txt
-node "$ATLAS_ENGINE_BIN" state evidence-add --node demo-task --locator "$PWD/demo-atlas/evidence/proof.txt:1" --sidecar demo-atlas/state/atlas-state.json
+mkdir -p demo-atlas/evidence/demo/demo-system && printf '%s\n' '{"delivered":true}' > demo-atlas/evidence/demo/demo-system/receipt.json
+node "$ATLAS_ENGINE_BIN" state evidence-add --node demo-task --locator "$PWD/demo-atlas/evidence/demo/demo-system/receipt.json:1" --sidecar demo-atlas/state/atlas-state.json
 node "$ATLAS_ENGINE_BIN" state settle --node demo-task --reason 交付 --owner reviewer --sidecar demo-atlas/state/atlas-state.json
 ```
 <!-- atlas-example:end -->

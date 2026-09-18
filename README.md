@@ -45,7 +45,7 @@ node --test test/*.test.mjs            # 全部离线，用临时目录，不碰
 ## 质量与约束
 
 - `npm test` 全绿；`verify-contract-freshness` 与 `check-public-privacy` 是每次提交的 CI 前置（不是建议，是门）。
-- 命令数、可选参数数、`--help` 行数、规范与文档的单件长度都有**上限门禁**（超了就红）。理由很实在：
+- 命令数、可选参数数、`--help` 行数有**上限门禁**（超了就红，见 `verify-contract-freshness` 与 help 测试）；规范与文档的单件行数预算在 `specs/command-contract.md` 声明，由上游 CI 执行，本仓不自动检查。理由很实在：
   **能力面一旦无约束增长，这个工具自己就变成了需要被掌控的东西** —— 而那正是它要解决的问题。
 - 已知边界：它假设你在可信环境单机使用，不做加密/访问控制/多租户（详见 `SECURITY.md` 的信任模型）。
 - 许可证 MIT；贡献前请读 `CONTRIBUTING.md`（能力增删走"五问"评审，不是谁想到就能加）。
