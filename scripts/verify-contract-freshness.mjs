@@ -4,6 +4,11 @@
 //    （[x] 小节头 + atlas-engine <cmd> 用法行）必须在 command-contract.md 有对应章节（宽松=单词出现）。
 // b) 错误码对账：lib/*.mjs + bin/*.mjs 全部字面错误码（diagnostics.rule 发射上下文）对照契约附录 A 表——
 //    代码有而附录缺 = exit 1 列名清单；附录有而代码无 = warning 打印不阻断（历史码宽容）。
+//    认得的形态（有界静态字面量检查，非 JS 数据流分析）：① diag('code', ...) 首参；② 策略助手 requireRule('code', ...) 首参；
+//    ③ 首参位以**单个标识符**为条件选码的三元（diag(x ? 'a' : 'b', ...) / requireRule(x ? 'a' : 'b', ...)）两分支各算一个码；
+//    ④ code = '...' / code || '...' / rule: '...' / code === '...' 等既有上下文。局限（已知且刻意不覆盖）：
+//    条件为成员表达式/函数调用/布尔运算的三元、变量间接传码、拼接/模板串、跨函数数据流一律不认——此类码必须在某处仍以此处
+//    四形态之一出现，否则为漏报；消息参数（第二个实参）里的字面量不算错误码，避免把说明文字（如「补救 = ...」）误登记为码。
 // c) 预算对账（增长控制开发规范批一#4）：命令数 ≤11（当前 10——0.10.0 移除 evidence 后腾出 1 个名额；
 //    硬顶不随实数回落，理由见 specs/command-contract.md「治理」节；占用名额须过准入五问+采用率基线）、全仓唯一旗标总数 ≤50（从注册表 flags 字段聚合统计，
 //    不再 grep 文本）——超顶 exit 1 并打印「预算超限=强制一次显式决定:提预算或退一个旗标」。
@@ -62,17 +67,20 @@ const literals = new Set();
 const patterns = [
   // 发射：各模块局部 diag('code', ...) 首参（bin 与 lib 同构）。
   { re: /diag\(\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
+  // 发射：策略助手 requireRule('code', ...) 首参（lib/state-policy.mjs 的证据/A2 规则码）。
+  { re: /requireRule\(\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
+  // 发射：首参处的简单条件选码三元——条件限**单个标识符**，两分支都算（此处 1 个模式产出 2 个捕获）。
+  // 覆盖形如 diag(missing ? 'receipt_not_found' : 'receipt_unreadable', ...)、
+  // requireRule(cancelled ? 'cancelled_requires_evidence' : 'verified_requires_evidence', ...)。
+  // 只认首参位（diag|requireRule 紧跟），不做通用 JS 数据流分析：条件为成员表达式/调用/布尔运算时一律不认，
+  // 宁可少认（漏报由测试与人工补）也不把消息参数或条件变量误当错误码。
+  { re: /(?:diag|requireRule)\(\s*[A-Za-z_$][\w$]*\s*\?\s*'([a-z][a-z0-9_-]*)'\s*:\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
   // 发射：err.code = 'code'（err./e. 前缀同匹配；\b 在 '.' 与字母间成界）。
   { re: /\bcode\s*=\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
   // 发射：diag(e.code || 'sidecar_error', ...) 兜底。
   { re: /code\s*\|\|\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
   // 发射：诊断对象字面量 rule: 'code'（如 autoTrace 的 trace_degraded）；回执码由 RECEIPT_RULES 剔除。
   { re: /rule\s*:\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
-  // 发射：state-policy 的 requireRule('code', …) 助手（审核批 2026-09-18：此前漏采 → 门禁不健全）。
-  { re: /requireRule\(\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
-  // 发射：diag(cond ? 'a' : 'b', …) / requireRule(cond ? 'a' : 'b', …) 三元首参——两臂各采一次（消费方只取 m[1]）。
-  { re: /(?:diag|requireRule)\(\s*[^,()]*?\?\s*'([a-z][a-z0-9_-]*)'\s*:\s*'[a-z][a-z0-9_-]*'/g, to: 'both' },
-  { re: /(?:diag|requireRule)\(\s*[^,()]*?\?\s*'[a-z][a-z0-9_-]*'\s*:\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
   // 字面量：e.code === 'code' / !== 等检查上下文（反向核对用）。
   { re: /code\s*(?:===|!==|==|!=)\s*'([a-z][a-z0-9_-]*)'/g, to: 'literals' },
 ];
@@ -81,11 +89,15 @@ for (const dir of SRC_DIRS) {
     const text = fs.readFileSync(path.join(root, dir, file), 'utf8');
     for (const p of patterns) {
       for (const m of text.matchAll(p.re)) {
-        const code = m[1];
-        if (SYSTEM_CODES.has(code)) continue;
-        if (DYNAMIC_PREFIXES.has(code)) continue;
-        literals.add(code);
-        if (p.to === 'both' && !RECEIPT_RULES.has(code)) emitted.add(code);
+        // 每个模式可有 1~2 个捕获（三元两分支），统一逐个处理：任一分支都算已使用。
+        for (let gi = 1; gi < m.length; gi += 1) {
+          const code = m[gi];
+          if (code === undefined) continue;
+          if (SYSTEM_CODES.has(code)) continue;
+          if (DYNAMIC_PREFIXES.has(code)) continue;
+          literals.add(code);
+          if (p.to === 'both' && !RECEIPT_RULES.has(code)) emitted.add(code);
+        }
       }
     }
   }

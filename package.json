@@ -6,8 +6,18 @@
   "license": "MIT",
   "repository": "github:agnitum2009/atlas-archify-coding",
   "homepage": "https://github.com/agnitum2009/atlas-archify-coding#readme",
-  "bugs": { "url": "https://github.com/agnitum2009/atlas-archify-coding/issues" },
-  "files": ["bin/", "lib/", "specs/", "docs/USAGE.md", "README.md", "LICENSE", "SECURITY.md"],
+  "bugs": {
+    "url": "https://github.com/agnitum2009/atlas-archify-coding/issues"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "specs/",
+    "docs/USAGE.md",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
   "bin": {
     "atlas-engine": "./bin/atlas-engine.mjs",
     "aac": "./bin/atlas-engine.mjs"

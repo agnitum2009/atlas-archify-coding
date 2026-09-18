@@ -24,6 +24,30 @@ function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-flags-'));
 }
 
+// 契约扫描夹具（沿用本文件既有临时镜像惯例）：镜像仓内最小布局 scripts/bin/lib/specs 四件 + package.json
+// （lib/version.mjs 启动读版本）足够对账脚本自洽运行；改镜像文件绝不影响真实仓。
+function mirrorRepo() {
+  const dir = tmpDir();
+  for (const sub of ['scripts', 'bin', 'lib', 'specs']) {
+    fs.cpSync(path.join(ROOT, sub), path.join(dir, sub), { recursive: true });
+  }
+  fs.copyFileSync(path.join(ROOT, 'package.json'), path.join(dir, 'package.json'));
+  return dir;
+}
+
+function scanMirror(dir) {
+  return spawnSync(process.execPath, [path.join(dir, 'scripts', 'verify-contract-freshness.mjs')], { cwd: dir, encoding: 'utf8' });
+}
+
+// 删除镜像契约附录 A 的若干错误码行（行形如 `| code | 来源 | 退出码 | 语义 |`）：模拟「附录少一行」的漏登记。
+function dropAppendixRows(dir, codes) {
+  const file = path.join(dir, 'specs', 'command-contract.md');
+  const lines = fs.readFileSync(file, 'utf8').split('\n');
+  const kept = lines.filter((line) => !codes.some((code) => line.startsWith('| ' + code + ' |')));
+  assert.equal(lines.length - kept.length, codes.length, '附录行删除数与预期不符（夹具漂移）');
+  fs.writeFileSync(file, kept.join('\n'));
+}
+
 test('未知旗标 --sidcar：exit 1 bad_args 带合法清单，且不静默新建平行账本', () => {
   const dir = tmpDir();
   const typoPath = path.join(dir, 'atlas-state.json');
@@ -128,6 +152,69 @@ test('预算对账绿路：真实仓 contract-freshness 全绿（命令 ≤10、
   assert.equal(res.status, 0, res.stderr);
 });
 
+test('契约扫描绿路：间接/条件发射的四个码不再被误判为「附录有而代码无」（旧实现会报四条 warning）', () => {
+  const res = spawnSync(process.execPath, [SCRIPT], { cwd: ROOT, encoding: 'utf8' });
+  assert.equal(res.status, 0, res.stderr);
+  // requireRule 首参（lib/state-policy.mjs）与首参三元（state-policy / truth-receipt）在修复前不被采集，
+  // 四个真实在用的码被当成「附录历史码」：旧实现此处逐条 warning，且删掉附录行也不报错。
+  for (const code of ['settled_requires_event', 'cancelled_requires_evidence', 'receipt_not_found', 'receipt_unreadable']) {
+    assert.ok(!res.stderr.includes(code), '不应再当作附录历史码警告：' + code + '\n' + res.stderr);
+  }
+});
+
+test('契约扫描红路：删掉间接/条件码的附录声明 → exit 1 逐一列名（助手首参与三元两分支都受登记保护）', (t) => {
+  const dir = mirrorRepo();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  // verified_requires_evidence 另有直接来源；三元两分支的独立覆盖由下一测试的任意命名探针证明。
+  const codes = ['settled_requires_event', 'cancelled_requires_evidence', 'verified_requires_evidence', 'receipt_not_found', 'receipt_unreadable'];
+  dropAppendixRows(dir, codes);
+  const res = scanMirror(dir);
+  assert.equal(res.status, 1, res.stdout + res.stderr);
+  for (const code of codes) assert.ok(res.stderr.includes(code), '漏报未登记码：' + code + '\n' + res.stderr);
+});
+
+test('契约扫描：probe 码在直接/助手/简单三元三形态都计入，消息参数与孤儿附录边界不变', (t) => {
+  const dir = mirrorRepo();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  // 探针用任意命名（非四个修复原名），证明形态被认而不是名字被硬编码：
+  // 直接 diag 首参 / requireRule 首参 / 单标识符条件三元（diag 与 requireRule 各一，两分支都要计入）。
+  // 探针函数永不被调用，body 里引用 requireRule 只在调用时才解析，故不影响镜像 lib/commands.mjs 的 import。
+  const probe = path.join(dir, 'lib', 'truth-receipt.mjs');
+  const msg = 'probe_message_only';
+  fs.appendFileSync(probe, [
+    '',
+    '// 契约扫描探针（测试夹具专用，从不调用）',
+    'export function probeScanShapes(missing) {',
+    "  if (missing) return diag('probe_direct_code', '" + msg + "');",
+    "  return diag(missing ? 'probe_ternary_alpha' : 'probe_ternary_beta', '" + msg + "');",
+    '}',
+    'export function probeScanHelper(cancelled) {',
+    "  if (cancelled) return requireRule('probe_helper_code', '" + msg + "');",
+    "  return requireRule(cancelled ? 'probe_rule_alpha' : 'probe_rule_beta', '" + msg + "');",
+    '}',
+    '',
+  ].join('\n'));
+  // 孤儿附录行：只在附录、源码无对应字面量 → 必须是 warning（历史码宽容），不是漏登记的 exit 1。
+  fs.appendFileSync(path.join(dir, 'specs', 'command-contract.md'), '| probe_orphan_code | 夹具 | 1 | 仅附录有、源码无字面量（历史码宽容观测点） |\n');
+
+  const res = scanMirror(dir);
+  assert.equal(res.status, 1, res.stdout + res.stderr);
+  const codes = ['probe_direct_code', 'probe_helper_code', 'probe_ternary_alpha', 'probe_ternary_beta', 'probe_rule_alpha', 'probe_rule_beta'];
+  for (const code of codes) {
+    assert.ok(res.stderr.includes(code), '未计入已用码：' + code + '\n' + res.stderr);
+  }
+  assert.ok(!res.stderr.includes('probe_message_only'), '消息参数（第二实参）里的字符串不得被当作错误码\n' + res.stderr);
+  assert.ok(res.stderr.split('\n').some((line) => line.includes('probe_orphan_code') && line.includes('warning')), '真实孤儿附录应告警而非拦截\n' + res.stderr);
+
+  // 补全真实发射码后，只剩孤儿附录告警；证明 warning 本身不阻断。
+  fs.appendFileSync(path.join(dir, 'specs', 'command-contract.md'),
+    codes.map((code) => '| ' + code + ' | 夹具 | 1 | 探针 |\n').join(''));
+  const registered = scanMirror(dir);
+  assert.equal(registered.status, 0, registered.stdout + registered.stderr);
+  assert.ok(!registered.stderr.includes(msg), registered.stderr);
+  assert.ok(registered.stderr.split('\n').some((line) => line.includes('probe_orphan_code') && line.includes('warning')), registered.stderr);
+});
+
 test('预算红路：--flags-budget 覆盖为 实有-1 → exit 1 且打印「预算超限」', async () => {
   const { COMMANDS } = await import(pathToFileURL(path.join(ROOT, 'lib', 'commands.mjs')).href);
   const actual = new Set(COMMANDS.flatMap((c) => c.flags)).size;
@@ -143,20 +230,15 @@ test('预算红路：--commands-budget 0 → exit 1（命令数超顶）', () =>
   assert.ok(res.stderr.includes('预算超限'), res.stderr);
 });
 
-test('三向对账红路：临时拷贝注入未登记旗标（flags 有、usage 与契约节皆无）→ exit 1 列名', () => {
-  const dir = tmpDir();
-  // 镜像仓内最小布局：scripts/bin/lib/specs 四件 + package.json（lib/version.mjs 启动读版本）足够对账脚本自洽运行。
-  for (const sub of ['scripts', 'bin', 'lib', 'specs']) {
-    fs.cpSync(path.join(ROOT, sub), path.join(dir, sub), { recursive: true });
-  }
-  fs.copyFileSync(path.join(ROOT, 'package.json'), path.join(dir, 'package.json'));
+test('三向对账红路：临时拷贝注入未登记旗标（flags 有、usage 与契约节皆无）→ exit 1 列名', (t) => {
+  const dir = mirrorRepo();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const regPath = path.join(dir, 'lib', 'cli-options.mjs');
   const reg = fs.readFileSync(regPath, 'utf8');
   assert.ok(reg.includes('export const OPTIONS = {'), '注入锚点漂移');
   fs.writeFileSync(regPath, reg.replace('export const OPTIONS = {', "export const OPTIONS = {\n  'bogus-flag': { commands: ['init'], type: 'value', key: 'bogus-flag' },"));
-  const res = spawnSync(process.execPath, [path.join(dir, 'scripts', 'verify-contract-freshness.mjs')], { cwd: dir, encoding: 'utf8' });
+  const res = scanMirror(dir);
   assert.equal(res.status, 1);
   assert.ok(res.stderr.includes('init:bogus-flag'), res.stderr);
   assert.ok(res.stderr.includes('usage 与契约节均未提及'), res.stderr);
-  fs.rmSync(dir, { recursive: true, force: true });
 });

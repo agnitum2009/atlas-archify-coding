@@ -65,6 +65,8 @@ node "$ATLAS_ENGINE_BIN" state settle --node demo-task --reason 交付 --owner r
 
 `verified` 表示执行已验证，`settled` 表示账务已销账；settle 同时写两轴及 history kind=settle。交付后按需 trace/report，并更新图谱、运行 gate 三闸。
 
+读状态最短查询：`state get --node <id> --sidecar S`——回执含属主与三轴当前值，另带可选 `class`（节点有分类则原样列出；无该字段则整字段省略，不臆造默认值），读命令不写账；要按分类筛活帐用 `state active`。
+
 历史/迁移导入（非执行闭环，0.17.0 起）：`state import --node <id> --reason 历史导入 --owner <席> --locator <文件:行号> [--class declared|registry|container|task|debt|batch-gated|trigger-gated] [--source 旧系统] [--cutoff 日期] --sidecar S`——原子双写 verified+settled 并锚定证据，history kind=import 与 settle 永久可区分；只登记新节点或零执行史节点。同版起 ledger→settled 只能经 settle/import 事件写入（set 直达 = settled_requires_event），set progress→verified 无证据同拒（init 首写不豁免）。
 
 销账/阻塞成功会自动投递一条席位通知（notice，B3）：他席位 notice list --seat <名> 即见未读，notice ack --seat <名> 确认。

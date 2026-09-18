@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.19.0",
+  "sourceVersion": "0.20.0",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -9,7 +9,7 @@
     },
     {
       "path": ".gitignore",
-      "sha256": "16bc88b6df434d29"
+      "sha256": "0923a6f1cc7359f2"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -21,11 +21,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "c296694239f60083"
+      "sha256": "38cf2bc7bdbcd64f"
     },
     {
       "path": "RELEASES.md",
-      "sha256": "14f5b638fb9d0979"
+      "sha256": "89873fb74c7fb7fa"
     },
     {
       "path": "SECURITY.md",
@@ -41,19 +41,19 @@
     },
     {
       "path": "docs/DEFENSIVE.md",
-      "sha256": "baffdec578cb6213"
+      "sha256": "5e416748c983081f"
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "d6ae911a96f4697f"
+      "sha256": "ba1036b8407d8f67"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
-      "sha256": "75f72a7deef0111e"
+      "sha256": "dee83d02087db88b"
     },
     {
       "path": "docs/USAGE.md",
-      "sha256": "5acd7f92e9aba996"
+      "sha256": "e088edbc6775ed1c"
     },
     {
       "path": "fixtures/atlas-seed/add-state-axes.json",
@@ -65,7 +65,7 @@
     },
     {
       "path": "lib/anchor-roots.mjs",
-      "sha256": "03ed81bc2a1b5d7c"
+      "sha256": "2fc40e57aecffb92"
     },
     {
       "path": "lib/atlas-data.mjs",
@@ -77,11 +77,11 @@
     },
     {
       "path": "lib/cli-util.mjs",
-      "sha256": "968924b0147c15ad"
+      "sha256": "930c23b4501e7d32"
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "f626097cbc165241"
+      "sha256": "4ce02cc926fb20d5"
     },
     {
       "path": "lib/compile.mjs",
@@ -101,7 +101,7 @@
     },
     {
       "path": "lib/evidence.mjs",
-      "sha256": "25a8088005afe38a"
+      "sha256": "5ac4df1a96d17c3c"
     },
     {
       "path": "lib/gate.mjs",
@@ -169,7 +169,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "19a40763bd1f63cb"
+      "sha256": "478d7b14e3f47305"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -197,7 +197,7 @@
     },
     {
       "path": "scripts/verify-contract-freshness.mjs",
-      "sha256": "d6dbff1b49586c52"
+      "sha256": "a5d6413f64493b59"
     },
     {
       "path": "scripts/verify-release-version.mjs",
@@ -205,7 +205,7 @@
     },
     {
       "path": "specs/ADD-SPEC.md",
-      "sha256": "c5a4f744180b4a96"
+      "sha256": "9614d997348a275d"
     },
     {
       "path": "specs/atlas-layout.md",
@@ -213,7 +213,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "2a28d14f1007ca8d"
+      "sha256": "3207ceb43477f5fe"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -234,6 +234,10 @@
     {
       "path": "test/atlas-data.test.mjs",
       "sha256": "1602ceb972994526"
+    },
+    {
+      "path": "test/audit-2026-09-18.test.mjs",
+      "sha256": "35628d379b3a4ab8"
     },
     {
       "path": "test/auto-trace.test.mjs",
@@ -301,7 +305,7 @@
     },
     {
       "path": "test/flag-guard.test.mjs",
-      "sha256": "29cc6c331967e72a"
+      "sha256": "a6bf23be40a39421"
     },
     {
       "path": "test/gate-detail.test.mjs",
@@ -393,7 +397,7 @@
     },
     {
       "path": "test/state-cli.test.mjs",
-      "sha256": "4812d81f13e75246"
+      "sha256": "14890bf1b37db7bb"
     },
     {
       "path": "test/state-closure.test.mjs",

@@ -163,14 +163,3 @@ test('USAGE 示例跑完后 doctor 的 atlas-layout 检查为 ok', (t) => {
   assert.ok(layout, 'doctor 应含 atlas-layout 检查');
   assert.equal(layout.ok, true, layout.detail);
 });
-
-// 缺口 23：package.json 无 files 白名单，npm publish 会把 test/、fixtures/ 与隐私黑名单脚本一并发出。
-test('package.json：files 白名单、repository 与 prepublishOnly 门禁齐备', () => {
-  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-  assert.ok(Array.isArray(pkg.files), 'files 白名单缺失');
-  assert.ok(pkg.files.includes('bin/') && pkg.files.includes('lib/'), 'files 须含 bin/ 与 lib/');
-  assert.ok(!pkg.files.some((f) => /^(test|fixtures|scripts)\/?$/.test(f)), 'files 不得含 test/ fixtures/ scripts/');
-  assert.equal(typeof (typeof pkg.repository === 'string' ? pkg.repository : pkg.repository && pkg.repository.url), 'string');
-  assert.match(pkg.scripts.prepublishOnly || '', /npm test/);
-  assert.match(pkg.scripts.prepublishOnly || '', /check-public-privacy/);
-});

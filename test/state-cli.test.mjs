@@ -119,3 +119,34 @@ test('block 跨轴事件：--with-backlog 双写 + 无 --with-backlog 只动 pro
   fs.rmSync(path.dirname(sidecar), { recursive: true, force: true });
 });
 
+test('state get 的可选 class：历史无该字段则省略、显式 null/空串/未知值原样返回，且读命令不改账本字节', (t) => {
+  const sidecar = tmpSidecar();
+  t.after(() => fs.rmSync(path.dirname(sidecar), { recursive: true, force: true }));
+  const legacy = { owner: '一线席位', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [], history: [] };
+  fs.writeFileSync(sidecar, JSON.stringify({
+    schemaVersion: 1,
+    nodes: {
+      'no-class': legacy,
+      'null-class': { ...legacy, class: null },
+      'empty-class': { ...legacy, class: '' },
+      'future-class': { ...legacy, class: 'future-kind-2077' },
+    },
+  }), 'utf8');
+  const bytesBefore = fs.readFileSync(sidecar, 'utf8');
+
+  const dataOf = (id) => {
+    const r = run(['state', 'get', '--node', id], sidecar);
+    assert.equal(r.code, 0, r.stdout);
+    return r.receipt.data;
+  };
+
+  // 历史/存量节点（O3 前建号）：不臆造默认值，字段整体省略。
+  assert.ok(!Object.prototype.hasOwnProperty.call(dataOf('no-class'), 'class'), '无 class 的历史节点不得凭空补字段');
+  // 已有值（含显式 null / 空串 / 未来未知字符串）：原样投影，读侧不归一化。
+  assert.equal(dataOf('null-class').class, null);
+  assert.equal(dataOf('empty-class').class, '');
+  assert.equal(dataOf('future-class').class, 'future-kind-2077');
+
+  assert.equal(fs.readFileSync(sidecar, 'utf8'), bytesBefore, 'state get 是读命令：账本字节不得变动');
+});
+

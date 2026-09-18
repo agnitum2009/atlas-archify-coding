@@ -5,30 +5,44 @@
 
 ## [0.20.0] - 2026-09-18
 
-审核修复批（第一性 × MECE × 奥卡姆审查，2026-09-18）：每项修复都先有复现测试（test/audit-2026-09-18.test.mjs，11 项）。
+审核修复批（第一性 × MECE × 奥卡姆审查，2026-09-18）：源于公开仓 atlas-archify-coding PR #1（作者 ubvip），按投影协议回流本仓后再投影；每项修复先有复现测试（test/audit-2026-09-18.test.mjs，10 项）。与 0.19.1 独立修复重叠的契约保鲜扫描（requireRule/三元采码）以本仓 0.19.1 版为准，公开仓分支版本被投影覆盖。
 
 ### Breaking
 
-- (b) `state set` 建账须显式 `--sidecar`：缺省路径 `cwd/atlas-state.json` 缺失一律 `sidecar_missing`/exit 1，不再在 cwd 静默新建账本（幽灵账本 = 空态绿；契约 §2 已同步）。
-- (b) `transition` 的 from 比对把 truth 缺失/null 视为 `candidate`（与 truth 回执门禁同口径），存量节点不再被 `transition_from_mismatch` 卡死。
+- (a)(c) `state set` 建账须显式 `--sidecar`：缺省路径 `cwd/atlas-state.json` 缺失一律 `sidecar_missing`/exit 1，不再在 cwd 静默新建账本（幽灵账本 = 空态绿；契约 §2 写边总则已同步）。
 
 ### Fixed
 
-- 锚根白名单（O1）改用 realpath 判包含：图谱根内符号链接指向根外文件不再放行（`anchor_root_denied`）。
+- `transition` 的 from 比对把 truth 缺失/null 视为 `candidate`（与 truth 回执门禁同口径），存量节点不再被 `transition_from_mismatch` 卡死（放宽既有拒绝，非破坏；附录 A 同步）。
+- 锚根白名单（O1）改用 realpath 判包含：图谱根内符号链接指向根外文件不再放行（`anchor_root_denied`）；目标不存在或不可解析时退回 normalize 判定，既有行为不变。
 - git 可执行文件不可用或被信号终止时，HEAD 锚比对归免检 `no-git`（带 `reason: git-unavailable:*`），report/doctor 不再把已提交的锚误判为 `a1-evidence-uncommitted`。
-- `diag()` 第 4 参 severity 生效：销账成功回执的 `a1-settle-unbound` 与 report 的 `missing_code_sha`/`missing_spec_sha` 现为 warning 级。
+- `lib/cli-util.mjs` 的 `diag()` 第 4 参 severity 生效：此前被丢弃，settle 成功回执携带的 `a1-settle-unbound` 实为 error 级，现为 warning 级（report.mjs 自带 diag 早已正确，不受影响）。
 - `autoTrace` 的侧车路径解析移入 try：断链 symlink 侧车只降级为 `trace_degraded`，不再把通过的 gate/compile/report 变成 exit 1。
-- `verify-contract-freshness` 补采 `requireRule('code')` 与 diag/requireRule 内三元首参发射的错误码：此前 4 个活码被误报为「附录 A 有而代码无」，且新码经助手发射可绕过门禁。
+- 契约附录 A `unknown_axis` 行补 class 轴（与 0.19.1 --help 同步）。
 
 ### Docs / Packaging
 
-- USAGE 示例证据改落 `evidence/<项目>/<diagram-id>/receipt.json`（此前落 evidence/ 根，跑完 doctor 即 atlas-layout 报错）；QUICKSTART-NONCODER 重写为本仓可实际执行的三步。
-- 契约 §2 补 `state active`/`state spec-ref` 子命令行；`unknown_axis` 行补 class；README 不再声称文档行数有本仓门禁；DEFENSIVE §11 锚点注明上游件。
-- package.json 增 `files` 白名单（不再随包发布 test/、fixtures/ 与隐私黑名单脚本）、`repository`/`homepage`/`bugs`、`prepublishOnly`（npm test + 三门禁）。`.gitignore` 增 `.omc/`。
+- USAGE 示例证据改落 `evidence/<项目>/<diagram-id>/receipt.json`（此前落 evidence/ 根，跑完 doctor 即 atlas-layout 报错）；QUICKSTART-NONCODER 改为宿主中立、可原样执行的三步；DEFENSIVE §11 锚点注明内部门禁不随投影。
+- 投影生成器：公开版 package.json 增 `files` 白名单（不再随包发布 test/、fixtures/ 与隐私黑名单脚本）、`repository`/`homepage`/`bugs`、`prepublishOnly`（npm test + 三门禁），由 test/public-projection.test.mjs（内部件，未随本版发布） 钉住；README 不再声称文档行数有公开仓门禁。`.gitignore` 增 `.omc/`。
+- pi SKILL `metadata.version` 同步（0.19.1 遗留漂移，injection-freshness 基线红清零）。
 
-### 未纳入本批（需负责人裁定）
+### 未纳入本批（待负责人裁定）
 
 - 崩溃残留锁的显式恢复命令（`unlock`）、`--version` 旗标（全仓旗标预算已满 50/50）、ADD-SPEC 补 class 轴条文、跨轴合法组合矩阵、git 子进程超时、Windows 支持声明、`slugify`/路径守卫/git 根发现去重。
+
+## [0.19.1] - 2026-09-16
+
+本次仅确立 atlas-engine 本地版本并保留变更历史；AAC 不修改、不导出、不同步，待下一版本再评估是否更新。
+
+### Added
+
+- `state get` 回执新增可选字段 `class`（节点账务分类，直接取节点自身字段）：节点无该字段时整个字段省略，显式 null、空串与未知未来值一律原样返回；读命令不写账、不做分类过滤。默认行为与既有字段不变，属纯增字段——但**严格的外部 JSON 消费者**（拒绝未映射字段的解码/schema 校验）须按增量字段放宽；本仓内调用方按字段消费，不受影响。
+
+### Fixed
+
+- `--help` 的 `state transition` 用法补 `--axis …|class`：class 轴（2026-09-10）与 set 用法早已支持，帮助文本此前漏列，属文档与实现不一致（不改实现、不加旗标）。
+- 契约保鲜扫描（scripts/verify-contract-freshness.mjs）此前只采集 `diag('code', …)`、`code = 'code'`、`rule: 'code'` 等直接字面量，漏采策略助手 `requireRule('code', …)` 首参与「首参处以单个标识符条件选码」的三元两个分支——`settled_requires_event`、`cancelled_requires_evidence`、`receipt_not_found`、`receipt_unreadable` 四个仍在发射的码因此被判为“附录历史码”宽容放行（删掉附录行也不报错）。现按有界静态字面量补认上述形态：两分支都计入“已使用”与“必须登记”集合，消息参数（第二实参）里的字符串仍不算错误码；删附录行 = exit 1 逐名列出。局限明示于脚本头部注释（不做通用 JS 数据流分析）。
+- 规范整理：补齐 ADD-SPEC 与命令契约中的领域语义、状态迁移、证据守卫及失败边界说明；不据此改动存储模型或状态机。
 
 ## [0.19.0] - 2026-09-15
 
@@ -1043,4 +1057,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 41 个版本全量保留；派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 43 个版本全量保留；派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
