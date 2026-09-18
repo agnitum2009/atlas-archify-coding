@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "89873fb74c7fb7fa"
+      "sha256": "9f6188d493f914ea"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "ba1036b8407d8f67"
+      "sha256": "578463e595c8de4a"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -65,7 +65,7 @@
     },
     {
       "path": "lib/anchor-roots.mjs",
-      "sha256": "2fc40e57aecffb92"
+      "sha256": "8376bf63b737f5c5"
     },
     {
       "path": "lib/atlas-data.mjs",
@@ -101,7 +101,7 @@
     },
     {
       "path": "lib/evidence.mjs",
-      "sha256": "5ac4df1a96d17c3c"
+      "sha256": "48f29269874ef036"
     },
     {
       "path": "lib/gate.mjs",
@@ -169,7 +169,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "478d7b14e3f47305"
+      "sha256": "decb73c50296b707"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -237,7 +237,7 @@
     },
     {
       "path": "test/audit-2026-09-18.test.mjs",
-      "sha256": "35628d379b3a4ab8"
+      "sha256": "0f9fdb8ed6bb544b"
     },
     {
       "path": "test/auto-trace.test.mjs",

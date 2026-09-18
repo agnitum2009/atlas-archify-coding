@@ -163,3 +163,25 @@ test('USAGE 示例跑完后 doctor 的 atlas-layout 检查为 ok', (t) => {
   assert.ok(layout, 'doctor 应含 atlas-layout 检查');
   assert.equal(layout.ok, true, layout.detail);
 });
+
+// 复审（2026-09-18）：白名单根本身经符号链接到达时，根内文件不得被误拒；目标不存在时按最近存在祖先解析实相。
+test('evidence-add：白名单根经符号链接到达，根内文件（含尚不存在的目标）仍放行', (t) => {
+  const dir = tmpdir(t, 'atlas-symroot-');
+  const atlas = path.join(dir, 'atlas');
+  assert.equal(run(['init', '--dir', atlas, '--title', 'Demo', '--diagram-id', 'demo']).code, 0);
+  const sidecar = path.join(atlas, 'state/atlas-state.json');
+  fs.mkdirSync(path.join(dir, 'real/src'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'real/src/f.txt'), 'x\n');
+  fs.symlinkSync(path.join(dir, 'real'), path.join(dir, 'link'));
+  // 临时目录下的持久根会被 ephemeral-tmp 过滤，故用 --allow-root（cli 来源）经符号链接路径登记根。
+  const allow = ['--allow-root', path.join(dir, 'link/src')];
+  assert.equal(run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'in_progress', '--class', 'task', '--reason', 'r', '--owner', 'o', '--sidecar', sidecar]).code, 0);
+  const viaLink = run(['state', 'evidence-add', '--node', 'n1', '--locator', path.join(dir, 'link/src/f.txt') + ':1', '--sidecar', sidecar, ...allow]);
+  assert.equal(viaLink.code, 0, viaLink.stdout);
+  const viaReal = run(['state', 'evidence-add', '--node', 'n1', '--locator', path.join(dir, 'real/src/f.txt') + ':1', '--sidecar', sidecar, ...allow]);
+  assert.equal(viaReal.code, 0, viaReal.stdout);
+  const missing = run(['state', 'evidence-add', '--node', 'n1', '--locator', path.join(dir, 'link/src/later.txt') + ':1', '--sidecar', sidecar, ...allow]);
+  assert.equal(missing.code, 0, missing.stdout);
+  const outside = run(['state', 'evidence-add', '--node', 'n1', '--locator', path.join(dir, 'real/other.txt') + ':1', '--sidecar', sidecar, ...allow]);
+  assert.equal(outside.receipt.diagnostics[0].rule, 'anchor_root_denied', '根外文件仍拒');
+});

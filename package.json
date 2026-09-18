@@ -16,7 +16,8 @@
     "docs/USAGE.md",
     "README.md",
     "LICENSE",
-    "SECURITY.md"
+    "SECURITY.md",
+    "CONTRIBUTING.md"
   ],
   "bin": {
     "atlas-engine": "./bin/atlas-engine.mjs",
