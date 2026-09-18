@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.20.0",
+  "sourceVersion": "0.21.0",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -21,15 +21,15 @@
     },
     {
       "path": "README.md",
-      "sha256": "38cf2bc7bdbcd64f"
+      "sha256": "89c07911fc4e37a4"
     },
     {
       "path": "RELEASES.md",
-      "sha256": "9f6188d493f914ea"
+      "sha256": "674fa4e3c16b8f4f"
     },
     {
       "path": "SECURITY.md",
-      "sha256": "48e9a00d864b6f4f"
+      "sha256": "1887478f4cb50e92"
     },
     {
       "path": "bin/atlas-engine.mjs",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "578463e595c8de4a"
+      "sha256": "3fdc2af51a8b82e9"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -65,7 +65,7 @@
     },
     {
       "path": "lib/anchor-roots.mjs",
-      "sha256": "8376bf63b737f5c5"
+      "sha256": "1e7be57ca834b20f"
     },
     {
       "path": "lib/atlas-data.mjs",
@@ -81,7 +81,7 @@
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "4ce02cc926fb20d5"
+      "sha256": "29467265747311c6"
     },
     {
       "path": "lib/compile.mjs",
@@ -93,7 +93,7 @@
     },
     {
       "path": "lib/doctor.mjs",
-      "sha256": "ca941ee0b66d4e14"
+      "sha256": "2aca4aac824ccc3f"
     },
     {
       "path": "lib/envelope.mjs",
@@ -101,11 +101,11 @@
     },
     {
       "path": "lib/evidence.mjs",
-      "sha256": "48f29269874ef036"
+      "sha256": "e9fedf4cd0597e84"
     },
     {
       "path": "lib/gate.mjs",
-      "sha256": "8ea95b6067279072"
+      "sha256": "84c633e279804ea8"
     },
     {
       "path": "lib/init.mjs",
@@ -113,7 +113,7 @@
     },
     {
       "path": "lib/layout.mjs",
-      "sha256": "06ab6ceef63ae7ce"
+      "sha256": "6f9ff4aeab2b68aa"
     },
     {
       "path": "lib/lessons.mjs",
@@ -133,7 +133,7 @@
     },
     {
       "path": "lib/report.mjs",
-      "sha256": "5dc41b4b5f1b1cb9"
+      "sha256": "50c88abc7ee7ec41"
     },
     {
       "path": "lib/resolve-archify.mjs",
@@ -145,7 +145,7 @@
     },
     {
       "path": "lib/state-machine.mjs",
-      "sha256": "a018ee136946fb88"
+      "sha256": "a0ea3d2c28a4acdc"
     },
     {
       "path": "lib/state-policy.mjs",
@@ -153,7 +153,7 @@
     },
     {
       "path": "lib/store.mjs",
-      "sha256": "d61f1af8ed0cbb3d"
+      "sha256": "8686ac5cb1e749e4"
     },
     {
       "path": "lib/trace.mjs",
@@ -169,7 +169,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "decb73c50296b707"
+      "sha256": "b8a23055edb5b99d"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -205,7 +205,7 @@
     },
     {
       "path": "specs/ADD-SPEC.md",
-      "sha256": "9614d997348a275d"
+      "sha256": "6bfbe3452333e112"
     },
     {
       "path": "specs/atlas-layout.md",
@@ -213,7 +213,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "3207ceb43477f5fe"
+      "sha256": "9e383dba3d9be411"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -386,6 +386,10 @@
     {
       "path": "test/resolve-archify.test.mjs",
       "sha256": "6f780605d8de50b1"
+    },
+    {
+      "path": "test/ruling-2026-09-18.test.mjs",
+      "sha256": "5b75cad21a7dad6f"
     },
     {
       "path": "test/set-a2.test.mjs",

@@ -3,6 +3,27 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.21.0] - 2026-09-18
+
+裁定批（负责人 2026-09-18 对 0.20.0「未纳入」清单逐项裁定；可机检项各有先红后绿测试 test/ruling-2026-09-18.test.mjs，5 项）。
+
+### Added
+
+- **progress × ledger 组合表成文**（ADD-SPEC §2.4.1）：settled ⇒ progress=verified（既有双写不变量的成文）；cancelled ⇒ ledger=clean（**新增观测约束**：写边今天仍可先 backlog 再 cancelled，但该欠账此后无任何事件可销，成永久孤儿）；truth 轴与二者正交。report 新增常开 warning `cross_axis_unlisted`（附录 A），用于统计存量，**不阻断**；是否升 error 待统计后另裁。
+- **git 子进程超时**：lib 内全部 git 调用经 `gitSync`（lib/evidence.mjs）统一带 timeout，缺省 10000ms，`ATLAS_GIT_TIMEOUT_MS` 覆盖。HEAD 比对超时的锚计入 `evidenceHead.unchecked.timeout`（未检查，verdict 不得为 verified，ok=false），其余调用点按既有失败路径处理（check-ignore 超时同归未检查，复审修正）。单次 git 调用不再无限挂起；多文件按锚缓存逐个计时（累计上限 = 文件数 × 超时），archify 内核探测的 `which` 不在本批。
+- `evidenceHead.noGitReasons`（report/doctor，纯增字段）：no-git 免检按原因计数——`no-repo`（无 git 仓）与 `git-unavailable:<code>`（git 不可用）可区分。
+- `--help` 首行印 `atlas-engine <version>`（不加 `--version` 旗标：旗标预算 50/50 已满，需求只是「看到版本」）。
+- `sidecar_locked` 回执附带可直接执行的恢复命令 `rm -- '<锁文件绝对路径>'`（不加 `unlock` 命令：0.18.0 关闭自动接管的裁定不回退，用户缺的是"怎么办"而非新能力）。
+
+### Docs
+
+- 支持平台声明：Linux / macOS；Windows 未验证（公开版 README 已知边界 + SECURITY 信任模型）。
+- 0.20.0「未纳入」清单勘误：ADD-SPEC class 轴条文实为 0.19.1 §2.6 已完成，划销。
+
+### 明示不做
+
+- `slugify` / `repoRootOf` 去重：零行为收益且动 lib/scripts 边界，记债不做；待其中一份真出问题再修。
+
 ## [0.20.0] - 2026-09-18
 
 审核修复批（第一性 × MECE × 奥卡姆审查，2026-09-18）：源于公开仓 atlas-archify-coding PR #1（作者 ubvip），按投影协议回流本仓、经独立对抗复审修正两处后再投影；每项修复先有复现测试（test/audit-2026-09-18.test.mjs，11 项）。与 0.19.1 独立修复重叠的契约保鲜扫描（requireRule/三元采码）以本仓 0.19.1 版为准，公开仓分支版本被投影覆盖。
@@ -28,7 +49,7 @@
 
 ### 未纳入本批（待负责人裁定）
 
-- 崩溃残留锁的显式恢复命令（`unlock`）、`--version` 旗标（全仓旗标预算已满 50/50）、ADD-SPEC 补 class 轴条文、跨轴合法组合矩阵、git 子进程超时、Windows 支持声明、`slugify`/路径守卫/git 根发现去重。
+- 崩溃残留锁的显式恢复命令（`unlock`）、`--version` 旗标（全仓旗标预算已满 50/50）、ADD-SPEC 补 class 轴条文（勘误：0.19.1 §2.6 已有，0.21.0 划销）、跨轴合法组合矩阵、git 子进程超时、Windows 支持声明、`slugify`/路径守卫/git 根发现去重。逐项裁定结果见 [0.21.0]。
 
 ## [0.19.1] - 2026-09-16
 
@@ -1057,4 +1078,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 43 个版本全量保留；派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 44 个版本全量保留；派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

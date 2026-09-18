@@ -79,6 +79,16 @@
 - 销账事件 settle：前态 progress∈{in_progress,verified} 且 ledger∈{clean,backlog}；同事件写 progress=verified、ledger=settled、history 和 notice，只推进一次 revision。独立 verified 仍可正常销账；仅轴内迁移仍遵循上表，其他前态及重复销账拒绝。
 - 导入事件 import（0.17.0，路线一裁定）：历史/迁移事实的 ledger →settled 与 progress →verified 同事件双写，必须携带 ≥1 条 Evidence；class/source/cutoff 可选，显式 class 校验并留痕，省略 source/cutoff 记为 null（未知）；与 settle 并列为仅有的两条**正常** settled 写入路径——set 直达（含 init 首写）一律非法（纠错通道 --correction 除外，须留痕）。
 
+#### 2.4.1 progress × ledger 组合表（2026-09-18 负责人裁定；truth 轴与二者正交，无组合约束）
+
+| progress ＼ ledger | clean | backlog | settled |
+| --- | --- | --- | --- |
+| planned / in_progress / blocked | 表内 | 表内 | **表外**（settled ⇒ verified，§2.4 双写不变量） |
+| verified | 表内 | 表内（待销账） | 表内 |
+| cancelled | 表内 | **表外**（取消的工作不可销账，欠账成孤儿） | **表外** |
+
+两条约束的来源不同：settled ⇒ verified 是 §2.4 双写不变量的成文（写边已由 settled_requires_event 守住）；cancelled ⇒ clean 是**新增观测约束**——写边今天仍允许先挂 backlog 再 cancelled，但取消后欠账无法经任何事件销账（settle 要求 in_progress/verified，import 要求 planned×clean），成永久孤儿，故先以 warning 统计。执法口径：本版只成文；report 对表外组合发 warning `cross_axis_unlisted`（常开、不阻断）；是否升 error / 是否在写边拦截待统计后另行裁定。
+
 ### 2.5 真相轴启用协议（2026-08-15 负责人裁定，提案③）
 
 真相轴语义（§2.1）保留不变：candidate → pending_confirmation → effective → closed 单向逐级，closed 为终态，回退仍按 A2 迁移表拒绝。启用协议：
