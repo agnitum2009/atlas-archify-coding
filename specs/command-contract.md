@@ -40,6 +40,7 @@
 用途：节点状态读写与迁移。
 子命令：
 - state get --node <id>：读三轴当前值。
+- state active [--all]：活帐视图（未完成活跃分类 + 未分类节点；pendingSettlement 单列）。｜ state spec-ref --node <id> --ref <图件id> [--remove] [--diagram <图名>]：A3 显式认领图件 id（认领后 A1 不再报图件未入账）；详见 --help 同名行与附录 A。
 - state set --node <id> --axis truth|progress|ledger --value <v> [--receipt <文件路径>] [--correction]（truth 轴前进写入必填 --receipt，见下）：直接置值（须带 --reason 与 owner 校验）。A2 迁移表校验（2026-08-15 裁定④，set 不再架空 A2）：对已存在节点的轴值变更同样按 ADD-SPEC §二 迁移表校验，违表 = exit 1、与 transition 同码 rule=illegal_transition，消息附「set 现过 A2 校验（2026-08-15 裁定④）；确属纠错请加 --correction」；两例外免表直接写——(a) 初始化（节点不存在，或该轴尚无值=首次写），(b) 显式 --correction 纠错旗标（绕过 A2 表；仍必填 --reason；实际绕过规则的 history 事件带 corrected:true 留痕，成功回执 receipt.rule=A2-correction）。同值写入（from==to，无变更）不触发校验。--correction 不免除 truth 回执门禁（前进仍必填 --receipt）；truth 回退经 --correction 放行且无需回执。 可选 `--kind meta`（0.15.0，建号时标账务/元节点，如边证据节点/图登记节点）：A1 的 `a1-unmatched-account` 对 kind='meta' 跳过（豁免通道早存在，此前 CLI 无入口）；**kind 不可改**——已存在节点传 --kind 即 exit 1 bad_args。
 - state transition --node <id> --axis <axis> --from <s> --to <t> [--receipt <文件路径>]（truth 轴前进写入必填，见下）：按 ADD-SPEC §二 迁移表校验，违规输出诊断（from, to, axis, rule）。
 - state evidence-add --node <id> --locator <文件:行号>：登记证据（A3 前提）。**同 locator 重复落锚幂等**（0.11.0，自嗜狗食发现）：
@@ -50,7 +51,7 @@
 - state block --node <id> --reason --owner [--with-backlog]：阻塞跨轴事件（progress in_progress→blocked；--with-backlog 时 ledger clean→backlog 双写）。
 - settle/block/import 成功同次写入自动投递一条席位通知 notice（2026-08-15 清单 B3：from=--owner 值，kind=settled|blocked，summary=--reason，readBy 初始空，revision 只随该次保存推一次；import 投递 kind=settled 且 summary 带 [import] 前缀以便席位区分来源；详见 §11）。
 输出：{ node, axis, from, to, receipt }（set 的 receipt.rule 三态：A2=过表校验通过 / A2-init=初始化或首写免表 / A2-correction=纠错通道放行；settle/block 输出 { node, from, to, receipt }（to 为双轴对象）。settle 成功回执另含 data.next = 「销账五动作第4步：atlas-engine report --sidecar <本次调用实际 sidecar 路径> 生成销账回执」（2026-08-15 实战反馈修补：销账五动作第 4 步 report 曾整批漏做，实战反馈档（2026-08-15）；纯增字段，非破坏）。settle 成功回执另含 data.lessonPrompt = 「本刀有无新教训？有则 lessons add 回写（S5a 欠账教训）」（2026-08-15 清单 B4 防膨胀回写提示）；A3 拦截失败回执（settle/transition 的 verified_requires_evidence）同样在 failed 信封 data 附带 lessonPrompt（与 data.next 同模式纯增字段）。
-写边政策由 lib/state-policy.mjs 统一判定：仅 set 可在侧车缺失时建账，其他 state 操作返回 sidecar_missing。set/transition→verified、settle/import、truth→effective/closed 要求非空且可解析证据；→cancelled 只要求非空。set 的 progress 纠错及 set/transition 的 ledger 事件豁免保持原边界；truth 证据无纠错豁免，transition 不豁免 A2。仅实际豁免 A2 或证据/事件规则才记 corrected:true 与 receipt.rule=A2-correction；同值或无关字段写不重验旧证据。
+写边政策由 lib/state-policy.mjs 统一判定：仅 set 可在侧车缺失时建账，且须显式 --sidecar（2026-09-18 审核批：缺省路径 cwd/atlas-state.json 缺失一律 sidecar_missing，不在 cwd 静默建幽灵账本）；其他 state 操作返回 sidecar_missing。set/transition→verified、settle/import、truth→effective/closed 要求非空且可解析证据；→cancelled 只要求非空。set 的 progress 纠错及 set/transition 的 ledger 事件豁免保持原边界；truth 证据无纠错豁免，transition 不豁免 A2。仅实际豁免 A2 或证据/事件规则才记 corrected:true 与 receipt.rule=A2-correction；同值或无关字段写不重验旧证据。
 truth 轴回执门禁：前进写入必须 --receipt <负责人本地普通文件>；写边将缺失/null 初态视为 candidate（不改变历史统计）。未给=receipt_required，不存在=receipt_not_found，目录等非普通文件=receipt_not_file，stat 失败=receipt_unreadable；允许指向普通文件的 symlink。通过后绝对路径写 history.receipt 与 truthReceipts {to,receipt,at}；机器不读/校验业务语义。非 truth 轴及原地/回退写入忽略 --receipt；correction 不豁免本门。
 history 写事件带 engine 版本；旧字段缺省仍兼容，详见 snapshot-policy §5.2。
 state active 保留原 count/activeCount/nodes 执行口径；新增 pendingSettlement={count,nodes}，按 id 排序列出所有 verified/backlog 节点（不按 class 过滤）。条目为 {id,className,progress,ledger,owner}。
@@ -185,7 +186,7 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 | bad_args | CLI 参数校验失败：trace list/replay --since 非 ISO8601（消息带示例）、lessons list --recent 非正整数、缺参数值/未知参数等通用参数错误 | 1 | 用户输入校验失败（非 internal）；补救 = 按消息修正参数 |
 | bad_seat | notice ack：缺 --seat 或为空 | 1 | 确认语义具名到席位；补救 = 补 --seat <席位名> |
 | notice_not_found | notice ack：--id 指向的通知条目不存在 | 1 | 补救 = 先 notice list 核对 id |
-| unknown_axis | state set/transition：--axis 非 truth\|progress\|ledger | 1 | 用户输入校验失败；补救 = 按消息修正 |
+| unknown_axis | state set/transition：--axis 非 truth\|progress\|ledger\|class（class 仅 set 可写，O3） | 1 | 用户输入校验失败；补救 = 按消息修正 |
 | invalid_state_value | state set：--value 不在该轴状态集 | 1 | 用户输入校验失败；补救 = 查该轴状态集 |
 | invalid_node_id | state set/import（0.12.0，实战反馈档-2026-08-23）：新建节点 id 不合 ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$（修前管道符/换行可静默建号且无删除原语）；只拦新建，既存畸形 id 仍可读改（存量清理通道） | 1 | 用户输入校验失败；补救 = 换合法 id |
 | project_prefix_gate | state set/import（0.13.0，负责人令 2026-08-27 L1 前缀硬门）：新建节点 id 不以本侧车项目前缀开头（激活条件 = 同目录 projects.json 条目 sidecar 字段映射本侧车；共享侧车取并集如 demo-a\|add；只拦新建，存量 grandfather，P6 doctor warning 继续管存量） | 1 | 越界拦截；补救 = 换 <项目名>- 前缀 id 或换正确 --sidecar |

@@ -3,6 +3,33 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.20.0] - 2026-09-18
+
+审核修复批（第一性 × MECE × 奥卡姆审查，2026-09-18）：每项修复都先有复现测试（test/audit-2026-09-18.test.mjs，11 项）。
+
+### Breaking
+
+- (b) `state set` 建账须显式 `--sidecar`：缺省路径 `cwd/atlas-state.json` 缺失一律 `sidecar_missing`/exit 1，不再在 cwd 静默新建账本（幽灵账本 = 空态绿；契约 §2 已同步）。
+- (b) `transition` 的 from 比对把 truth 缺失/null 视为 `candidate`（与 truth 回执门禁同口径），存量节点不再被 `transition_from_mismatch` 卡死。
+
+### Fixed
+
+- 锚根白名单（O1）改用 realpath 判包含：图谱根内符号链接指向根外文件不再放行（`anchor_root_denied`）。
+- git 可执行文件不可用或被信号终止时，HEAD 锚比对归免检 `no-git`（带 `reason: git-unavailable:*`），report/doctor 不再把已提交的锚误判为 `a1-evidence-uncommitted`。
+- `diag()` 第 4 参 severity 生效：销账成功回执的 `a1-settle-unbound` 与 report 的 `missing_code_sha`/`missing_spec_sha` 现为 warning 级。
+- `autoTrace` 的侧车路径解析移入 try：断链 symlink 侧车只降级为 `trace_degraded`，不再把通过的 gate/compile/report 变成 exit 1。
+- `verify-contract-freshness` 补采 `requireRule('code')` 与 diag/requireRule 内三元首参发射的错误码：此前 4 个活码被误报为「附录 A 有而代码无」，且新码经助手发射可绕过门禁。
+
+### Docs / Packaging
+
+- USAGE 示例证据改落 `evidence/<项目>/<diagram-id>/receipt.json`（此前落 evidence/ 根，跑完 doctor 即 atlas-layout 报错）；QUICKSTART-NONCODER 重写为本仓可实际执行的三步。
+- 契约 §2 补 `state active`/`state spec-ref` 子命令行；`unknown_axis` 行补 class；README 不再声称文档行数有本仓门禁；DEFENSIVE §11 锚点注明上游件。
+- package.json 增 `files` 白名单（不再随包发布 test/、fixtures/ 与隐私黑名单脚本）、`repository`/`homepage`/`bugs`、`prepublishOnly`（npm test + 三门禁）。`.gitignore` 增 `.omc/`。
+
+### 未纳入本批（需负责人裁定）
+
+- 崩溃残留锁的显式恢复命令（`unlock`）、`--version` 旗标（全仓旗标预算已满 50/50）、ADD-SPEC 补 class 轴条文、跨轴合法组合矩阵、git 子进程超时、Windows 支持声明、`slugify`/路径守卫/git 根发现去重。
+
 ## [0.19.0] - 2026-09-15
 
 ### Breaking
@@ -122,41 +149,3 @@ A3-cancelled 守卫 + state get 语义 + doctor 完整性检查（负责人令 2
 ### 验证
 
 - 新增错误码已入 `specs/command-contract.md` 附录 A（契约保鲜测试拦截未登记）；
-
-## [0.15.0] - 2026-09-01
-
-codegraph × archify 协同补齐批（负责人令 2026-09-01 逐项裁：P-0 落 / P-1 加 / P-2 落 / P-3 做）。
-**内核零 codegraph 引用不变**（lib/test/specs 零引用，可退出=删纪律文本即零残留）；archify 源码不动。
-
-### Added
-
-- **`state set --kind meta`**（边入账正规通道）：建号时把节点标为账务/元节点——此前活账里的 meta 节点全是
-  手工写侧车（绕过 CLI = 绕过 CAS/锁/公理），此旗标补上 CLI 入口；kind 不可改（已存在节点传 --kind
-  即 exit 1 bad_args）；A1 的 a1-unmatched-account 对 kind='meta' 的既有豁免通道由此被 CLI 真正接上。
-- `scripts/check-codegraph-freshness.mjs`：codegraph 索引新鲜度门禁——分母=注册表∪账本锚指向的仓（现算），
-  判据=索引 mtime vs 末次提交；>1 天 warning、>3 天红；无索引仓=提名能力缺失 warning；分母空=N/A 不报 0；
-  停放仓 --exempt 显式豁免。立法依据：实测 29 索引仓 19 个陈旧（最狠 69 天），陈旧提名=看着权威的错细节。
-- `scripts/reconcile-graph-edges.mjs`：边级三方对账（图 connection ↔ codegraph 边 ↔ 真码）——图的边在
-  archify schema 里没有证据槽（connections 仅 from/id/label/to/variant），故对账走账本锚+只读 codegraph.db
-  （node:sqlite，Node≥22，更低版本 N/A 降级）。输出：无端点/无据边/漏边三类清单，先 warning 不阻断，
-  --strict 时 exit 1。
-- `docs/CODEGRAPH-ARCHIFY-PIPELINE.md`：协同管线四步与精度红线（提名→实读→校验→锚）。
-
-### Fixed
-
-- SKILL 纪律节 ③ 条纠错：原文写「符号/位置/结构=M 级事实可引用」与经验池"行号偏移"教训矛盾——
-  位置/行号改为 I 级提名（锚坐标只认实读真文件），注入块同行扩展（行数不变，预算零腾挪）。
-  三个副本（pi/demo-harness/部署 pi）同步。
-
-### 验证
-
-  specs/command-contract.md 245 行（≤250）。公开投影两个新脚本随白名单进入公开版（隐私门禁通过）。
-
----
-
-更早的 36 个版本（0.1.0 → 0.14.4）：
-见 [docs/HISTORY.md](docs/HISTORY.md)。
-
-
-<!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

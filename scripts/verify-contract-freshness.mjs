@@ -68,6 +68,11 @@ const patterns = [
   { re: /code\s*\|\|\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
   // 发射：诊断对象字面量 rule: 'code'（如 autoTrace 的 trace_degraded）；回执码由 RECEIPT_RULES 剔除。
   { re: /rule\s*:\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
+  // 发射：state-policy 的 requireRule('code', …) 助手（审核批 2026-09-18：此前漏采 → 门禁不健全）。
+  { re: /requireRule\(\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
+  // 发射：diag(cond ? 'a' : 'b', …) / requireRule(cond ? 'a' : 'b', …) 三元首参——两臂各采一次（消费方只取 m[1]）。
+  { re: /(?:diag|requireRule)\(\s*[^,()]*?\?\s*'([a-z][a-z0-9_-]*)'\s*:\s*'[a-z][a-z0-9_-]*'/g, to: 'both' },
+  { re: /(?:diag|requireRule)\(\s*[^,()]*?\?\s*'[a-z][a-z0-9_-]*'\s*:\s*'([a-z][a-z0-9_-]*)'/g, to: 'both' },
   // 字面量：e.code === 'code' / !== 等检查上下文（反向核对用）。
   { re: /code\s*(?:===|!==|==|!=)\s*'([a-z][a-z0-9_-]*)'/g, to: 'literals' },
 ];

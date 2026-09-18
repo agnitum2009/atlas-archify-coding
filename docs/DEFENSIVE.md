@@ -83,4 +83,4 @@ Non-Goals 逐条写明「本决策不做什么、不保证什么」。本仓 REL
 规则：①凡存在多口径的指标，**并报所有口径**或在单报时**显式标注口径与其局限**；②口径必须与被
 评价方的实践粒度对齐后才可用于评价；③分母为 0 时返回 N/A（null），不得填 0 或 100——
 0 是「测过为零」、100 是 vacuous truth，两者都在撒谎（依据：SPDX `NOASSERTION` 与覆盖率最佳实践）。
-锚点：scripts/unowned-oversize-scan.mjs（coverage 与 contextView.coverageByContext 并报、0/0 返 null）。
+锚点：scripts/unowned-oversize-scan.mjs（上游件，未随本仓投影；coverage 与 contextView.coverageByContext 并报、0/0 返 null）。
