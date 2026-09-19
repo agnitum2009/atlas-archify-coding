@@ -145,3 +145,85 @@ test('resolveArchify：which 挂起时按超时回退（不无限阻塞）', (t)
   const out = JSON.parse(r.stdout.trim());
   assert.ok(['fallback', 'none'].includes(out.source), '超时后必须走回退链或 none（fail-closed）：' + out.source);
 });
+
+// ==================== 0.21.2：反向洞修复 + 补救消息归真（ds41x 席位独立复核实证） ====================
+
+// 反向洞①：cancelled×clean 节点经 ledger 轴 set 挂 backlog 必须被拦（0.21.1 漏拦）。
+test('state set：cancelled 节点 ledger clean→backlog = cancelled_requires_clean 拦截（反向洞）', (t) => {
+  const { sidecar } = seedSidecar(t, 'atlas-revset-', {
+    n1: { owner: 'o', truth: 'candidate', progress: 'cancelled', ledger: 'clean', evidence: [], history: [] },
+  });
+  const r = run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'backlog', '--reason', 'r', '--owner', 'o', '--sidecar', sidecar]);
+  assert.equal(r.code, 1, r.stdout);
+  assert.equal(r.receipt.diagnostics[0].rule, 'cancelled_requires_clean');
+  const after = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
+  assert.equal(after.nodes.n1.ledger, 'clean', '拦截必须零写入');
+});
+
+// 反向洞②：transition 路径同拦。
+test('state transition：cancelled 节点 ledger clean→backlog 同被 cancelled_requires_clean 拦截', (t) => {
+  const { sidecar } = seedSidecar(t, 'atlas-revtr-', {
+    n1: { owner: 'o', truth: 'candidate', progress: 'cancelled', ledger: 'clean', evidence: [], history: [] },
+  });
+  const r = run(['state', 'transition', '--node', 'n1', '--axis', 'ledger', '--from', 'clean', '--to', 'backlog', '--reason', 'r', '--owner', 'o', '--sidecar', sidecar]);
+  assert.equal(r.code, 1, r.stdout);
+  assert.equal(r.receipt.diagnostics[0].rule, 'cancelled_requires_clean');
+});
+
+// 补救真实可达（ds41x 实测路径）：ledger --correction 核销为 clean → 取消无需 correction 放行 → 读边警告消解。
+test('补救链：planned×backlog 先核销欠账（留痕）再取消放行，report 不再报 cross_axis_unlisted', (t) => {
+  const { dir, sidecar } = seedSidecar(t, 'atlas-remedy-', {
+    n1: { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'backlog', evidence: [], history: [] },
+  });
+  const proof = path.join(dir, 'proof.txt');
+  fs.writeFileSync(proof, 'reason\n');
+  assert.equal(run(['state', 'evidence-add', '--node', 'n1', '--locator', proof + ':1', '--sidecar', sidecar]).code, 0);
+  // 第一步：核销欠账（backlog→clean 不在 A2 表，必经 --correction，corrected:true 留痕）
+  const s1 = run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'clean', '--reason', '欠账作废', '--owner', 'o', '--correction', '--sidecar', sidecar]);
+  assert.equal(s1.code, 0, s1.stdout);
+  // 第二步：正常取消——守卫对 clean 静默
+  const s2 = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'cancelled', '--reason', '取消', '--owner', 'o', '--sidecar', sidecar]);
+  assert.equal(s2.code, 0, s2.stdout);
+  const after = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
+  assert.deepEqual([after.nodes.n1.progress, after.nodes.n1.ledger], ['cancelled', 'clean']);
+  const rep = run(['report', '--sidecar', sidecar, '--no-trace']);
+  const warns = (rep.receipt.data.warnings || []).filter((w) => w.rule === 'cross_axis_unlisted' && w.subject === 'n1');
+  assert.equal(warns.length, 0, '补救完成后读边警告必须消解：' + JSON.stringify(rep.receipt.data.warnings));
+});
+
+// 不冻结既有孤儿：存量 cancelled×backlog 节点的无关轴（class）写入不受影响（组合判定只管 progress/ledger 两轴）。
+test('存量孤儿不冻结：cancelled×backlog 节点写 class 轴照常放行', (t) => {
+  const { sidecar } = seedSidecar(t, 'atlas-nofreeze-', {
+    orphan: { owner: 'o', truth: 'candidate', progress: 'cancelled', ledger: 'backlog', evidence: [], history: [] },
+  });
+  const r = run(['state', 'set', '--node', 'orphan', '--axis', 'class', '--value', 'task', '--reason', '补分类', '--owner', 'o', '--sidecar', sidecar]);
+  assert.equal(r.code, 0, r.stdout);
+});
+
+// 反向写入的 --correction 通道同样放行且留痕（设计预留，如实钉住）。
+test('反向写入 --correction 放行并留痕 corrected:true（孤儿照落，设计预留通道）', (t) => {
+  const { sidecar } = seedSidecar(t, 'atlas-revcor-', {
+    n1: { owner: 'o', truth: 'candidate', progress: 'cancelled', ledger: 'clean', evidence: [], history: [] },
+  });
+  const r = run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'backlog', '--reason', 'r', '--owner', 'o', '--correction', '--sidecar', sidecar]);
+  assert.equal(r.code, 0, r.stdout);
+  const after = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
+  assert.equal(after.nodes.n1.ledger, 'backlog');
+  const ev = after.nodes.n1.history.find((e) => e.kind === 'set' && e.axis === 'ledger');
+  assert.equal(ev.corrected, true);
+});
+
+// 消息归真：指引的补救路径必须实测可达（ledger 核销），不得再指「先 state settle」（planned 节点被 illegal_transition 拒）。
+test('守卫消息指引实测可达路径：含 ledger 核销指引，不含「先 state settle」死路', (t) => {
+  const { dir, sidecar } = seedSidecar(t, 'atlas-msg-', {
+    n1: { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'backlog', evidence: [], history: [] },
+  });
+  const proof = path.join(dir, 'proof.txt');
+  fs.writeFileSync(proof, 'reason\n');
+  run(['state', 'evidence-add', '--node', 'n1', '--locator', proof + ':1', '--sidecar', sidecar]);
+  const r = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'cancelled', '--reason', 'r', '--owner', 'o', '--sidecar', sidecar]);
+  assert.equal(r.code, 1);
+  const msg = r.receipt.diagnostics[0].evidence;
+  assert.ok(msg.includes('--axis ledger --value clean --correction'), '消息必须指引 ledger 核销路径：' + msg);
+  assert.ok(!msg.includes('先 state settle 核销欠账再取消'), '旧消息的死路径表述必须移除：' + msg);
+});

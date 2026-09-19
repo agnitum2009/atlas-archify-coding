@@ -3,6 +3,19 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.21.2] - 2026-09-18
+
+守卫完整性修复批（0.21.1 的 cancelled_requires_clean 经 ds41x 席位独立复核——可证实也可证伪的复核单，实测坐实两个缺陷后收口；新增 6 项先红后绿测试，test/ruling-2026-09-18-followup.test.mjs）。
+
+### Breaking
+
+- (a) `cancelled_requires_clean` 从「progress 轴写入」扩为「组合判定」：cancelled×clean 节点经 ledger 轴 set/transition 写 backlog 昨天（0.21.1）合法、今天被拒（exit 1 零写入）——0.21.1 只拦了 progress→cancelled 一个方向，反向挂账路径漏拦。只拦 progress/ledger 成员轴写入；truth/class 等无关轴对存量孤儿的补记不冻结。--correction 显式核销通道语义不变（corrected:true 留痕，孤儿照落、读边持续告警）。
+
+### Fixed
+
+- 守卫补救消息归真：原指引「先 state settle 核销欠账再取消」在唯一可触发状态（planned×backlog）下被 illegal_transition 拒（settle 要求 progress∈{in_progress,verified}，ds41x 实测），且 verified 无出边、settle 后永不可取消——死路指引。消息改为实测可达路径：先 `state set --axis ledger --value clean --correction` 核销欠账（backlog→clean 不在 A2 表，必经纠错通道）再取消。
+- 契约与 ADD-SPEC 同步：附录 A cancelled_requires_clean 行、§2.4.1 执法口径段改写为组合判定语义。
+
 ## [0.21.1] - 2026-09-18
 
 裁定收尾批（0.21.0 留给下一版的二问落裁，依据同日真实账本统计：551 节点，cross_axis_unlisted=36，全部为 settled⇒verified 半边的历史直达遗存；cancelled⇒clean 半边存量=0。可机检项各有先红后绿测试 test/ruling-2026-09-18-followup.test.mjs，7 项）。
@@ -1104,4 +1117,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 45 个版本全量保留；派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 46 个版本全量保留；派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

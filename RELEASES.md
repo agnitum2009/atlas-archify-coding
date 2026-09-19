@@ -3,6 +3,19 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.21.2] - 2026-09-18
+
+守卫完整性修复批（0.21.1 的 cancelled_requires_clean 经 ds41x 席位独立复核——可证实也可证伪的复核单，实测坐实两个缺陷后收口；新增 6 项先红后绿测试，test/ruling-2026-09-18-followup.test.mjs）。
+
+### Breaking
+
+- (a) `cancelled_requires_clean` 从「progress 轴写入」扩为「组合判定」：cancelled×clean 节点经 ledger 轴 set/transition 写 backlog 昨天（0.21.1）合法、今天被拒（exit 1 零写入）——0.21.1 只拦了 progress→cancelled 一个方向，反向挂账路径漏拦。只拦 progress/ledger 成员轴写入；truth/class 等无关轴对存量孤儿的补记不冻结。--correction 显式核销通道语义不变（corrected:true 留痕，孤儿照落、读边持续告警）。
+
+### Fixed
+
+- 守卫补救消息归真：原指引「先 state settle 核销欠账再取消」在唯一可触发状态（planned×backlog）下被 illegal_transition 拒（settle 要求 progress∈{in_progress,verified}，ds41x 实测），且 verified 无出边、settle 后永不可取消——死路指引。消息改为实测可达路径：先 `state set --axis ledger --value clean --correction` 核销欠账（backlog→clean 不在 A2 表，必经纠错通道）再取消。
+- 契约与 ADD-SPEC 同步：附录 A cancelled_requires_clean 行、§2.4.1 执法口径段改写为组合判定语义。
+
 ## [0.21.1] - 2026-09-18
 
 裁定收尾批（0.21.0 留给下一版的二问落裁，依据同日真实账本统计：551 节点，cross_axis_unlisted=36，全部为 settled⇒verified 半边的历史直达遗存；cancelled⇒clean 半边存量=0。可机检项各有先红后绿测试 test/ruling-2026-09-18-followup.test.mjs，7 项）。
@@ -85,29 +98,9 @@
 - 契约保鲜扫描（scripts/verify-contract-freshness.mjs）此前只采集 `diag('code', …)`、`code = 'code'`、`rule: 'code'` 等直接字面量，漏采策略助手 `requireRule('code', …)` 首参与「首参处以单个标识符条件选码」的三元两个分支——`settled_requires_event`、`cancelled_requires_evidence`、`receipt_not_found`、`receipt_unreadable` 四个仍在发射的码因此被判为“附录历史码”宽容放行（删掉附录行也不报错）。现按有界静态字面量补认上述形态：两分支都计入“已使用”与“必须登记”集合，消息参数（第二实参）里的字符串仍不算错误码；删附录行 = exit 1 逐名列出。局限明示于脚本头部注释（不做通用 JS 数据流分析）。
 - 规范整理：补齐 ADD-SPEC 与命令契约中的领域语义、状态迁移、证据守卫及失败边界说明；不据此改动存储模型或状态机。
 
-## [0.19.0] - 2026-09-15
-
-### Breaking
-
-- (a) 状态写入补齐取消/验证/真相的证据政策；truth 初始前进须普通文件回执，畸形账本字段与未知 trace 节点提前拒绝。项目注册、init/portal 路径、编译回执与 gate 的矛盾或缺失证明亦拒绝。
-- (b) CLI 必填参数遗漏归为 bad_args/exit 1；`--remove` 支持裸旗标和旧 true/false。verified 标签改为“已验证”，只有 verified+settled 才显示“已销账”；diff 对象/数组替换与特殊键不再丢失。
-- (c) 仅 state set 可初始化缺失账本；公开导出取 Git 跟踪文件与公开清单交集，先验隐私和三方文件冲突。已登记但未授权的源仓进入 freshness 分母，同名仓按规范路径区分；歧义归属显式披露。
-
-### Added / Fixed
-
-- settle 支持 in_progress/verified × clean/backlog 四种前态，active 单列待销账；import 保留可选 class 与未知来源语义。实际规则豁免才记纠错；时间线统一按时间值排序。
-- compile 新增显式 `--previous-receipt`，回执携带标签所有权、绝对输出路径与原图作用域。旧无回执输出保留并披露未知归属，须回原 spec 重编。
-- init 排他创建，门户写前校验路径归属，注册表读取复用但授权与观测分开。typed 边先检查索引/同仓覆盖，未观测不再误报无边。
-- 参数类型与范围统一声明，demo-harness 技能正文同步生成 pi 共享段，USAGE 示例直接执行验证；保持十命令、零运行依赖及原预算。
-
-### Removed / Verification
-
-- 退役 `scripts/verify-doc-test-count.mjs（内部件，未随本版发布）` 及重复执行测试的 CI 步骤；日期明确的历史记录保留原观测。当前说明统一引用 `npm test` 输出，保留 Node 18/20/22/24 矩阵与其他验证器。
-- 修复证据及最终验收见本批实施报告；gate 的机器通过仍保留 visualReview=pending，存量账本/历史不会自动迁移，宿主技能不会自动部署。
-
 ---
 
-更早的 40 个版本（0.1.0 → 0.18.0）：
+更早的 41 个版本（0.1.0 → 0.19.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

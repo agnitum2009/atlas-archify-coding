@@ -87,7 +87,7 @@
 | verified | 表内 | 表内（待销账） | 表内 |
 | cancelled | 表内 | **表外**（取消的工作不可销账，欠账成孤儿） | **表外** |
 
-两条约束的来源不同：settled ⇒ verified 是 §2.4 双写不变量的成文（写边已由 settled_requires_event 守住）；cancelled ⇒ clean 是**新增观测约束**。执法口径（0.21.1 收口，依据 2026-09-18 真实账本统计）：cancelled ⇒ clean 半边**写边拦截**（state set/transition progress→cancelled 而 ledger≠clean = failed `cancelled_requires_clean`，exit 1 零写入；`--correction` 显式核销通道保留，corrected:true 留痕）——统计证实该半边存量=0，零误伤；settled ⇒ verified 半边维持 warning 观测（写边已守住，存量只会来自 0.16.x 前直达赋值遗存，与 import_unmarked 同人群，清偿后 warning 自然归零），report 对表外组合发 warning `cross_axis_unlisted`（常开、不阻断、读方不修边）。
+两条约束的来源不同：settled ⇒ verified 是 §2.4 双写不变量的成文（写边已由 settled_requires_event 守住）；cancelled ⇒ clean 是**新增观测约束**。执法口径（0.21.1 收口，0.21.2 修正为组合判定）：写入后组合落 cancelled × ledger≠clean 即 failed `cancelled_requires_clean`（exit 1 零写入）——双方向都拦：progress→cancelled 带欠账，或 cancelled 节点经 ledger 轴反向挂账（0.21.1 只拦前一向，ds41x 独立复核实证反向洞后收口）；只拦 progress/ledger 成员轴写入，truth/class 无关轴补记不冻结存量孤儿。补救路径归真：backlog 无 clean 出边（A2 表），核销欠账必经 `state set --axis ledger --value clean --correction`（corrected:true 留痕）再取消；直接 --correction 放行则孤儿照落、读边持续告警。settled ⇒ verified 半边维持 warning 观测（写边已守住，存量为 0.16.x 前直达赋值遗存，与 import_unmarked 同人群，清偿后归零），report 对表外组合发 warning `cross_axis_unlisted`（常开、不阻断、读方不修边）。
 
 ### 2.5 真相轴启用协议（2026-08-15 负责人裁定，提案③）
 

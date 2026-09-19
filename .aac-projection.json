@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.21.1",
+  "sourceVersion": "0.21.2",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "8cafb687207bc207"
+      "sha256": "c9ac038a49e9eef4"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "d397a85739a94407"
+      "sha256": "4bb7eef4a21f14ca"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -81,7 +81,7 @@
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "9b955202b4882564"
+      "sha256": "f44feb0005b2c5c4"
     },
     {
       "path": "lib/compile.mjs",
@@ -149,7 +149,7 @@
     },
     {
       "path": "lib/state-policy.mjs",
-      "sha256": "8230ba005b27fea4"
+      "sha256": "e237627152818349"
     },
     {
       "path": "lib/store.mjs",
@@ -169,7 +169,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "b6c1ff0d80bbab11"
+      "sha256": "59e6fac80626f08b"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -205,7 +205,7 @@
     },
     {
       "path": "specs/ADD-SPEC.md",
-      "sha256": "656100c8a137d01e"
+      "sha256": "791e46e573ff45cd"
     },
     {
       "path": "specs/atlas-layout.md",
@@ -213,7 +213,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "597940e02801aa18"
+      "sha256": "ebd525cd98baed42"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -389,7 +389,7 @@
     },
     {
       "path": "test/ruling-2026-09-18-followup.test.mjs",
-      "sha256": "097d069281e84e7f"
+      "sha256": "f0761f9d50377e6e"
     },
     {
       "path": "test/ruling-2026-09-18.test.mjs",
