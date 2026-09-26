@@ -8,7 +8,7 @@
 
 ## 治理（增长控制开发规范批一#2/#4，2026-08-15）
 
-**预算硬顶**：命令数 ≤11、全仓唯一旗标 ≤50；占用数由 `scripts/verify-contract-freshness.mjs` 从注册表计算。新增能力仍须过下列准入五问；超限必须显式换入或退役，不随本批修复提高预算。
+**预算硬顶**：命令数 ≤11、全仓唯一旗标 ≤50；占用数由 `test/surface-consistency.test.mjs` 从注册表断言。新增能力仍须过下列准入五问；超限必须显式换入或退役，不随本批修复提高预算。
 
 **本体边界（负责人裁定 2026-08-17，前置于下列五问）**：ADD 的问题域 = **已开工、中后期失去进度掌控的项目**（「开了头不知道如何收」）。**从零开始的项目不是本工具的场景**——这类工具已极多，兼顾会让本体累贅，什么都做反而做不好。故 **第 0 问：这个能力服务的是「中后期项目重获进度掌控」，还是「更好地开一个新项目」？后者一律拒**，不进入下列五问。空目录上 init 链实测可跑但属场景外，不予修补（防被当成未修债反复捡起）。
 
@@ -19,13 +19,13 @@
 4. 它需要三条注入通道同步吗？（须同批次改，否则不许合）
 5. 它的失败模式是否 fail-loud 且能用 0/1/2 表达？
 
-**废弃政策（两段式）**：标 deprecated（--help 标注 + 回执 warning 诊断——severity=warning 的 deprecated_command 诊断指明替代路径与移除版本，退出码与 data 不变）→ 存活一个 minor 周期 → 次 minor 删除，删除理由与替代路径入 RELEASES。首批已走完两段全程：evidence 顶层命令、lessons hit 子命令（0.9.0 标记 → v0.10.0 物理移除，deprecated_command 诊断码随之退役；理由与替代路径入 RELEASES [0.10.0] Breaking 节；判据与实测口径见 docs/ADOPTION-BASELINE-2026-08-17.md）。
+**废弃政策（两段式）**：标 deprecated（--help 标注 + 回执 warning 诊断——severity=warning 的 deprecated_command 诊断指明替代路径与移除版本，退出码与 data 不变）→ 存活一个 minor 周期 → 次 minor 删除，删除理由与替代路径入 RELEASES。首批已走完两段全程：evidence 顶层命令、lessons hit 子命令（0.9.0 标记 → v0.10.0 物理移除，deprecated_command 诊断码随之退役；理由与替代路径入 RELEASES [0.10.0] Breaking 节；判据与实测口径见 docs/archive/ADOPTION-BASELINE-2026-08-17.md）。
 
 **旗标白名单粒度**：lib/cli-options.mjs 统一声明命令范围、类型和解析键名，派生注册表 flags 与解析器布尔集合；按命令组并集校验。未知旗标或缺少必填参数 = failed/exit 1 bad_args。重复带值参数保留聚合；--remove 裸旗标为 true，兼容显式 true/false，其他布尔旗标不吞后续位置参数。
 
 **注入文本行数预算**（2026-08-17，与命令/旗标预算同一治理精神，Sculley 死分支处方同源）：SKILL.md 核心纪律条目 ≤ 10 条、单条 ≤ 6 行——「防注入块无限膨胀」的自我约束；超出须先退役一条或经开发规范程序上调，禁止静默膨胀。
 
-**规范/文档行数预算**：specs/ 单件 ≤260 行、docs/ 单件 ≤240 行；沿用 2026-09-14 显式换入，本批不扩容。超出先合并重复说明或退役；当前读数可用 `wc -l specs/*.md docs/*.md` 查看；执行检查以所在仓 CI 为准。
+**规范/文档行数预算**：specs/ 单件 ≤260 行、docs/ 单件 ≤240 行（generated:* 标记块由注册表生成，不计入）；沿用 2026-09-14 显式换入，本批不扩容。超出先合并重复说明或退役；当前读数可用 `wc -l specs/*.md docs/*.md` 查看；执行检查以所在仓 CI 为准。
 
 **版本纪律（semver 判据，2026-08-17 成文）**：minor（0.x.0）= 错误码/退出码/旗标语义/迁移表/侧车结构任一变更（含新增规则码入附录 A）；patch（0.x.y）= 纯增可选字段且有缺省兜底、纯纪律/文档增量。破坏性三定义（见 RELEASES 头部）：(a) 拒绝昨天接受的输入 (b) 改变既有字段/退出码语义 (c) 改变默认行为——任一命中即立 Breaking 节并如实标类型。
 ## 1. init
@@ -81,10 +81,7 @@ subject 保留普通点分路径；字面反斜杠、点号、# 分别转义，�
 输出（2026-08-15 按实测写实）：diff spec → { rows: [ { subject, kind: added|removed|changed, before, after } ], summary: { added, removed, changed } }；diff state → { count, since, rows }。不另设 receipt 字段：统一 JSON 信封（schemaVersion/command/status/data）本身即回执。
 约束：差异行必须带确定性 ID（无 ID 无法对比的实体 = warning）。
 
-## 5. evidence（已于 v0.10.0 移除）
-
-**本命令已于 v0.10.0 按两段式废弃政策第二阶段物理移除**（0.9.0 标记 deprecated，存活一个 minor 周期后删除）。理由 = **功能重复**：locator lint 已被两侧覆盖——写时 state evidence-add 内嵌格式校验（§2，parseLocator 同款正则），读时 doctor evidence-resolvability 全量校验（§10）。替代路径 = state evidence-add（写）/ doctor（读）。调用现落入未知顶层命令处理：**exit 1 / rule=unknown_subcommand**。原 lint 规则码（bad_locator / line_out_of_bounds / file_missing / file_unreadable）由 state evidence-reanchor 写方校验与 report 证据 lint 读方路径继续发射，附录 A 保留；锚行哈希三态（broken/drifted/ok/unhashed）与锚质量 warning（anchor-empty-line / anchor-binary）语义不变，见 §10 与 snapshot-policy §5.2。移除理由与迁移指引入 RELEASES [0.10.0] Breaking 节。
-
+## 5. evidence（已于 v0.10.0 按两段式废弃政策移除；替代 = state evidence-add 写 / doctor 读；理由与实测口径见 RELEASES [0.10.0]）
 ## 6. report
 
 用途：销账回执汇总（一刀的机器证据）。
@@ -125,7 +122,7 @@ detail 引擎戳（2026-08-15 增长控制开发规范批一#1）：自动留痕
 用途：经验条目入侧车（规则码 + 教训 + 来源锚点）。
 子命令：lessons add --lesson <text> [--rule <code>] [--source <id>]；lessons retire --id <lesson-id>（2026-08-15 清单 D3）；lessons list [--recent <N>] [--rule <code>] [--all]。
 约束：空 lesson 拒绝；开工必读纪律由 SKILL.md 承载（先 lessons list 再动手）。
-hits 命中计数（2026-08-15 清单 B4 防膨胀）：条目可选字段 hits（新条目缺省 0，旧条目无此字段按 0 处理，向后兼容）；lessons list 输出每条带 hits。**写入口 lessons hit 子命令已于 v0.10.0 物理移除**（两段式废弃第二阶段：0.9.0 标记 → v0.10.0 删除；理由 = 0/49 采用率且无任何消费者——无门禁依赖、无报表依赖，实测口径见 docs/ADOPTION-BASELINE-2026-08-17.md；调用现 = exit 1 / rule=unknown_subcommand）——**hits 字段与既有数据保留为存量只读计数**，lib 层 hitLesson 保留供宿主程序调用；lessons retire 指向不存在条目 = failed（rule=lesson_not_found）。
+hits 命中计数（2026-08-15 清单 B4 防膨胀）：条目可选字段 hits（新条目缺省 0，旧条目无此字段按 0 处理，向后兼容）；lessons list 输出每条带 hits。**写入口 lessons hit 子命令已于 v0.10.0 物理移除**（两段式废弃第二阶段：0.9.0 标记 → v0.10.0 删除；理由 = 0/49 采用率且无任何消费者——无门禁依赖、无报表依赖，实测口径见 docs/archive/ADOPTION-BASELINE-2026-08-17.md；调用现 = exit 1 / rule=unknown_subcommand）——**hits 字段与既有数据保留为存量只读计数**，lib 层 hitLesson 保留供宿主程序调用；lessons retire 指向不存在条目 = failed（rule=lesson_not_found）。
 status 生命周期（D3，2026-08-15 清单；与 D2 侧车 schema 政策配套）：条目可选字段 status ∈ { active, retired }——新条目 active，旧条目无此字段按 active 处理（与 hits 同模式向后兼容）；lessons retire 置 retired，**幂等**（已 retired 再 retire 仍成功，回执 data.item 含当前状态），未知 id = failed（rule=lesson_not_found）；lessons list **缺省只列 active**，--all 才含 retired。
 A1 过滤（2026-08-15 清单）：lessons list --recent <N> 按 at 倒序取最近 N 条（--recent 非正整数 = failed exit 1 rule=bad_args，消息带示例）、--rule <code> 精确匹配 rule 字段、两者可组合（先 rule 过滤再按 at 倒序截取）；缺省行为不变（无 retired 条目时即全量）；回执 data 增 total（经验池全量条数，含 retired，D3）与 filtered 布尔（返回列表是否被截断/过滤，= lessons.length < total）供调用方判断截断。
 输出：add → { item }；retire → { item }（含新 status）；list → { count, total, filtered, lessons }。
@@ -160,8 +157,8 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 输出：list → { count, notices }；ack → { seat, confirmed, ids }；add → { notice }。
 约束：ack 缺 --seat = bad_seat；ack --id 指向不存在条目 = notice_not_found；空 summary 拒绝（empty_summary，与 empty_lesson 同例）；notice add 不校验 node 存在性（话题锚点不硬绑；trace add 的显式 node 则须存在）。revision 递增即触发他席位重读语义（B3 立案原义）。
 
-## 附录 A 错误码（diagnostics.rule，2026-08-15 增补）
-
+## 附录 A 错误码（diagnostics.rule；本表由 lib/error-codes.mjs 经 scripts/sync-generated.mjs 生成，手改会被 CI --check 拦下，改码请改注册表后重跑同步）
+<!-- generated:error-codes:start -->
 | 错误码 | 来源 | 退出码 | 语义与补救 |
 | --- | --- | --- | --- |
 | sidecar_conflict | store.mjs CAS：持锁重读磁盘 revision ≠ 待写 revision | 1 | 并发写被拦截；补救 = 重新 load 后在最新数据上重放变更再保存 |
@@ -249,6 +246,8 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 | sidecar_path_unresolvable | store.mjs：sidecar 路径为断链 symlink 或无法解析——不按「新账本」凭空回落 | 1 | 修复链接或显式传真实账本路径 |
 | sidecar_hardlinked | store.mjs：sidecar 为硬链接（nlink>1）——无法保证跨路径单锁与发布边界，保守拒写 | 1 | 使用独立账本文件，或解除硬链接后统一真实路径 |
 | gate_<stage> | gate：三闸（validate→deliver→visual_check）任一非零退出即停，rule=gate_<当前闸名>；图 spec 前置读取失败另见 gate_bad_diagram | 1 | 修复 = 按对应闸诊断处理；fail 信封 data 附 lessonPrompt（B4） |
+| layout.<rule> | doctor --atlas 布局校验（lib/layout.mjs）：规则码 = layout.<规则>，现有 root / zones / index / naming / portal / portal-v2 / root-index / registry / data-placement / evidence-placement / legacy / spec-unparsable；判据见 specs/atlas-layout.md | 1（error 级）/ 不阻断（warning 级） | 按诊断 supportedFixes 处置；error 级使 doctor failed，warning 级只提示；规则清单以 lib/layout.mjs 为准（旧门禁扫描正则不认带点的码，此前 11 个规则码未登记——0.23.0 以模板行登记） |
+| P<n> | doctor --atlas 布局校验（lib/layout.mjs）：以 atlas-layout 原则号命名的规则码 P1（平铺）/ P2（交付物落位）/ P3（版本化规格名）/ P4（项目注册）/ P5（证据列）/ P6（节点前缀）；判据见 specs/atlas-layout.md | 1（error 级）/ 不阻断（warning 级） | 同 layout.<rule>：按诊断 supportedFixes 处置；error 级使 doctor failed，warning 级只提示（旧门禁扫描正则不认大写开头的码，此前未登记——0.23.0 以模板行登记） |
 | gate_bad_diagram | gate：--diagram 不可读或非合法 JSON（图型探测前置失败） | 1 | 修正 spec JSON 后重跑 |
 | evidence_missing | report（默认面）与 state 完成声称守卫：声称对齐实相但证据数为 0（progress=verified 保持既有码 verified_requires_evidence） | 1 | 先 state evidence-add 绑定可解析证据；历史闭环用 state import |
 | evidence_unresolvable | report（默认面）与 state set·transition·settle·import 完成声称守卫：证据锚存在但格式/文件/行界任一不可解析（写边 X 族，--correction 不豁免，0.22.0） | 1 | 修正路径/行号后重新 evidence-add，或 evidence-reanchor 到可解析锚 |
@@ -256,4 +255,5 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 | a1-nonaccounts-scope-unknown | report --spec（A1）：库调用未提供图名，nonAccounts 声明无法按图作用域解释——声明不生效且逐条披露 | 不阻断（warning） | 用 CLI（自动供图名）或改按图声明/认领 |
 | anchor_roots_config_invalid | 写边锚根门禁配置（anchor-roots.json / anchor-root-exemptions.json）已存在但不可读、非 JSON 或形状不符——坏配置不解除门禁 | 1 | 修复或移走该配置文件后重试 |
 | project_gate_config_invalid | state set/transition/settle/block/import（L1/L2 门）：projects.json 不可读/非 JSON/形状不符，或显式 sidecar 声明畸形、匹配条目的 project/seats 畸形——坏配置不解除门禁 | 1 | 修复或移走注册表后重试 |
-注：store 错误码在 diagnostics.rule 原样呈现（load/save 无双前缀）；sidecar_conflict/sidecar_locked/sidecar_readonly 等可操作运行态以 failed/exit 1/自身码呈现（不落 internal/exit 2，测试 test/cli-error-codes.test.mjs）；退役码与旧语义史实在 RELEASES 相应版本释义。契约保鲜由 verify-contract-freshness 及所在仓 CI 所列检查机器执行。
+<!-- generated:error-codes:end -->
+注：store 错误码在 diagnostics.rule 原样呈现（load/save 无双前缀）；sidecar_conflict/sidecar_locked/sidecar_readonly 等可操作运行态以 failed/exit 1/自身码呈现（不落 internal/exit 2，测试 test/cli-error-codes.test.mjs）；退役码与旧语义史实在 RELEASES 相应版本释义。契约保鲜由 scripts/sync-generated.mjs --check 与 test/surface-consistency.test.mjs 机器执行。

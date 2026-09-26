@@ -3,6 +3,91 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.23.1] - 2026-09-27
+
+减法批三（commands.mjs 拆分，设计 docs/superpowers/specs/2026-09-27-split-commands-design.md）。纯内部重构：命令、旗标、
+错误码、回执、退出码、`--help` 均不变。
+
+### Changed
+
+- `lib/commands.mjs` 1,425 行 → 注册表 + 帮助文本（≤150 行）；10 个命令实现平铺拆到 `lib/cmd-<族>.mjs`（`lib/` 不建子目录：
+  公开投影与内核计数只枚举一层）。函数体由一次性确定性变换脚本逐字搬运。
+- `runState`（673 行，全仓最大函数）拆为 `stateContext`（前奏：参数/纠错入口/侧车/项目门/席位门）+ `STATE_SUBCOMMANDS`
+  分发表（`hasOwnProperty` 查表，原型链名不命中）+ 11 个子命令函数（最长 `stateSet` ≤120 行）。
+- 新增 `test/cmd-helpers.test.mjs`：锚根 5 助手、`gateOutPlacementDiag`、`stateContext` 三分支的进程内边界测试。
+- `test/surface-consistency.test.mjs` 增结构守卫：commands.mjs ≤150 行且不含 run* 实现；每命令族一个 cmd-*.mjs 且不 import
+  commands.mjs；cmd-* 顶层函数 ≤120 行；lib 其余超长函数只能是白名单（validateLayout 364 / buildReport 317 / runDoctor 276 /
+  runGate 173）且只减不增；cmd-* 的每个 import 须被使用（模块对象须以 名字. 访问——删掉未用的 node:path，使漏解构的 path 报 ReferenceError 而非静默拿到模块）。
+
+### 实证附记
+
+
+## [0.23.0] - 2026-09-27
+
+减法批二（命令面单源化，设计 docs/superpowers/specs/2026-09-27-single-source-surface-design.md）。结构性事实只写一次：
+错误码 = lib/error-codes.mjs，命令与旗标 = COMMANDS/OPTIONS 注册表；契约附录 A 与技能命令速查由 scripts/sync-generated.mjs
+生成。守"副本一致"的两个门禁因无副本可守而删除。命令行为、回执形状、退出码、错误码集合零变化。
+
+### Changed
+
+- **错误码注册表**：92 条自契约附录 A 逐字迁入 `lib/error-codes.mjs`（迁移前后附录数据行 diff = 0）；`diag()` 成为唯一诊断
+  构造器（lib 内 7 份本地助手与 12 处内联字面量收口），未登记码构造即抛错——测试先红，生产 = 顶层 catch exit 2。取代旧门禁
+  "只认四种形态"的静态扫描。
+- **旧门禁盲区补登记**：旧扫描正则 `[a-z][a-z0-9_-]*` 不认带点与大写开头的码，doctor --atlas 的 11 个 `layout.*` 规则码与
+  `P1`–`P6` 从未登记附录 A。以两条模板行 `layout.<rule>`、`P<n>` 登记（模板机制：`<n>` 只放行纯数字后缀），发射码不变。
+- **生成物同步 `scripts/sync-generated.mjs`**：附录 A（← ERROR_CODES）、技能命令速查（← `--help` 原文）、技能副本共享区与
+  metadata.version（原 verify-injection-freshness --write）三处统一写回；`--check` 入 CI 与公开投影；公开树无 integrations
+  时跳过不失败。verify-size-budgets 不再把 generated 标记块内部行计入单件预算（登记新码不撞预算）。
+- **防退化守卫**（整分支审阅修复）：`SIDECAR_OP_CODES` 导出并断言全部已登记（顶层 catch 内 diag 不得抛）；lib/bin
+  内 `diag('…'` / `.code = '…'` / `code: '…'` / `code || '…'` 字面量逐一断言已登记；内联诊断守卫改认任意位置的
+  `rule: '…'`。
+- **预算/旗标/章节对账改单元测试** `test/surface-consistency.test.mjs`：命令 ≤11、旗标 ≤50、每命令旗标 ⊆ usage（只认
+  --help，比旧 flags⊆usage∪契约节更严）、每命令契约章节存在。
+- 技能 SKILL.md：命令速查改为 `--help` 生成块（逐字一致）；「证据锚绝对路径」「compile --previous-receipt」两条并入纪律 8/4；
+  删 v0.10.0 移除历史告示。契约 §5 evidence 历史压成一行，附录说明并入标题行，保 ≤260 行。
+
+### Removed
+
+- `scripts/verify-contract-freshness.mjs（内部件，未随本版发布）`（229 行）、`scripts/verify-injection-freshness.mjs（内部件，未随本版发布）`（116 行）及
+  `test/injection-freshness.test.mjs（内部件，未随本版发布）`；flag-guard 中依赖扫描器的 7 个用例、audit 中扫描器形态用例。CI 门禁 5 → 4。
+- 14 个"关键语义词"检查与 ADAPTER 宽检：命令/旗标已生成，剩余是防纪律散文误删，属内容回归非漂移；部署机
+  `verify-deploy-injection.mjs` 仍以 `injection-terms.mjs` 查部署副本。
+
+### 实证附记
+
+npm test 572 项 571 通过 0 失败 1 异机跳过；sync-generated --check / release-version / deploy-injection（异机跳过）/
+size-budgets 四门禁 ok；export-public --selfcheck 117 文件幂等、隐私零命中；公开树 sync-generated --check exit 0。
+公开树 npm test 514/516：2 个 anchor-roots O1 用例在 main 的投影上同样失败（预先存在，与本批无关）。
+
+## [0.22.1] - 2026-09-27
+
+减法批一（负责人 2026-09-27 令）。方法：清点 → 本质/偶然归类 → 使用证据 → 持有成本 → 移除约束（Tesler）五问；
+本批只做零风险两项——无消费者的导出面与仓内承担历史记录职责的文档。产品行为、回执、退出码零变化。
+
+### Changed
+
+- **导出面清理**：13 个仅在定义文件内部使用的符号去掉 `export`（anchor-roots 4、evidence 3、spec-id 2、
+  atlas-data / gate / notice / state-machine 各 1）；删除生产路径零调用的 `diff.flatten`（3 行包装器）与
+  `state-machine.validateSetWrite`（0.22.0 起被 lib/state-policy.mjs 规则引擎取代，覆盖面由
+  invariant-exhaustive 门禁承担）。lib 6080→6056 行。仍被单元测试直接导入的 10 个生产符号**保留导出**
+  （测试接缝不是死代码；`lineHash` 另有 scripts/reanchor-moved.mjs 消费者）。`flatten` 原守的无原型字典
+  不变量改经公开面 `diffSpecs` 断言。
+- **历史文档归档**：12 份带日期快照（审核摘要、实战反馈 ×2、提案单、事故查证、采纳基线、交接单、方法论拆解、
+  待办清单、升级简报、plan-tree 评估、codegraph 采纳）与 5 份已执行实施计划（原 docs/superpowers/plans/）
+  `git mv` 至 docs/archive/（plans/ 子目录），新增 docs/archive/README.md 说明放入判据。docs/ 根 24→7 件。
+  活引用（README / DEFENSIVE / ADD-PROJECT / command-contract / 两份 SKILL.md / ADAPTER.md /
+  public-projection 测试）同步改写；**本文件旧条目中的路径保持原文**，文件名一一对应可定位。
+  OPTIMIZATION_PROPOSAL_2026-09-14 为 O 系列设计正本且 size-budgets 门禁以其为换入凭据，暂留 docs/ 根。
+
+### 已知副作用
+
+- scripts/verify-size-budgets.mjs（内部件，未随本版发布） 只扫 docs/ 一层，归档件不再受 240 行单件预算约束（当前全部 <240，无实际影响）。
+
+### 实证附记
+
+npm test 568 项 567 通过 0 失败 1 跳过（部署机专属文件异机跳过，设计内）；五门禁全过；export-public --selfcheck
+114 文件幂等、隐私零命中。
+
 ## [0.22.0] - 2026-09-26
 
 写入规则收敛批（负责人 2026-09-26 确认）。0.16.0→0.21.2 同族守卫六天九版反复补洞，根因审计：组合规则读写两份实现、
@@ -59,79 +144,11 @@
 - 守卫补救消息归真：原指引「先 state settle 核销欠账再取消」在唯一可触发状态（planned×backlog）下被 illegal_transition 拒（settle 要求 progress∈{in_progress,verified}，ds41x 实测），且 verified 无出边、settle 后永不可取消——死路指引。消息改为实测可达路径：先 `state set --axis ledger --value clean --correction` 核销欠账（backlog→clean 不在 A2 表，必经纠错通道）再取消。
 - 契约与 ADD-SPEC 同步：附录 A cancelled_requires_clean 行、§2.4.1 执法口径段改写为组合判定语义。
 
-## [0.21.1] - 2026-09-18
-
-裁定收尾批（0.21.0 留给下一版的二问落裁，依据同日真实账本统计：551 节点，cross_axis_unlisted=36，全部为 settled⇒verified 半边的历史直达遗存；cancelled⇒clean 半边存量=0。可机检项各有先红后绿测试 test/ruling-2026-09-18-followup.test.mjs，7 项）。
-
-### Breaking
-
-- (a) `state set/transition`：progress→cancelled 而 ledger≠clean = failed `cancelled_requires_clean`/exit 1（零写入）——0.21.0 成文的「写边仍允许先挂 backlog 再 cancelled」语义就此收口。零误伤依据：真实账本该半边存量 0；补救 = 先 state settle 核销欠账再取消，或 --correction 显式核销（corrected:true 留痕，与 settled_requires_event 同款）。
-
-### Fixed
-
-- report 失败信封（非 --brief）丢 warnings：errors>0 时 data 仅 {a1?, evidenceHead}，存量统计仪器（cross_axis_unlisted 等）恰在账本不健康时不可见——重演 0.4.0「藏明细」缺陷（evidenceHead 同型问题已修而 warnings 漏了）。修复 = data 补 warnings 全文；--brief 失败信封仍为计数（语义对称）。
-
-### Added
-
-- `which` 探测（lib/resolve-archify.mjs）补 5s 超时：裁定5「子进程不得无限挂起」的唯一 lib 内例外收口；超时按探测失败走既有回退链，fail-closed 不变，不伪装成功。
-
-### 观测口径（非行为）
-
-- cross_axis_unlisted 拆半裁定成文（ADD-SPEC §2.4.1 执法口径段）：settled⇒verified 半边维持 warning（写边已由 settled_requires_event 守住，36 条存量与 import_unmarked 同人群，清偿后归零）；cancelled⇒clean 半边升写边拦截（本版 Breaking 项）。
-
-## [0.21.0] - 2026-09-18
-
-裁定批（负责人 2026-09-18 对 0.20.0「未纳入」清单逐项裁定；可机检项各有先红后绿测试 test/ruling-2026-09-18.test.mjs，5 项）。
-
-### Added
-
-- **progress × ledger 组合表成文**（ADD-SPEC §2.4.1）：settled ⇒ progress=verified（既有双写不变量的成文）；cancelled ⇒ ledger=clean（**新增观测约束**：写边今天仍可先 backlog 再 cancelled，但该欠账此后无任何事件可销，成永久孤儿）；truth 轴与二者正交。report 新增常开 warning `cross_axis_unlisted`（附录 A），用于统计存量，**不阻断**；是否升 error 待统计后另裁。
-- **git 子进程超时**：lib 内全部 git 调用经 `gitSync`（lib/evidence.mjs）统一带 timeout，缺省 10000ms，`ATLAS_GIT_TIMEOUT_MS` 覆盖。HEAD 比对超时的锚计入 `evidenceHead.unchecked.timeout`（未检查，verdict 不得为 verified，ok=false），其余调用点按既有失败路径处理（check-ignore 超时同归未检查，复审修正）。单次 git 调用不再无限挂起；多文件按锚缓存逐个计时（累计上限 = 文件数 × 超时），archify 内核探测的 `which` 不在本批。
-- `evidenceHead.noGitReasons`（report/doctor，纯增字段）：no-git 免检按原因计数——`no-repo`（无 git 仓）与 `git-unavailable:<code>`（git 不可用）可区分。
-- `--help` 首行印 `atlas-engine <version>`（不加 `--version` 旗标：旗标预算 50/50 已满，需求只是「看到版本」）。
-- `sidecar_locked` 回执附带可直接执行的恢复命令 `rm -- '<锁文件绝对路径>'`（不加 `unlock` 命令：0.18.0 关闭自动接管的裁定不回退，用户缺的是"怎么办"而非新能力）。
-
-### Docs
-
-- 支持平台声明：Linux / macOS；Windows 未验证（公开版 README 已知边界 + SECURITY 信任模型）。
-- 0.20.0「未纳入」清单勘误：ADD-SPEC class 轴条文实为 0.19.1 §2.6 已完成，划销。
-
-### 明示不做
-
-- `slugify` / `repoRootOf` 去重：零行为收益且动 lib/scripts 边界，记债不做；待其中一份真出问题再修。
-
-## [0.20.0] - 2026-09-18
-
-审核修复批（第一性 × MECE × 奥卡姆审查，2026-09-18）：源于公开仓 atlas-archify-coding PR #1（作者 ubvip），按投影协议回流本仓、经独立对抗复审修正两处后再投影；每项修复先有复现测试（test/audit-2026-09-18.test.mjs，11 项）。与 0.19.1 独立修复重叠的契约保鲜扫描（requireRule/三元采码）以本仓 0.19.1 版为准，公开仓分支版本被投影覆盖。
-
-### Breaking
-
-- (a)(c) `state set` 建账须显式 `--sidecar`：缺省路径 `cwd/atlas-state.json` 缺失一律 `sidecar_missing`/exit 1，不再在 cwd 静默新建账本（幽灵账本 = 空态绿；契约 §2 写边总则已同步）。
-
-### Fixed
-
-- `transition` 的 from 比对把 truth 缺失/null 视为 `candidate`（与 truth 回执门禁同口径），存量节点不再被 `transition_from_mismatch` 卡死（放宽既有拒绝，非破坏；附录 A 同步）。
-- 锚根白名单（O1）改用 realpath 判包含：根与目标两侧均取实相（根经符号链接到达仍合法），图谱根内符号链接指向根外文件不再放行（`anchor_root_denied`）；目标不存在时按最近存在祖先解析。复审修正：公开仓 PR 版只 realpath 目标不 realpath 根，符号链接根下的合法锚会被误拒并写入豁免快照，本仓未采用该版。
-- git 可执行文件不存在/不可执行（spawn ENOENT/EACCES）时，HEAD 锚比对归免检 `no-git`（`headAnchorState` 返回 `reason`；report/doctor 汇总仅计数），不再把已提交的锚误判为 `a1-evidence-uncommitted`。复审修正：公开仓 PR 版把任何 spawn error/信号终止都归免检，ENOBUFS 等瞬态失败会由 error 变绿；本仓只认 ENOENT/EACCES，其余仍 fail-closed。
-- `lib/cli-util.mjs` 的 `diag()` 第 4 参 severity 生效：此前被丢弃，settle 成功回执携带的 `a1-settle-unbound` 实为 error 级，现为 warning 级（report.mjs 自带 diag 早已正确，不受影响）。
-- `autoTrace` 的侧车路径解析移入 try：断链 symlink 侧车只降级为 `trace_degraded`，不再把通过的 gate/compile/report 变成 exit 1。
-- 契约附录 A `unknown_axis` 行补 class 轴（与 0.19.1 --help 同步）。
-
-### Docs / Packaging
-
-- USAGE 示例证据改落 `evidence/<项目>/<diagram-id>/receipt.json`（此前落 evidence/ 根，跑完 doctor 即 atlas-layout 报错）；QUICKSTART-NONCODER 改为宿主中立、可原样执行的三步；DEFENSIVE §11 锚点注明内部门禁不随投影。
-- 投影生成器：公开版 package.json 增 `files` 白名单（不再随包发布 test/、fixtures/ 与隐私黑名单脚本）、`repository`/`homepage`/`bugs`、`prepublishOnly`（npm test + 三门禁），由 test/public-projection.test.mjs（内部件，未随本版发布） 钉住；README 不再声称文档行数有公开仓门禁。`.gitignore` 增 `.omc/`。
-- pi SKILL `metadata.version` 同步（0.19.1 遗留漂移，injection-freshness 基线红清零）。
-
-### 未纳入本批（待负责人裁定）
-
-- 崩溃残留锁的显式恢复命令（`unlock`）、`--version` 旗标（全仓旗标预算已满 50/50）、ADD-SPEC 补 class 轴条文（勘误：0.19.1 §2.6 已有，0.21.0 划销）、跨轴合法组合矩阵、git 子进程超时、Windows 支持声明、`slugify`/路径守卫/git 根发现去重。逐项裁定结果见 [0.21.0]。
-
 ---
 
-更早的 42 个版本（0.1.0 → 0.19.1）：
+更早的 45 个版本（0.1.0 → 0.21.1）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 派生时丢弃 17 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

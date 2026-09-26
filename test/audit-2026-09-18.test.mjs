@@ -60,8 +60,8 @@ test('transition：节点 truth 缺失按 candidate 处理，--from candidate �
 
 // 缺口 7：diag() 丢弃第 4 个参数 severity。
 test('diag：第 4 参 severity 生效，缺省仍为 error', () => {
-  assert.equal(diag('x', 'm', 's').severity, 'error');
-  assert.equal(diag('x', 'm', 's', 'warning').severity, 'warning');
+  assert.equal(diag('bad_args', 'm', 's').severity, 'error');
+  assert.equal(diag('bad_args', 'm', 's', 'warning').severity, 'warning');
 });
 
 test('settle：a1-settle-unbound 诊断为 warning 级（成功回执不得携带 error 级诊断）', (t) => {
@@ -128,15 +128,6 @@ test('report：git 可执行文件不可用时锚归免检（no-git），不误�
   assert.equal(withoutGit.receipt.status, 'ok', withoutGit.stdout);
   assert.ok(!withoutGit.stdout.includes('a1-evidence-uncommitted'), 'git 不可用不得判为未提交');
   assert.equal(withoutGit.receipt.data.evidenceHead.noGit, 1);
-});
-
-// 缺口 4：契约新鲜度门禁只识别 diag('x' / rule: 'x'，经 requireRule('x' 与三元表达式发射的码被当成「代码无字面量」。
-test('verify-contract-freshness：经助手函数/三元发射的错误码被识别为代码字面量', () => {
-  const res = spawnSync(process.execPath, [path.join(ROOT, 'scripts/verify-contract-freshness.mjs')], { encoding: 'utf8' });
-  assert.equal(res.status, 0, res.stdout + res.stderr);
-  for (const code of ['cancelled_requires_evidence', 'settled_requires_event', 'receipt_not_found', 'receipt_unreadable']) {
-    assert.ok(!(res.stdout + res.stderr).includes('附录 A 有而代码无字面量：' + code), '仍被误报为无字面量：' + code + '\n' + res.stderr);
-  }
 });
 
 // 缺口 12：autoTrace 在 try 外调用 canonicalSidecarPath，断链 symlink 侧车会把通过的主结果变成 exit 1。

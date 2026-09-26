@@ -40,12 +40,12 @@ node --test test/*.test.mjs            # 全部离线，用临时目录，不碰
 - `specs/` —— 规范正本：`ADD-SPEC.md`（实体/关系/公理）· `command-contract.md`（命令契约与错误码附录 A）· `atlas-layout.md`（数据根版式）· `snapshot-policy.md`
 - `lib/` + `bin/` —— 实现（零依赖 ESM）；`test/` —— 契约级回归测试（把已定的行为钉住，防改着改着跑偏）
 - `docs/` —— `USAGE.md`（怎么用）· `QUICKSTART-NONCODER.md`（不写代码的人）· `DEFENSIVE.md`（防过拟合/防失真的十一条纪律）· `HISTORY.md`（完整版本沿革）
-- `scripts/` —— 门禁脚本（`verify-contract-freshness` 保证 --help/契约/错误码三向一致；`check-public-privacy` 保证公开面无内部残留）
+- `scripts/` —— 门禁脚本（`sync-generated --check` 保证契约附录 A 与错误码注册表一致；`check-public-privacy` 保证公开面无内部残留）
 
 ## 质量与约束
 
-- `npm test` 全绿；`verify-contract-freshness` 与 `check-public-privacy` 是每次提交的 CI 前置（不是建议，是门）。
-- 命令数、可选参数数、`--help` 行数有**上限门禁**（超了就红，见 `verify-contract-freshness` 与 help 测试）；规范与文档的单件行数预算在 `specs/command-contract.md` 声明，由上游 CI 执行，本仓不自动检查。理由很实在：
+- `npm test` 全绿；`sync-generated --check` 与 `check-public-privacy` 是每次提交的 CI 前置（不是建议，是门）。
+- 命令数、可选参数数、`--help` 行数有**上限门禁**（超了就红，见 `test/surface-consistency.test.mjs` 与 help 测试）；规范与文档的单件行数预算在 `specs/command-contract.md` 声明，由上游 CI 执行，本仓不自动检查。理由很实在：
   **能力面一旦无约束增长，这个工具自己就变成了需要被掌控的东西** —— 而那正是它要解决的问题。
 - 已知边界：它假设你在可信环境单机使用，不做加密/访问控制/多租户；支持平台 Linux / macOS，Windows 未验证（详见 `SECURITY.md` 的信任模型）。
 - 许可证 MIT；贡献前请读 `CONTRIBUTING.md`（能力增删走"五问"评审，不是谁想到就能加）。

@@ -2,7 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AXES, isAxis, isValidState, validateTransition, validateSetWrite, CLASS_STATES, ACTIVE_CLASSES } from '../lib/state-machine.mjs';
+import { AXES, isAxis, isValidState, validateTransition, CLASS_STATES, ACTIVE_CLASSES } from '../lib/state-machine.mjs';
 
 test('三轴状态集互斥且无重复', () => {
   for (const axis of Object.keys(AXES)) {
@@ -47,34 +47,6 @@ test('未知轴与非法状态值被拒', () => {
   assert.equal(validateTransition('truth', 'nonsense', 'closed').diagnostics[0].rule, 'invalid_from_state');
   assert.equal(isAxis('unknown'), false);
 });
-
-// 提案④（2026-08-15 裁定）：set 写路径 A2 校验（复用上方迁移表，不复制）。
-test('validateSetWrite：合法变更放行，同值/首写/初始化免表', () => {
-  assert.equal(validateSetWrite('progress', 'planned', 'in_progress').ok, true);
-  assert.equal(validateSetWrite('progress', 'in_progress', 'blocked').ok, true);
-  // 同值写入（无变更）不触发校验：truth candidate→candidate 不在迁移表也放行
-  assert.equal(validateSetWrite('truth', 'candidate', 'candidate').ok, true);
-  // 轴尚无值（首次写）/初始化：任意目标直接写
-  assert.equal(validateSetWrite('progress', undefined, 'verified').ok, true);
-  assert.equal(validateSetWrite('progress', null, 'verified').ok, true);
-  assert.equal(validateSetWrite('progress', 'planned', 'verified', { init: true }).ok, true);
-});
-
-test('validateSetWrite：违表被拒带 illegal_transition；--correction 放行并标记 admittedCorrection', () => {
-  const bad = validateSetWrite('progress', 'planned', 'verified');
-  assert.equal(bad.ok, false);
-  assert.equal(bad.diagnostics[0].rule, 'illegal_transition');
-  assert.equal(validateSetWrite('progress', 'verified', 'in_progress').ok, false);
-  // 纠错通道：违表也放行，且 admittedCorrection=true（供落 corrected:true 留痕）
-  const fixed = validateSetWrite('progress', 'planned', 'verified', { correction: true });
-  assert.equal(fixed.ok, true);
-  assert.equal(fixed.admittedCorrection, true);
-  // 合法迁移即使带 correction 也不标记（标记只指真实绕过 A2 的写入）
-  const legal = validateSetWrite('progress', 'planned', 'in_progress', { correction: true });
-  assert.equal(legal.ok, true);
-  assert.equal(legal.admittedCorrection, false);
-});
-
 
 // 2026-09-10：class 轴（账务分类）+ 活帐视图（"还有多少任务没完成"的机检答案）
 test('class 轴：合法值可写、越界值拒绝、重分类不受迁移表限制', () => {

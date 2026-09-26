@@ -18,7 +18,7 @@ PID、时间、token 与存活探测用于说明锁状态，不作为强制抢�
 实测中文括号路径合法，真凶是全角冒号「：」（bad_locator 拒）。
 规则：不做全角自动归一——Linux 文件名可合法含全角冒号，归一会破坏该类
 locator；改为报错携带可行动提示，用户自行改半角。
-锚点：lib/evidence.mjs:6-11、17；docs/实战反馈档（2026-08-15）.md 附记 1
+锚点：lib/evidence.mjs:6-11、17；docs/archive/实战反馈档（2026-08-15）.md 附记 1
 （处置记录）；test/evidence.test.mjs:46-64。
 
 ## 4. node --test 目录形式假失败 → glob 形式铁律
@@ -26,14 +26,14 @@ locator；改为报错携带可行动提示，用户自行改半角。
 行为非仓库缺陷），glob 形式 93/93 通过。
 规则：测试入口一律 glob 形式（package.json test 脚本即 glob），目录形式在
 REVIEW 复现命令 1 明示禁用。
-锚点：docs/DEFENSIVE.md:17；package.json:10；docs/AUDIT-SUMMARY-2026-08-15.md 审核一发现①。
+锚点：docs/DEFENSIVE.md:17；package.json:10；docs/archive/AUDIT-SUMMARY-2026-08-15.md 审核一发现①。
 
 ## 5. A1 证据数随 cwd 漂移 → locator 绝对化 + 复现命令钉 cwd
 report 的 A1 对账按 --root 解析证据 locator（缺省 '.'），同仓不同 cwd 证据
 lint 结果不同（实测 6↔15）。
 规则：证据 locator 绝对化（活样 20/20 落账，行号逐条核验在界）；REVIEW
 复现命令 9 钉死 cwd，终验任意 cwd 逐字节一致。
-锚点：lib/report.mjs:25（root 缺省 '.'）；docs/DEFENSIVE.md:25；docs/AUDIT-SUMMARY-2026-08-15.md
+锚点：lib/report.mjs:25（root 缺省 '.'）；docs/DEFENSIVE.md:25；docs/archive/AUDIT-SUMMARY-2026-08-15.md
 「整改批次一/二」。
 **类杀（2026-08-15 批二）**：写入边根治——state evidence-add 落账前把相对
 locator 绝对化（path.resolve against cwd，lib/evidence.mjs absoluteLocator，
