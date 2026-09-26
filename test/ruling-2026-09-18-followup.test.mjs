@@ -69,20 +69,28 @@ test('state transition：planned×backlog → cancelled 同被 cancelled_require
   assert.equal(r.receipt.diagnostics[0].rule, 'cancelled_requires_clean');
 });
 
-// ① --correction 显式核销通道保留：豁免留痕 corrected:true。
-test('state set --correction：cancelled_requires_clean 可显式核销，事件 corrected:true 留痕', (t) => {
+// ① 0.22.0（ADD-SPEC §2.4.2）改钉：cancelled_requires_clean 属 S 族，--correction 不再放行孤儿组合；
+//    纠错只能走实测可达的补救路径——先 ledger --correction 核销为 clean（P 族豁免，waivedRules 留痕）再取消。
+test('state set --correction：不放行孤儿组合；补救路径（先核销 ledger 再取消）可达且留痕', (t) => {
   const { dir, sidecar } = seedSidecar(t, 'atlas-cancelclean-cor-', {
     n1: { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'backlog', evidence: [], history: [] },
   });
   const proof = path.join(dir, 'proof.txt');
   fs.writeFileSync(proof, 'reason\n');
   assert.equal(run(['state', 'evidence-add', '--node', 'n1', '--locator', proof + ':1', '--sidecar', sidecar]).code, 0);
-  const r = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'cancelled', '--reason', 'r', '--owner', 'o', '--correction', '--sidecar', sidecar]);
-  assert.equal(r.code, 0, r.stdout);
+  const direct = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'cancelled', '--reason', 'r', '--owner', 'o', '--correction', '--sidecar', sidecar]);
+  assert.equal(direct.code, 1, direct.stdout);
+  assert.equal(direct.receipt.diagnostics[0].rule, 'cancelled_requires_clean');
+  const writeOff = run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'clean', '--reason', '核销欠账', '--owner', 'o', '--correction', '--sidecar', sidecar]);
+  assert.equal(writeOff.code, 0, writeOff.stdout);
+  const cancel = run(['state', 'set', '--node', 'n1', '--axis', 'progress', '--value', 'cancelled', '--reason', 'r', '--owner', 'o', '--sidecar', sidecar]);
+  assert.equal(cancel.code, 0, cancel.stdout);
   const after = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
   assert.equal(after.nodes.n1.progress, 'cancelled');
-  const ev = after.nodes.n1.history.find((e) => e.kind === 'set' && e.axis === 'progress');
+  assert.equal(after.nodes.n1.ledger, 'clean');
+  const ev = after.nodes.n1.history.find((e) => e.kind === 'set' && e.axis === 'ledger');
   assert.equal(ev.corrected, true, '核销通道必须留痕');
+  assert.deepEqual(ev.waivedRules, ['illegal_transition'], '只记实际豁免的 P 族规则');
 });
 
 // ① 合法路径不受影响：ledger=clean 时取消照常放行（仍过 cancelled_requires_evidence）。
@@ -200,17 +208,16 @@ test('存量孤儿不冻结：cancelled×backlog 节点写 class 轴照常放行
   assert.equal(r.code, 0, r.stdout);
 });
 
-// 反向写入的 --correction 通道同样放行且留痕（设计预留，如实钉住）。
-test('反向写入 --correction 放行并留痕 corrected:true（孤儿照落，设计预留通道）', (t) => {
+// 0.22.0（ADD-SPEC §2.4.2）改钉：反向挂账即便 --correction 也拒（S 族不可纠错），零写入。
+test('反向写入 --correction 仍拒（组合属 S 族，纠错不豁免），零写入', (t) => {
   const { sidecar } = seedSidecar(t, 'atlas-revcor-', {
     n1: { owner: 'o', truth: 'candidate', progress: 'cancelled', ledger: 'clean', evidence: [], history: [] },
   });
+  const seeded = fs.readFileSync(sidecar, 'utf8');
   const r = run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'backlog', '--reason', 'r', '--owner', 'o', '--correction', '--sidecar', sidecar]);
-  assert.equal(r.code, 0, r.stdout);
-  const after = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
-  assert.equal(after.nodes.n1.ledger, 'backlog');
-  const ev = after.nodes.n1.history.find((e) => e.kind === 'set' && e.axis === 'ledger');
-  assert.equal(ev.corrected, true);
+  assert.equal(r.code, 1, r.stdout);
+  assert.equal(r.receipt.diagnostics[0].rule, 'cancelled_requires_clean');
+  assert.equal(fs.readFileSync(sidecar, 'utf8'), seeded);
 });
 
 // 消息归真：指引的补救路径必须实测可达（ledger 核销），不得再指「先 state settle」（planned 节点被 illegal_transition 拒）。

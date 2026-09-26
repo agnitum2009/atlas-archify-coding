@@ -3,6 +3,49 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.22.0] - 2026-09-26
+
+写入规则收敛批（负责人 2026-09-26 确认）。0.16.0→0.21.2 同族守卫六天九版反复补洞，根因审计：组合规则读写两份实现、
+纠错可豁免范围逐规则散写、提前 return 使规则互相吞噬、单测刻意隔离规则交互、修复范围 = 复核单复现范围。本版
+不再逐例补洞，改为**一条公理 + 全空间门禁**：ADD-SPEC §2.4.2 规则四族（P 路径 / S 状态 / A 权限 / X 外部事实）
+为写入规则唯一规格源，`--correction` 只豁免 P 族。新增规则须先归族并通过 test/invariant-exhaustive.test.mjs。
+
+### Breaking
+
+- (a) `--correction` 只被 `state set` 接受：transition / settle / block / evidence-* 等传入 = `bad_args`（指引
+  `state set --correction`）。此前 transition 上的纠错可豁免 `settled_requires_event` 与（0.21.2 起）
+  `cancelled_requires_clean`，其余子命令静默忽略旗标。
+- (a) 组合表不可纠错：`set --correction` 不再能写出 `cancelled × ledger≠clean`（0.21.1/0.21.2 的「直接放行，
+  孤儿照落」通道关闭）；settled 半边由「只拦直达事件」收口为组合判定，新码 `settled_requires_verified`
+  ——纠错直达 settled 须写后 progress=verified。补救均有表内路径（先 ledger --correction 核销 / 先使 verified）。
+- (a) 证据不可纠错：`set --correction` 不再豁免 `verified_requires_evidence` / `cancelled_requires_evidence`
+  （含 init 首写）与 `evidence_unresolvable`，与 `--help`「不免除…证据」、report 读边「零证据 verified 恒为 error」、
+  evidence-remove「纠错也不能删最后一条证据」对齐。0.17.0 为清理存量保留的零证据出口由同版 `state import` 取代；
+  现须先 `evidence-add` 再纠错。`set ledger→settled`（纠错）同样要求证据非空且可解析。
+- (a) S 族按「改动成员字段」执法：cancelled×backlog、in_progress×settled 等存量表外节点，改动 progress/ledger
+  的写入写后须回到表内（修复写仍可达，见可达性证明）；truth/class/同值写不受影响。
+
+### Fixed
+
+- 0.21.2 回归：组合守卫命中后提前 return 跳过证据守卫——`transition --correction` 可把 planned×backlog 零证据
+  节点写成 cancelled（契约 §2 明文 transition 纠错不豁免证据）。一次写入的违规现全部报出（P、A、S、X 序），
+  不再「修一个冒一个」；transition 的违表不再先于证据/回执短路。
+- 契约 report 约束段恢复 0.21.1 压缩行数时误删的 A1 报码说明与「存量清洗（0.17.0）」指引。
+- 契约保鲜扫描看不见组合两码（`out.push` 字面量不在采集形态内，删附录行不报错，0.19.1 同型盲区）：组合表改为
+  声明式 `CROSS_AXIS_RULES`，90 码全覆盖、零宽容 warning。
+
+### Added
+
+- history 纠错事件在 `corrected: true` 之外增记 `waivedRules: [规则码]`（纯增字段）——此前只有布尔值，
+  事后无法分辨一次纠错绕过了什么。
+- test/invariant-exhaustive.test.mjs：set/transition × progress/ledger × 全部前态 × 证据{无,可解析,不可解析}
+  × 是否纠错 共 1092 例实跑 CLI，对照按 §2.4.2 独立推导的预言（退出码、全部诊断码、零写入、豁免留痕）；
+  可达性模型：16 个表内状态两两可达、14 个表外/违例存量均可修复——收紧纠错不造死路。
+
+### 迁移
+
+  （docs/ADOPTION-BASELINE-2026-08-17.md（内部件，未随本版发布）），cancelled 半边存量 0，影响面限于自动化脚本对 transition 传纠错旗标。
+
 ## [0.21.2] - 2026-09-18
 
 守卫完整性修复批（0.21.1 的 cancelled_requires_clean 经 ds41x 席位独立复核——可证实也可证伪的复核单，实测坐实两个缺陷后收口；新增 6 项先红后绿测试，test/ruling-2026-09-18-followup.test.mjs）。
@@ -1117,4 +1160,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 46 个版本全量保留；派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 47 个版本全量保留；派生时丢弃 17 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

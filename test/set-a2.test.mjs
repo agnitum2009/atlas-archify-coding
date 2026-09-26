@@ -214,24 +214,45 @@ test('⑦ transition 路径行为回归不变（A2/A3/A4 全保）；合法 set 
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+// 0.22.0（ADD-SPEC §2.4.2）改钉：纠错只豁免 P 族。S/X 族违规（零证据、坏锚、表外组合）纠错照拒且零写入；
+// 真正的路径纠错（违表回退、settled 专用事件）放行并记 corrected + waivedRules。
 for (const scenario of [
-  { name: 'cancelled count', axis: 'progress', value: 'cancelled', progress: 'planned', evidence: [] },
-  { name: 'verified count', axis: 'progress', value: 'verified', progress: 'in_progress', evidence: [] },
-  { name: 'verified bad anchor', axis: 'progress', value: 'verified', progress: 'in_progress', evidence: ['missing:1'] },
-  { name: 'settled event', axis: 'ledger', value: 'settled', progress: 'in_progress', evidence: [] },
+  { name: 'cancelled count', axis: 'progress', value: 'cancelled', progress: 'planned', ledger: 'clean', evidence: [], rules: ['cancelled_requires_evidence'] },
+  { name: 'verified count', axis: 'progress', value: 'verified', progress: 'in_progress', ledger: 'backlog', evidence: [], rules: ['verified_requires_evidence'] },
+  { name: 'verified bad anchor', axis: 'progress', value: 'verified', progress: 'in_progress', ledger: 'backlog', evidence: ['missing:1'], rules: ['evidence_unresolvable'] },
+  { name: 'settled event', axis: 'ledger', value: 'settled', progress: 'in_progress', ledger: 'backlog', evidence: [], rules: ['settled_requires_verified', 'verified_requires_evidence'] },
 ]) {
-  test('S3 set actual correction marks event and receipt: ' + scenario.name, (t) => {
+  test('S3 set correction cannot waive state/fact rules: ' + scenario.name, (t) => {
     const dir = tmpDir(); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     const sidecar = path.join(dir, 'atlas-state.json');
-    seed(sidecar, { n: { owner: '一线席位', progress: scenario.progress, truth: 'candidate', ledger: 'backlog', evidence: scenario.evidence.map(x => path.join(dir, x)), history: [] } });
+    seed(sidecar, { n: { owner: '一线席位', progress: scenario.progress, truth: 'candidate', ledger: scenario.ledger, evidence: scenario.evidence.map(x => path.join(dir, x)), history: [] } });
+    const before = fs.readFileSync(sidecar, 'utf8');
+    const result = run(['state', 'set', '--node', 'n', '--axis', scenario.axis, '--value', scenario.value, '--owner', '一线席位', '--reason', 'repair', '--correction'], sidecar);
+    assert.equal(result.code, 1, result.stdout);
+    assert.deepEqual(result.receipt.diagnostics.map((d) => d.rule), scenario.rules);
+    assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
+  });
+}
+
+for (const scenario of [
+  { name: 'illegal rollback', axis: 'progress', value: 'planned', progress: 'in_progress', ledger: 'backlog', waived: ['illegal_transition'] },
+  { name: 'settled event', axis: 'ledger', value: 'settled', progress: 'verified', ledger: 'backlog', waived: ['settled_requires_event'] },
+]) {
+  test('S3 set actual path correction marks event and receipt: ' + scenario.name, (t) => {
+    const dir = tmpDir(); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const sidecar = path.join(dir, 'atlas-state.json');
+    const proof = path.join(dir, 'proof.md'); fs.writeFileSync(proof, 'proof\n');
+    seed(sidecar, { n: { owner: '一线席位', progress: scenario.progress, truth: 'candidate', ledger: scenario.ledger, evidence: [proof + ':1'], history: [] } });
     const result = run(['state', 'set', '--node', 'n', '--axis', scenario.axis, '--value', scenario.value, '--owner', '一线席位', '--reason', 'repair', '--correction'], sidecar);
     assert.equal(result.code, 0, result.stdout);
-    assert.equal(readSidecar(sidecar).nodes.n.history.at(-1).corrected, true);
+    const event = readSidecar(sidecar).nodes.n.history.at(-1);
+    assert.equal(event.corrected, true);
+    assert.deepEqual(event.waivedRules, scenario.waived);
     assert.equal(result.receipt.data.receipt.rule, 'A2-correction');
   });
 }
 
-test('S3 cancelled creation requires evidence; correction is recorded even on init', (t) => {
+test('S3 cancelled creation requires evidence; correction cannot waive it on init (0.22.0)', (t) => {
   const dir = tmpDir(); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const sidecar = path.join(dir, 'atlas-state.json');
   const args = ['state', 'set', '--node', 'n', '--axis', 'progress', '--value', 'cancelled', '--owner', '一线席位', '--reason', 'retired', '--class', 'task'];
@@ -240,9 +261,9 @@ test('S3 cancelled creation requires evidence; correction is recorded even on in
   assert.equal(rejected.receipt.diagnostics[0].rule, 'cancelled_requires_evidence');
   assert.equal(fs.existsSync(sidecar), false);
   const corrected = run([...args, '--correction'], sidecar);
-  assert.equal(corrected.code, 0, corrected.stdout);
-  assert.equal(corrected.receipt.data.receipt.rule, 'A2-correction');
-  assert.equal(readSidecar(sidecar).nodes.n.history.at(-1).corrected, true);
+  assert.equal(corrected.code, 1, corrected.stdout);
+  assert.equal(corrected.receipt.diagnostics[0].rule, 'cancelled_requires_evidence');
+  assert.equal(fs.existsSync(sidecar), false);
 });
 
 for (const operation of ['set', 'transition']) {
@@ -254,7 +275,9 @@ for (const operation of ['set', 'transition']) {
       seed(sidecar, { n: { owner: '一线席位', progress: 'planned', truth: 'pending_confirmation', ledger: 'clean', evidence: evidence.map(x => path.join(dir, x)), history: [] } });
       const before = fs.readFileSync(sidecar, 'utf8');
       const target = operation === 'set' ? ['--value', 'effective'] : ['--from', 'pending_confirmation', '--to', 'effective'];
-      const result = run(['state', operation, '--node', 'n', '--axis', 'truth', ...target, '--reason', 'approve', '--owner', '一线席位', '--receipt', receipt, '--correction'], sidecar);
+      // transition 不接受 --correction（0.22.0 唯一入口），仅 set 路径带旗标验证「纠错不豁免证据」。
+      const correction = operation === 'set' ? ['--correction'] : [];
+      const result = run(['state', operation, '--node', 'n', '--axis', 'truth', ...target, '--reason', 'approve', '--owner', '一线席位', '--receipt', receipt, ...correction], sidecar);
       assert.equal(result.code, 1, result.stdout);
       assert.equal(result.receipt.diagnostics[0].rule, evidence.length ? 'evidence_unresolvable' : 'verified_requires_evidence');
       assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
