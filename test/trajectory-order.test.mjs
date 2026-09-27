@@ -94,7 +94,7 @@ test('coChange：同提交共改 ≥3 次出 M 级；>8 文件的大提交不计
   for (let i = 0; i < 9; i += 1) bulk['x' + i + '.mjs'] = 'x\n';
   f.commit({ ...bulk, 'a.mjs': 'a9\n', 'b.mjs': 'b9\n' }, 'bulk');
   const data = computeOrder({ sidecar: f.sidecarOf({ nA: ['a.mjs'], nB: ['b.mjs'] }), repo: f.repo, commits: gitCommits(f.repo, null), events: [] });
-  assert.deepEqual(data.facts.coChange, [{ a: 'nA', b: 'nB', commits: 3, level: 'M' }]);
+  assert.deepEqual(data.facts.coChange, [{ a: 'nA', b: 'nB', commits: 3, specificCommits: 3, level: 'M' }]);
 });
 
 test('重命名前移：git mv 后节点首现仍是原始提交', (t) => {

@@ -299,7 +299,7 @@ test('0.30.0 blindSpots：四类形状与计数；旧的 8 个顶层盲区字段
   const { ws, sidecar, repos } = blindFixture(t);
   const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
   assert.deepEqual(d.blindSpots, {
-    anchors: { relative: 1, nonFile: 0, nodes: ['R'] },
+    anchors: { relative: 1, nonFile: 0, nodes: ['R'], shared: { files: 0, nodes: 0, top: [] } },
     nodes: { count: 2, outsideRepo: ['O'], nestedRepo: [], neverCommitted: ['L'], mixed: [], nestedRepos: [] },
     files: { count: 2, groups: [
       { repo: '.', dir: 'docs', count: 1, sample: ['docs/x.md'] },
@@ -354,4 +354,135 @@ test('契约口径钉住：全史下「目标无锚的 import」其目标必在 
   assert.ok(all.blindSpots.files.groups.some((g) => g.sample.includes('u.mjs')));
   const win = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [], sinceIso: '2026-03-01T00:00:00Z' });
   assert.equal(win.blindSpots.files.count, 0);
+});
+
+// —— 0.31.0 共享锚口径并报 ——
+// 夹具：A 认领 a.mjs（独占）+ u.mjs、s.md（共享）；B 认领 b.mjs（独占）+ s.md；C 只认领 u.mjs、s.md（无独占锚）。
+// b.mjs import ./a.mjs（独占→独占）与 ./u.mjs（独占→共享）。s.md 在 01-02/03/04/07 单独被改；a、b 在 01-05/06 一起被改。
+function sharedFixture(t) {
+  const ws = path.join(tmp(t), 'ws');
+  fs.mkdirSync(ws);
+  git(ws, '2026-01-01T00:00:00Z', 'init', '-q');
+  const b = (v) => "import { a } from './a.mjs';\nimport { u } from './u.mjs';\nexport const b = " + v + ';\n';
+  commitAt(ws, '2026-01-01T00:00:00Z', { 'a.mjs': 'export const a = 1;\n', 'b.mjs': b(1), 'u.mjs': 'export const u = 1;\n', 's.md': 's1\n' }, 'T1');
+  for (const [d, v] of [['2026-01-02', 2], ['2026-01-03', 3], ['2026-01-04', 4]]) commitAt(ws, d + 'T00:00:00Z', { 's.md': 's' + v + '\n' }, 's' + v);
+  commitAt(ws, '2026-01-05T00:00:00Z', { 'a.mjs': 'export const a = 2;\n', 'b.mjs': b(2) }, 'ab5');
+  commitAt(ws, '2026-01-06T00:00:00Z', { 'a.mjs': 'export const a = 3;\n', 'b.mjs': b(3) }, 'ab6');
+  commitAt(ws, '2026-01-07T00:00:00Z', { 's.md': 's5\n' }, 's5');
+  const sidecar = sidecarOf(ws, { A: ['a.mjs', 'u.mjs', 's.md'], B: ['b.mjs', 's.md'], C: ['u.mjs', 's.md'] });
+  return { ws, sidecar, repos: withCommits(discoverRepos(ws, sidecar)) };
+}
+const day = (s) => (s === null ? null : new Date(Date.parse(s)).toISOString().slice(0, 10));
+
+test('0.31.0 coChange.specificCommits：只经共享锚同改的对为 0；commits 不变', (t) => {
+  const { ws, sidecar, repos } = sharedFixture(t);
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
+  assert.deepEqual(d.facts.coChange.map((r) => [r.a, r.b, r.commits, r.specificCommits]), [['A', 'B', 7, 3], ['A', 'C', 5, 0], ['B', 'C', 5, 0]]);
+});
+
+test('0.31.0 import 关系 edges / specificEdges：经共享锚文件的边不计入 specificEdges', (t) => {
+  const { ws, sidecar, repos } = sharedFixture(t);
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
+  assert.deepEqual(d.facts.importSameCommit.map((r) => [r.from, r.to, r.edges, r.specificEdges]), [['A', 'B', 2, 1], ['C', 'B', 1, 0]]);
+});
+
+test('0.31.0 order / recency：独占锚时刻只看独占锚；共享文件的修改不推进 lastSpecificAt；specificAnchors', (t) => {
+  const { ws, sidecar, repos } = sharedFixture(t);
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
+  const rec = Object.fromEntries(d.recency.map((r) => [r.node, [day(r.firstSpecificAt), day(r.lastSpecificAt), day(r.lastAt), r.specificAnchors]]));
+  assert.deepEqual(rec, {
+    A: ['2026-01-01', '2026-01-06', '2026-01-07', 1],
+    B: ['2026-01-01', '2026-01-06', '2026-01-07', 1],
+    C: [null, null, '2026-01-07', 0],
+  });
+  assert.deepEqual(d.order.map((o) => [o.node, day(o.firstSpecificAt), day(o.lastSpecificAt)]), [['A', '2026-01-01', '2026-01-06'], ['B', '2026-01-01', '2026-01-06'], ['C', null, null]]);
+});
+
+test('0.31.0 --since：specificCommits 与 commits 同窗口；firstSpecificAt 仍按全史', (t) => {
+  const { ws, sidecar, repos } = sharedFixture(t);
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [], sinceIso: '2026-01-05T00:00:00Z' });
+  assert.deepEqual(d.facts.coChange.map((r) => [r.a, r.b, r.commits, r.specificCommits]), [['A', 'B', 3, 2]]);
+  assert.equal(day(d.recency.find((r) => r.node === 'A').firstSpecificAt), '2026-01-01');
+});
+
+test('0.31.0 Go 目录目标：A 在目标目录有独占锚才计 specificEdges', (t) => {
+  const ws = path.join(tmp(t), 'go');
+  fs.mkdirSync(ws);
+  git(ws, '2026-02-01T00:00:00Z', 'init', '-q');
+  commitAt(ws, '2026-02-01T00:00:00Z', {
+    'go.mod': 'module example.com/app\n',
+    'internal/db/db.go': 'package db\n', 'internal/db/pool.go': 'package db\n',
+    'internal/cfg/cfg.go': 'package cfg\n',
+    'cmd/main.go': 'package main\n\nimport (\n\t"example.com/app/internal/db"\n\t"example.com/app/internal/cfg"\n)\n',
+  }, 'T1');
+  // DB 在 internal/db 有独占锚 db.go；CFG 与 DB2 共享 cfg.go（internal/cfg 里没有任何独占锚）。
+  const sidecar = sidecarOf(ws, { DB: ['internal/db/db.go'], DB2: ['internal/db/pool.go', 'internal/cfg/cfg.go'], CFG: ['internal/cfg/cfg.go'], CMD: ['cmd/main.go'] });
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos: withCommits(discoverRepos(ws, sidecar)), events: [] });
+  assert.deepEqual(d.facts.importSameCommit.map((r) => [r.from, r.to, r.edges, r.specificEdges]), [['CFG', 'CMD', 1, 0], ['DB', 'CMD', 1, 1], ['DB2', 'CMD', 2, 1]]);
+});
+
+test('0.31.0 多仓：独占锚时刻跨仓取最早 / 最晚；specificAnchors 按整个侧车计', (t) => {
+  const { ws, sidecar } = workspace(t);
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos: withCommits(discoverRepos(ws, sidecar)), events: [] });
+  const opc = d.recency.find((r) => r.node === 'OPC');
+  assert.deepEqual([day(opc.firstSpecificAt), day(opc.lastSpecificAt), opc.specificAnchors], ['2026-01-01', '2026-01-04', 1]);
+  assert.deepEqual(day(d.order.find((o) => o.node === 'OPC').lastSpecificAt), '2026-01-04');
+  assert.deepEqual(d.blindSpots.anchors.shared, { files: 0, nodes: 0, top: [] });
+});
+
+test('0.31.0 blindSpots.anchors.shared：共享锚文件数、只有共享锚的节点数、top；聚焦与 brief 原样；空态计 0', (t) => {
+  const { ws, sidecar, repos } = sharedFixture(t);
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
+  const shared = { files: 2, nodes: 1, top: [{ file: 's.md', nodes: 3 }, { file: 'u.mjs', nodes: 2 }] };
+  assert.deepEqual(d.blindSpots.anchors.shared, shared);
+  assert.deepEqual(computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [], focusNode: 'C' }).blindSpots.anchors.shared, shared);
+  assert.deepEqual(briefOrder(d).blindSpots.anchors.shared, shared);
+  const none = computeWorkspaceOrder({ sidecar: { nodes: {} }, sourceRoot: ws, repos, events: [] });
+  assert.deepEqual(none.blindSpots.anchors.shared, { files: 0, nodes: 0, top: [] });
+});
+
+// —— 整分支审阅修复（0.31.0）——
+test('edges 按文件级去重：同一文件以两种写法引用同一目标只算 1 条边', (t) => {
+  const ws = path.join(tmp(t), 'dup');
+  fs.mkdirSync(ws);
+  git(ws, '2026-03-01T00:00:00Z', 'init', '-q');
+  commitAt(ws, '2026-03-01T00:00:00Z', { 'a.mjs': 'export const a = 1;\n', 'b.mjs': "import './a.mjs';\nimport * as z from './a';\n" }, 'T1');
+  const sidecar = sidecarOf(ws, { A: ['a.mjs'], B: ['b.mjs'] });
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos: withCommits(discoverRepos(ws, sidecar)), events: [] });
+  assert.deepEqual(d.facts.importSameCommit.map((r) => [r.from, r.to, r.edges, r.specificEdges]), [['A', 'B', 1, 1]]);
+});
+
+test('契约读法钉住：specificCommits = 0 只表示「没有一次提交两端都经独占锚被触及」——一端每次都是自己的独占锚也可能为 0', (t) => {
+  const ws = path.join(tmp(t), 'half');
+  fs.mkdirSync(ws);
+  for (let i = 1; i <= 3; i += 1) {
+    if (i === 1) git(ws, '2026-04-01T00:00:00Z', 'init', '-q');
+    commitAt(ws, `2026-04-0${i}T00:00:00Z`, { 'a.mjs': 'a' + i + '\n', 's.md': 's' + i + '\n' }, 'c' + i);
+  }
+  const sidecar = sidecarOf(ws, { A: ['a.mjs'], B: ['s.md'], C: ['s.md'] });
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos: withCommits(discoverRepos(ws, sidecar)), events: [] });
+  const ab = d.facts.coChange.find((r) => r.a === 'A' && r.b === 'B');
+  assert.deepEqual([ab.commits, ab.specificCommits], [3, 0]);
+  assert.equal(day(d.recency.find((r) => r.node === 'A').lastSpecificAt), '2026-04-03');
+});
+
+test('Review Focus 补测：多仓含共享锚——共享判定与仓无关；共享锚在 sourcePath 外时 top 为 ../ 路径', (t) => {
+  const root = tmp(t);
+  const ws = path.join(root, 'ws');
+  fs.mkdirSync(ws);
+  git(ws, '2026-05-01T00:00:00Z', 'init', '-q');
+  commitAt(ws, '2026-05-01T00:00:00Z', { '.gitignore': 'svc/\n', 'top.mjs': 't\n' }, 'T1');
+  const svc = path.join(ws, 'svc');
+  fs.mkdirSync(svc);
+  git(svc, '2026-05-02T00:00:00Z', 'init', '-q');
+  commitAt(svc, '2026-05-02T00:00:00Z', { 's.mjs': 's\n', 'common.md': 'c\n' }, 'S1');
+  fs.writeFileSync(path.join(root, 'OUT.md'), 'o\n');
+  const sidecar = sidecarOf(ws, { TOP: ['top.mjs', 'svc/common.md'], S: ['svc/s.mjs', 'svc/common.md'] });
+  for (const id of ['TOP', 'S']) sidecar.nodes[id].evidence.push(path.join(root, 'OUT.md') + ':1');
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos: withCommits(discoverRepos(ws, sidecar)), events: [] });
+  assert.deepEqual(d.blindSpots.anchors.shared, { files: 2, nodes: 0, top: [{ file: '../OUT.md', nodes: 2 }, { file: 'svc/common.md', nodes: 2 }] });
+  const s = d.recency.find((r) => r.node === 'S');
+  assert.deepEqual([day(s.firstSpecificAt), s.specificAnchors], ['2026-05-02', 1]);
+  const top = d.recency.find((r) => r.node === 'TOP');
+  assert.deepEqual([day(top.firstSpecificAt), day(top.lastAt), top.specificAnchors], ['2026-05-01', '2026-05-02', 1]);
 });
