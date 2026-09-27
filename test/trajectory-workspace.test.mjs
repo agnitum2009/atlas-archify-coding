@@ -237,3 +237,35 @@ test('0.28.0 单仓（sourcePath 即仓根）：unowned 同样按两层目录分
   ]);
   assert.deepEqual(d.unownedByRepo, [{ repo: '.', count: 3, topDirs: [{ dir: 'p', count: 2 }, { dir: 'x.md', count: 1 }] }]);
 });
+
+// —— 0.29.0 ——
+test('0.29.0 单仓：monorepo 包名边入 builtOn；importsUnresolved 为 { count, top }', (t) => {
+  const ws = path.join(tmp(t), 'mono');
+  fs.mkdirSync(ws);
+  git(ws, '2026-06-01T00:00:00Z', 'init', '-q');
+  commitAt(ws, '2026-06-01T00:00:00Z', { 'packages/core/package.json': JSON.stringify({ name: '@s/core', main: 'dist/index.js' }), 'packages/core/src/index.ts': 'export const c = 1;\n' }, 'core');
+  commitAt(ws, '2026-06-02T00:00:00Z', { 'apps/web/app.ts': "import { c } from '@s/core';\nimport { g } from './gone';\n" }, 'app');
+  const sidecar = sidecarOf(ws, { CORE: ['packages/core/src/index.ts'], APP: ['apps/web/app.ts'] });
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos: withCommits(discoverRepos(ws, sidecar)), events: [] });
+  assert.deepEqual(d.facts.builtOn.map((r) => [r.from, r.to, r.via]), [['CORE', 'APP', ['apps/web/app.ts → packages/core/src/index.ts']]]);
+  assert.deepEqual(d.importsUnresolved, { count: 1, top: [{ file: 'apps/web/app.ts', spec: './gone' }] });
+});
+
+test('0.29.0 多仓：三项披露跨仓合并（路径相对 sourcePath）；顶层仓相对引用嵌套仓文件既不出边也不计 unresolved', (t) => {
+  const { ws, sidecar } = workspace(t);
+  const d0 = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos: withCommits(discoverRepos(ws, sidecar)), events: [] });
+  assert.deepEqual(d0.importsUnresolved, { count: 0, top: [] }, 'core.mjs → ./svc/s.mjs 是跨仓引用，不是解析失败');
+
+  const root = tmp(t);
+  git(root, '2026-07-01T00:00:00Z', 'init', '-q');
+  commitAt(root, '2026-07-01T00:00:00Z', { '.gitignore': 'svc/\n', 'a.mjs': "import { n } from './nope';\n", 'q.sql': 'select 1;\n' }, 'top');
+  const svc = path.join(root, 'svc');
+  fs.mkdirSync(svc);
+  git(svc, '2026-07-02T00:00:00Z', 'init', '-q');
+  commitAt(svc, '2026-07-02T00:00:00Z', { 's.mjs': "import { g } from './gone';\n", 'doc.md': '# d\n', 'x.py': 'import os\n' }, 'svc');
+  const sc = sidecarOf(root, { A: ['a.mjs'], Q: ['q.sql'], S: ['svc/s.mjs'], D: ['svc/doc.md'], P: ['svc/x.py'] });
+  const d = computeWorkspaceOrder({ sidecar: sc, sourceRoot: root, repos: withCommits(discoverRepos(root, sc)), events: [] });
+  assert.deepEqual(d.importsUnresolved, { count: 2, top: [{ file: 'a.mjs', spec: './nope' }, { file: 'svc/s.mjs', spec: './gone' }] });
+  assert.deepEqual(d.importsNotApplicable, ['.md', '.sql']);
+  assert.deepEqual(d.importsUnparsed, ['.py']);
+});

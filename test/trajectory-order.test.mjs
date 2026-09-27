@@ -55,7 +55,9 @@ test('computeOrder：order 按首现提交序；builtOn / dependsOnNewer 判定�
   assert.equal(data.facts.extractedLater, undefined, 'extractedLater 已移除（0.25.0）');
   assert.deepEqual(data.nominations.extractionCandidates.map((r) => [r.from, r.to, r.level]), [['nC', 'nB', 'I']]);
   assert.deepEqual(data.unowned, ['docs/readme.md']);
-  assert.deepEqual(data.importsUnparsed, ['.txt']);
+  assert.deepEqual(data.importsUnparsed, []);
+  assert.deepEqual(data.importsNotApplicable, ['.txt']);
+  assert.deepEqual(data.importsUnresolved, []);
   assert.deepEqual(data.nominations.readBeforeWrite, { status: 'no-data' });
   assert.equal(data.sessionEvents, 0);
 });
@@ -294,4 +296,33 @@ test('computeOrder withNotSeenReasons=false：跳过分桶计算（多仓合并�
   const data = computeOrder({ sidecar: f.sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [], withNotSeenReasons: false });
   assert.equal(data.notSeenReasons, undefined);
   assert.ok(Array.isArray(data.notSeen));
+});
+
+// —— 0.29.0 ——
+test('Go 目录级落点：同包多节点都是被依赖方；_test.go 解析其 import 但不作被依赖方；via 以 / 结尾', (t) => {
+  const f = repoFixture(t);
+  f.commit({ 'go.mod': 'module example.com/app\n', 'internal/util/u.go': 'package util\n' }, '1 util');
+  f.commit({ 'internal/db/db.go': 'package db\n', 'internal/db/extra.go': 'package db\n', 'internal/db/db_test.go': 'package db\n\nimport "example.com/app/internal/util"\n' }, '2 db');
+  f.commit({ 'cmd/main.go': 'package main\n\nimport (\n\t"example.com/app/internal/db"\n\t_ "example.com/app/internal/util"\n)\n' }, '3 cmd');
+  const sidecar = f.sidecarOf({ UTIL: ['internal/util/u.go'], DB: ['internal/db/db.go'], DB2: ['internal/db/extra.go'], DBT: ['internal/db/db_test.go'], CMD: ['cmd/main.go'] });
+  const data = computeOrder({ sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [] });
+  assert.deepEqual(data.facts.builtOn.map((r) => [r.from, r.to]), [['DB', 'CMD'], ['DB2', 'CMD'], ['UTIL', 'CMD'], ['UTIL', 'DBT']]);
+  assert.deepEqual(data.facts.builtOn.find((r) => r.from === 'DB').via, ['cmd/main.go → internal/db/']);
+  assert.deepEqual(data.importsUnparsed, []);
+});
+
+// —— 整分支审阅修复（0.29.0）——
+test('单仓：锚在仓外的 .mjs 不让命令失败；../ 出仓引用不计 unresolved；未提交的 Go 锚不作被依赖方', (t) => {
+  const f = repoFixture(t);
+  const outside = path.join(f.dir, 'outside');
+  fs.mkdirSync(outside);
+  fs.writeFileSync(path.join(outside, 'z.mjs'), 'export const z = 1;\n');
+  f.commit({ 'go.mod': 'module example.com/app\n', 'internal/db/db.go': 'package db\n', 'src/a.mjs': "import { z } from '../../outside/z.mjs';\nexport const a = 1;\n" }, '1');
+  f.commit({ 'cmd/main.go': 'package main\n\nimport "example.com/app/internal/db"\n' }, '2');
+  fs.writeFileSync(path.join(f.rawRepo, 'internal/db/wip.go'), 'package db\n');
+  const sidecar = f.sidecarOf({ A: ['src/a.mjs'], DB: ['internal/db/db.go'], WIP: ['internal/db/wip.go'], CMD: ['cmd/main.go'] });
+  sidecar.nodes.OUT = { evidence: [path.join(outside, 'z.mjs') + ':1'] };
+  const data = computeOrder({ sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [] });
+  assert.deepEqual(data.facts.builtOn.map((r) => [r.from, r.to]), [['DB', 'CMD']]);
+  assert.deepEqual(data.importsUnresolved, []);
 });
