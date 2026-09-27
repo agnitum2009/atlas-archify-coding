@@ -3,6 +3,22 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.28.0] - 2026-09-27
+
+trace order 完整回执瘦身（设计 docs/superpowers/specs/2026-09-27-unowned-grouping-design.md）。demo-b 复测（umax）：full 回执 5.2MB，
+主体是 `unowned` 逐文件路径约 4.16 万条——读不动，也看不出哪块没有归属。
+
+### Breaking
+
+- (b) `unowned` 数组元素由路径字符串改为分组 `{ repo, dir, count, sample }`：按「仓 / 仓内前两层目录」聚合（仓根文件 dir 为 `'.'`），
+  每组附字典序前 ≤3 个样本（相对 sourcePath），按 count 降序；同一路径在顶层旧史与嵌套仓都出现只计一次、归前缀最深的参与仓。
+  各组 count 之和 = `--node` 聚焦时 `{ omitted: 'focus', count }` 的 count。`--brief` 下 `unowned.count` 由文件数改为组数。
+  迁移：逐条读路径的调用方改读 `sample`；需要全量清单的，以 `git log --name-only` 对照证据锚自查。`unownedByRepo`、内核 `computeOrder` 不变。
+
+### 实证附记
+
+npm test 632 项 631 通过 0 失败 1 异机跳过（+3 例：groupUnowned 边界、跨仓去重与聚焦口径、单仓回执形状）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 137 文件幂等、隐私零命中；--help 49 行不变。
+
 ## [0.27.1] - 2026-09-27
 
 demo-b 多仓复测（umax，12 仓 / 5127 提交）后的小修与供应链卫生。复测确认 0.27.0 成立：notSeen 286→89（余者全为图谱 spec 的仓外锚）、
@@ -86,30 +102,9 @@ npm test 615 项 614 通过 0 失败 1 异机跳过；sync-generated --check / r
 
 npm test 612 项 611 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过。真实项目效果测试交由远端 umax 机器执行（负责人安排），本机只做实现与夹具单测。
 
-## [0.25.0] - 2026-09-27
-
-纠正 trace order 的「后来抽出」判定（真实项目试跑发现）。0.24.0 把「B 依赖了比自己晚出现的 A」这一事实直接解读为「A 自 B 抽出」
-并标 M 级——atlas-engine 本仓试跑 60 条中至少 20 条（33%）实为「B 后来才接入新模块 A」，违背证据分级（解读冒充事实）。
-
-### Breaking
-
-- (b) `facts.extractedLater` 移除，改为 `facts.dependsOnNewer`（M 级事实：B 依赖比自己晚出现的 A），每条附可观测事实
-  `wiredAtCreation`（A 首现的提交是否同时改动了 B 中 import A 的文件）。迁移：读 extractedLater 的调用方改读 dependsOnNewer；
-  需要「抽出」判断的改读 `nominations.extractionCandidates`。
-- (b) `nominations` 改为逐列表给状态：`{ readBeforeWrite: [...] | { status: 'no-data' }, extractionCandidates: [...], note }`。
-  0.24.0 无会话事件时整个 nominations 为 `{ status: 'no-data' }`；现改读 `nominations.readBeforeWrite.status`。
-
-### Added
-
-- `nominations.extractionCandidates`（I 级提名）：wiredAtCreation 为真的 dependsOnNewer 条目，「A 自 B 抽出」只提名不裁决。
-
-### 实证附记
-
-npm test 610 项 609 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过。atlas-engine 本仓试跑重跑：dependsOnNewer 60 条，其中 wiredAtCreation=true 42 条（进 I 级 extractionCandidates），18 条「B 后来才接入 A」不再被称为抽出。f-xui（Go）试跑另记：9/14 模块首现于整体导入提交、Go import 未解析、共改稀疏——见后续批候选。
-
 ---
 
-更早的 51 个版本（0.1.0 → 0.24.0）：
+更早的 52 个版本（0.1.0 → 0.25.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

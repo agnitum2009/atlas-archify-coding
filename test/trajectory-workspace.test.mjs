@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { gitCommits, real } from '../lib/trajectory.mjs';
-import { discoverRepos, computeWorkspaceOrder } from '../lib/trajectory-workspace.mjs';
+import { gitCommits, real, briefOrder } from '../lib/trajectory.mjs';
+import { discoverRepos, computeWorkspaceOrder, groupUnowned } from '../lib/trajectory-workspace.mjs';
 
 function tmp(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-ws-'));
@@ -66,7 +66,7 @@ test('多仓合并：跨仓按时间归并、仓内序不乱；跨多仓节点�
   assert.deepEqual(d.recency.map((r) => [r.node, r.commitsSince]), [['SVC2', 0], ['OPC', 0], ['SVC', 1], ['CORE', 2]]);
   assert.deepEqual(d.facts.builtOn.map((r) => [r.from, r.to, r.repo]), [['SVC', 'SVC2', 'svc']], 'core.mjs → svc/s.mjs 跨仓 import 不出');
   assert.deepEqual(d.notSeen, []);
-  assert.deepEqual(d.unowned, ['.gitignore']);
+  assert.deepEqual(d.unowned, [{ repo: '.', dir: '.', count: 1, sample: ['.gitignore'] }]);
   assert.deepEqual(d.unownedByRepo, [
     { repo: '.', count: 1, topDirs: [{ dir: '.gitignore', count: 1 }] },
     { repo: 'opc', count: 0, topDirs: [] },
@@ -85,7 +85,7 @@ test('非 git 工作区根：只有嵌套仓也合法；unowned 路径相对 sou
   assert.deepEqual(repos.map((r) => r.repo), ['svc']);
   const d = computeWorkspaceOrder({ sidecar, sourceRoot: root, repos: withCommits(repos), events: [] });
   assert.deepEqual(d.order.map((o) => [o.node, o.firstRepo]), [['A', 'svc']]);
-  assert.deepEqual(d.unowned, ['svc/docs/n.md']);
+  assert.deepEqual(d.unowned, [{ repo: 'svc', dir: 'docs', count: 1, sample: ['svc/docs/n.md'] }]);
 });
 
 test('已删除文件的锚仍归到其所在仓；无参与仓 = project_source_not_git；坏仓 git 失败点名', (t) => {
@@ -180,9 +180,60 @@ test('unowned 口径一致：聚焦时 count = 不聚焦时去重后的 unowned 
   const sidecar = sidecarOf(ws, { CORE: ['core.mjs'], S: ['shared/s.mjs'] });
   const repos = withCommits(discoverRepos(ws, sidecar));
   const all = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
-  assert.ok(all.unowned.includes('shared/readme.md'));
-  assert.equal(all.unowned.filter((f) => f === 'shared/readme.md').length, 1);
+  assert.deepEqual(all.unowned.filter((g) => g.sample.includes('shared/readme.md')).map((g) => [g.repo, g.count]), [['shared', 1]]);
   const focus = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [], focusNode: 'CORE' });
-  assert.deepEqual(focus.unowned, { omitted: 'focus', count: all.unowned.length });
+  assert.deepEqual(focus.unowned, { omitted: 'focus', count: all.unowned.reduce((s, g) => s + g.count, 0) });
   assert.deepEqual(focus.order.map((o) => o.node), ['CORE']);
+});
+
+// —— 0.28.0 ——
+test('groupUnowned：仓内前两层目录聚合；仓根 = .；样本 ≤3 字典序；count 降序；仓名按 / 边界归属、去重', () => {
+  const files = ['svc2/x.mjs', 'svc/pkg/a/deep/1.ts', 'svc/pkg/a/2.ts', 'svc/pkg/a/3.ts', 'svc/pkg/a/0.ts', 'svc/pkg/a/0.ts', 'README.md', 'src/m.mjs'];
+  assert.deepEqual(groupUnowned(files, ['.', 'svc', 'svc2']), [
+    { repo: 'svc', dir: 'pkg/a', count: 4, sample: ['svc/pkg/a/0.ts', 'svc/pkg/a/2.ts', 'svc/pkg/a/3.ts'] },
+    { repo: '.', dir: '.', count: 1, sample: ['README.md'] },
+    { repo: '.', dir: 'src', count: 1, sample: ['src/m.mjs'] },
+    { repo: 'svc2', dir: '.', count: 1, sample: ['svc2/x.mjs'] },
+  ]);
+  assert.deepEqual(groupUnowned([], ['.']), []);
+});
+
+test('0.28.0 回执：跨仓同一路径归嵌套仓且只计一次；组 count 之和 = 聚焦 count；brief 为组数 + 前 10 组', (t) => {
+  const ws = path.join(tmp(t), 'ws');
+  fs.mkdirSync(ws);
+  git(ws, '2026-04-01T00:00:00Z', 'init', '-q');
+  commitAt(ws, '2026-04-01T00:00:00Z', { 'core.mjs': 'c\n', 'shared/readme.md': 'r1\n', 'shared/s.mjs': 's\n' }, 'T1');
+  fs.writeFileSync(path.join(ws, '.gitignore'), 'shared/\n');
+  git(ws, '2026-04-02T00:00:00Z', 'rm', '-r', '-q', '--cached', 'shared');
+  commitAt(ws, '2026-04-02T00:00:00Z', {}, 'split');
+  const shared = path.join(ws, 'shared');
+  git(shared, '2026-04-03T00:00:00Z', 'init', '-q');
+  commitAt(shared, '2026-04-03T00:00:00Z', { 'readme.md': 'r2\n' }, 'N1');
+  const sidecar = sidecarOf(ws, { CORE: ['core.mjs'], S: ['shared/s.mjs'] });
+  const repos = withCommits(discoverRepos(ws, sidecar));
+  const all = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
+  assert.deepEqual(all.unowned, [
+    { repo: '.', dir: '.', count: 1, sample: ['.gitignore'] },
+    { repo: 'shared', dir: '.', count: 1, sample: ['shared/readme.md'] },
+  ]);
+  const focus = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [], focusNode: 'CORE' });
+  assert.equal(focus.unowned.count, all.unowned.reduce((s, g) => s + g.count, 0));
+  assert.deepEqual(briefOrder(all).unowned, { count: 2, top: all.unowned });
+});
+
+test('0.28.0 单仓（sourcePath 即仓根）：unowned 同样按两层目录分组；unownedByRepo 不变', (t) => {
+  const ws = path.join(tmp(t), 'one');
+  fs.mkdirSync(ws);
+  git(ws, '2026-05-01T00:00:00Z', 'init', '-q');
+  commitAt(ws, '2026-05-01T00:00:00Z', { 'a.mjs': 'a\n', 'x.md': 'x\n', 'p/t.md': 't\n', 'p/q/r/s.md': 's\n' }, 'A');
+  const sidecar = sidecarOf(ws, { A: ['a.mjs'] });
+  const repos = withCommits(discoverRepos(ws, sidecar));
+  assert.deepEqual(repos.map((r) => r.repo), ['.']);
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
+  assert.deepEqual(d.unowned, [
+    { repo: '.', dir: '.', count: 1, sample: ['x.md'] },
+    { repo: '.', dir: 'p', count: 1, sample: ['p/t.md'] },
+    { repo: '.', dir: 'p/q', count: 1, sample: ['p/q/r/s.md'] },
+  ]);
+  assert.deepEqual(d.unownedByRepo, [{ repo: '.', count: 3, topDirs: [{ dir: 'p', count: 2 }, { dir: 'x.md', count: 1 }] }]);
 });
