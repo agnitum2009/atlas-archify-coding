@@ -47,6 +47,8 @@ test('trace order：facts.builtOn 由 git + 证据锚推出；无会话事件 = 
   assert.deepEqual(r.receipt.data.facts.builtOn.map((x) => [x.from, x.to, x.level]), [['demo-a', 'demo-b', 'M']]);
   assert.deepEqual(r.receipt.data.nominations.readBeforeWrite, { status: 'no-data' });
   assert.deepEqual(fs.readFileSync(f.sidecar), before, 'trace order 不得写侧车');
+  assert.deepEqual(r.receipt.data.repos.map((x) => x.repo), ['.']);
+  assert.deepEqual(r.receipt.data.order.map((o) => o.firstRepo), ['.', '.']);
 });
 
 test('trace import → trace order：会话读后写出 I 级提名；重复导入幂等', (t) => {
@@ -89,8 +91,14 @@ test('红路：缺 --source = bad_args；源不可读 / 坏事件 / 无 sourcePa
   assert.equal(rule(['trace', 'order', '--sidecar', f.sidecar]), 'trajectory_bad_event');
   fs.rmSync(f.data);
   const reg = path.join(path.dirname(f.sidecar), 'projects.json');
-  fs.writeFileSync(reg, JSON.stringify({ schemaVersion: 1, projects: [{ project: 'demo', umbrella: 'demo-add', sidecar: 'atlas-state.json', sourcePath: f.dir }] }));
+  const empty = path.join(f.dir, 'empty-ws');
+  fs.mkdirSync(empty);
+  fs.writeFileSync(reg, JSON.stringify({ schemaVersion: 1, projects: [{ project: 'demo', umbrella: 'demo-add', sidecar: 'atlas-state.json', sourcePath: empty }] }));
   assert.equal(rule(['trace', 'order', '--sidecar', f.sidecar]), 'project_source_not_git');
+  fs.writeFileSync(reg, JSON.stringify({ schemaVersion: 1, projects: [{ project: 'demo', umbrella: 'demo-add', sidecar: 'atlas-state.json', sourcePath: f.dir }] }));
+  const wsRun = run(['trace', 'order', '--sidecar', f.sidecar]);
+  assert.equal(wsRun.code, 0, '非 git 工作区根 + 嵌套仓 = 合法（0.27.0）');
+  assert.deepEqual(wsRun.receipt.data.repos.map((r) => r.repo), ['atlas/repo']);
   fs.writeFileSync(reg, JSON.stringify({ schemaVersion: 1, projects: [{ project: 'demo', umbrella: 'demo-add', sidecar: 'atlas-state.json' }] }));
   assert.equal(rule(['trace', 'order', '--sidecar', f.sidecar]), 'project_source_missing');
 });

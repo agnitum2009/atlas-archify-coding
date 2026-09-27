@@ -3,6 +3,31 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.27.0] - 2026-09-27
+
+多仓工作区回溯（设计 docs/superpowers/specs/2026-09-27-multi-repo-workspace-design.md）。demo-b 实测（umax）：1 顶层仓 + ≥6 嵌套独立仓，
+单 sourcePath 模型下 44% 节点 notSeen、业务主体不可见。本版由证据锚推出参与仓，嵌套仓历史纳入回溯。只回溯不规划，不写侧车。
+
+### Breaking
+
+- (c) 同命令同参数，多仓项目输出显著变化：锚在嵌套仓的节点由 notSeen 进入 order / recency；`unowned` 路径基准由仓根改为
+  sourcePath（单仓不变）；sourcePath 不再要求本身是 git 仓（非 git 工作区根合法，其下无锚所在仓才报 project_source_not_git）。
+  迁移：依赖「嵌套仓节点在 notSeen」的调用方改读 `repos` 与 `notSeenReasons`。
+- (c) sourcePath 位于某仓的子目录（不是仓根）且其下无锚所在的嵌套仓：0.26.0 返回 ok 但把节点全部误报 neverCommitted，
+  现报 project_source_not_git 并提示改登记仓根。
+
+### Added
+
+- 回执 `repos: [{ repo, commits, totalCommits, span }]`；`order` / `recency` 条目增 `firstRepo` / `lastRepo`，跨多仓节点增
+  `repos` 明细；`recency` 条目增 `firstSeq` / `firstAt`；`facts.*` 每条增 `repo`（关系只在同仓内判定）；`unownedByRepo`。
+- 任一参与仓 git 失败 → 整体 fail-loud `project_source_not_git` 并点名该仓。空仓（已 init、HEAD 尚无提交）按 0 提交处理，不算读取失败。
+- 整分支审阅修复：空嵌套仓不再让整条命令失败；非 git 工作区根下的散放锚归 outsideRepo（不再误报 neverCommitted，DEFENSIVE §9）；
+  合并 span 按时刻比较（时区偏移混排时字典序≠时序）。
+
+### 实证附记
+
+npm test 626 项 625 通过 0 失败 1 异机跳过（含审阅修复 4 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 136 文件（+2）幂等、隐私零命中。效果复测交 umax（demo-b）。
+
 ## [0.26.0] - 2026-09-27
 
 demo-b 真实项目实测（远端 umax，657 节点 / 1633 提交）三项小修。实测确认单仓能力成立（全量约 1.2s、M 级 import 边抽样全对、
@@ -91,28 +116,9 @@ npm test 610 项 609 通过 0 失败 1 异机跳过；sync-generated --check / r
 
 npm test 609 项 608 通过 0 失败 1 异机跳过（含审阅修复 4 例）；sync-generated --check / release-version / size-budgets 通过，deploy-injection 异机跳过；export-public --selfcheck 134 文件（+6）幂等、隐私零命中。--help 49 行（help 行数门禁 <50：import 与 order 合为一行，不提门禁）。冒烟：init 空账本对本仓 trace order → exit 0、157 提交、order.status=no-anchored-nodes、unowned 186——空态分辨生效。
 
-## [0.23.1] - 2026-09-27
-
-减法批三（commands.mjs 拆分，设计 docs/superpowers/specs/2026-09-27-split-commands-design.md）。纯内部重构：命令、旗标、
-错误码、回执、退出码、`--help` 均不变。
-
-### Changed
-
-- `lib/commands.mjs` 1,425 行 → 注册表 + 帮助文本（≤150 行）；10 个命令实现平铺拆到 `lib/cmd-<族>.mjs`（`lib/` 不建子目录：
-  公开投影与内核计数只枚举一层）。函数体由一次性确定性变换脚本逐字搬运。
-- `runState`（673 行，全仓最大函数）拆为 `stateContext`（前奏：参数/纠错入口/侧车/项目门/席位门）+ `STATE_SUBCOMMANDS`
-  分发表（`hasOwnProperty` 查表，原型链名不命中）+ 11 个子命令函数（最长 `stateSet` ≤120 行）。
-- 新增 `test/cmd-helpers.test.mjs`：锚根 5 助手、`gateOutPlacementDiag`、`stateContext` 三分支的进程内边界测试。
-- `test/surface-consistency.test.mjs` 增结构守卫：commands.mjs ≤150 行且不含 run* 实现；每命令族一个 cmd-*.mjs 且不 import
-  commands.mjs；cmd-* 顶层函数 ≤120 行；lib 其余超长函数只能是白名单（validateLayout 364 / buildReport 317 / runDoctor 276 /
-  runGate 173）且只减不增；cmd-* 的每个 import 须被使用（模块对象须以 名字. 访问——删掉未用的 node:path，使漏解构的 path 报 ReferenceError 而非静默拿到模块）。
-
-### 实证附记
-
-
 ---
 
-更早的 49 个版本（0.1.0 → 0.23.0）：
+更早的 50 个版本（0.1.0 → 0.23.1）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

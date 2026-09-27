@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { gitCommits, nodeFiles, computeOrder, briefOrder, projectRepo, real } from '../lib/trajectory.mjs';
+import { gitCommits, nodeFiles, computeOrder, briefOrder, projectRepo, real, notSeenReasonsOf } from '../lib/trajectory.mjs';
 
 const DATE = '2026-09-01T10:00:00Z'; // 全部提交同一时刻：先后只能靠提交序
 function repoFixture(t) {
@@ -260,4 +260,31 @@ test('--node 瘦身：notSeen / notSeenReasons 随聚焦收窄；unowned 以 { o
   assert.deepEqual(data.notSeen, []);
   const brief = briefOrder(data);
   assert.deepEqual(brief.unowned, { omitted: 'focus', count: 1 });
+});
+
+// —— 多仓准备（0.27.0 Task 1）——
+test('computeOrder sameRepo：dep 不在本仓的 import 不产生关系；recency 带首现 firstSeq/firstAt', (t) => {
+  const f = repoFixture(t);
+  f.commit({ 'a.mjs': 'export const a = 1;\n' }, 'a');
+  f.commit({ 'b.mjs': "import { a } from './a.mjs';\nexport const b = a;\n" }, 'b');
+  const sidecar = f.sidecarOf({ A: ['a.mjs'], B: ['b.mjs'] });
+  const commits = gitCommits(f.repo, null);
+  const all = computeOrder({ sidecar, repo: f.repo, commits, events: [] });
+  assert.deepEqual(all.facts.builtOn.map((r) => [r.from, r.to]), [['A', 'B']]);
+  const onlyB = computeOrder({ sidecar, repo: f.repo, commits, events: [], sameRepo: (file) => file.endsWith('b.mjs') });
+  assert.deepEqual(onlyB.facts.builtOn, [], 'dep 不满足 sameRepo 时不判定');
+  assert.deepEqual(all.recency.map((r) => [r.node, r.firstSeq]), [['B', 2], ['A', 1]]);
+});
+
+test('notSeenReasonsOf readRoots：嵌套仓已被读取但文件从未提交 → neverCommitted，不误报 nestedRepo', (t) => {
+  const f = repoFixture(t);
+  f.commit({ 'a.mjs': 'a\n' }, 'a');
+  const nested = path.join(f.repo, 'sub');
+  fs.mkdirSync(nested);
+  execFileSync('git', ['-C', nested, 'init', '-q']);
+  fs.writeFileSync(path.join(nested, 'x.mjs'), 'x\n');
+  const own = nodeFiles({ nodes: { N: { evidence: [path.join(nested, 'x.mjs') + ':1'] } } });
+  assert.deepEqual(notSeenReasonsOf(own, ['N'], f.repo).nestedRepo, ['N']);
+  const read = notSeenReasonsOf(own, ['N'], f.repo, new Set([real(nested)]));
+  assert.deepEqual([read.nestedRepo, read.neverCommitted], [[], ['N']]);
 });
