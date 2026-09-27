@@ -185,3 +185,33 @@ test('后来接入 ≠ 抽出：A 单独创建、B 几个提交后才接入 → 
   assert.deepEqual(data.facts.dependsOnNewer.map((r) => [r.from, r.to, r.wiredAtCreation]), [['A', 'B', false]]);
   assert.deepEqual(data.nominations.extractionCandidates, []);
 });
+
+test('recency（最后活动视图，M 级）：按最后活动从新到旧；touches 与 commitsSince 按全史；不受 --since 影响', (t) => {
+  const f = repoFixture(t);
+  f.commit({ 'a.mjs': 'a\n', 'b.mjs': 'b\n', 'c.mjs': 'c\n' }, '1 create');
+  f.commit({ 'a.mjs': 'a2\n' }, '2 edit a');
+  f.commit({ 'b.mjs': 'b2\n' }, '3 edit b');
+  f.commit({ 'x.txt': 'x\n' }, '4 unowned');
+  f.commit({ 'b.mjs': 'b3\n' }, '5 edit b');
+  const sidecar = f.sidecarOf({ A: ['a.mjs'], B: ['b.mjs'], C: ['c.mjs'] });
+  const commits = gitCommits(f.repo, null);
+  const data = computeOrder({ sidecar, repo: f.repo, commits, events: [] });
+  assert.deepEqual(data.recency.map((r) => [r.node, r.lastSeq, r.touches, r.commitsSince, r.level]), [
+    ['B', 5, 3, 0, 'M'],
+    ['A', 2, 2, 3, 'M'],
+    ['C', 1, 1, 4, 'M'],
+  ]);
+  const late = computeOrder({ sidecar, repo: f.repo, commits, events: [], sinceIso: '2030-01-01T00:00:00Z' });
+  assert.deepEqual(late.order, []);
+  assert.deepEqual(late.recency.map((r) => r.node), ['B', 'A', 'C'], '--since 不得把长期未动的节点从最后活动视图里滤掉');
+  const focus = computeOrder({ sidecar, repo: f.repo, commits, events: [], focusNode: 'A' });
+  assert.deepEqual(focus.recency.map((r) => r.node), ['A']);
+  assert.deepEqual(briefOrder(data).recency, { count: 3, top: data.recency });
+});
+
+test('recency：无锚定节点 = no-anchored-nodes（与 order 同口径）', (t) => {
+  const f = repoFixture(t);
+  f.commit({ 'a.mjs': 'a\n' }, 'a');
+  const data = computeOrder({ sidecar: { nodes: {} }, repo: f.repo, commits: gitCommits(f.repo, null), events: [] });
+  assert.deepEqual(data.recency, { status: 'no-anchored-nodes' });
+});

@@ -3,6 +3,21 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.25.1] - 2026-09-27
+
+最后活动视图（真实项目试跑发现：回答「现在到底什么状态」最有用的是各节点最后一次活动，而非首现——f-xui 14 个模块中 9 个
+首现于同一整体导入提交、排不出先后，但按最后活动一眼可见核心模块自 2021-08 起未再改动）。纯回溯，不作停滞/待办判断。
+
+### Added
+
+- `trace order` 回执增 `recency`（M 级）：每节点 `{ node, lastSeq, lastAt, touches, commitsSince, level }`，按最后活动从新到旧；
+  touches = 触及该节点的提交数，commitsSince = 其最后改动后仓库又产生的提交数。始终按全史计算（`--since` 不得滤掉长期未动的节点），
+  `--node` 聚焦时只留该节点，`--brief` 截为 `{ count, top≤10 }`，无锚定节点 = `{ status: 'no-anchored-nodes' }`。纯增字段，非破坏。
+
+### 实证附记
+
+npm test 612 项 611 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过。真实项目效果测试交由远端 umax 机器执行（负责人安排），本机只做实现与夹具单测。
+
 ## [0.25.0] - 2026-09-27
 
 纠正 trace order 的「后来抽出」判定（真实项目试跑发现）。0.24.0 把「B 依赖了比自己晚出现的 A」这一事实直接解读为「A 自 B 抽出」
@@ -110,38 +125,9 @@ npm test 572 项 571 通过 0 失败 1 异机跳过；sync-generated --check / r
 size-budgets 四门禁 ok；export-public --selfcheck 117 文件幂等、隐私零命中；公开树 sync-generated --check exit 0。
 公开树 npm test 514/516：2 个 anchor-roots O1 用例在 main 的投影上同样失败（预先存在，与本批无关）。
 
-## [0.22.1] - 2026-09-27
-
-减法批一（负责人 2026-09-27 令）。方法：清点 → 本质/偶然归类 → 使用证据 → 持有成本 → 移除约束（Tesler）五问；
-本批只做零风险两项——无消费者的导出面与仓内承担历史记录职责的文档。产品行为、回执、退出码零变化。
-
-### Changed
-
-- **导出面清理**：13 个仅在定义文件内部使用的符号去掉 `export`（anchor-roots 4、evidence 3、spec-id 2、
-  atlas-data / gate / notice / state-machine 各 1）；删除生产路径零调用的 `diff.flatten`（3 行包装器）与
-  `state-machine.validateSetWrite`（0.22.0 起被 lib/state-policy.mjs 规则引擎取代，覆盖面由
-  invariant-exhaustive 门禁承担）。lib 6080→6056 行。仍被单元测试直接导入的 10 个生产符号**保留导出**
-  （测试接缝不是死代码；`lineHash` 另有 scripts/reanchor-moved.mjs 消费者）。`flatten` 原守的无原型字典
-  不变量改经公开面 `diffSpecs` 断言。
-- **历史文档归档**：12 份带日期快照（审核摘要、实战反馈 ×2、提案单、事故查证、采纳基线、交接单、方法论拆解、
-  待办清单、升级简报、plan-tree 评估、codegraph 采纳）与 5 份已执行实施计划（原 docs/superpowers/plans/）
-  `git mv` 至 docs/archive/（plans/ 子目录），新增 docs/archive/README.md 说明放入判据。docs/ 根 24→7 件。
-  活引用（README / DEFENSIVE / ADD-PROJECT / command-contract / 两份 SKILL.md / ADAPTER.md /
-  public-projection 测试）同步改写；**本文件旧条目中的路径保持原文**，文件名一一对应可定位。
-  OPTIMIZATION_PROPOSAL_2026-09-14 为 O 系列设计正本且 size-budgets 门禁以其为换入凭据，暂留 docs/ 根。
-
-### 已知副作用
-
-- scripts/verify-size-budgets.mjs（内部件，未随本版发布） 只扫 docs/ 一层，归档件不再受 240 行单件预算约束（当前全部 <240，无实际影响）。
-
-### 实证附记
-
-npm test 568 项 567 通过 0 失败 1 跳过（部署机专属文件异机跳过，设计内）；五门禁全过；export-public --selfcheck
-114 文件幂等、隐私零命中。
-
 ---
 
-更早的 47 个版本（0.1.0 → 0.22.0）：
+更早的 48 个版本（0.1.0 → 0.22.1）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 
