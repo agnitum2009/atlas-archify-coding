@@ -3,6 +3,31 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.29.1] - 2026-09-27
+
+0.29.0 demo-b 复测（umax）后的反思批 A：修一处解析缺陷，并给 trace order 回执顶层字段立预算。回执形状不变。
+
+**为什么立字段预算**：命令（≤11）与旗标（≤50）有预算，回执字段没有；0.24.0→0.29.0 trace order 顶层字段由 10 涨到 18，
+新增 8 个中 5 个是同一类「为什么看不见」的披露，每轮实测发现一个盲区就多一个兄弟字段。先锁在现值止住增长，
+再由下一批把盲区披露收敛为一处（预期下调预算）。准入：第 0 问——防回执膨胀、保持中后期项目可读；只立约束不改输出，
+不改变何为真、无新侧车字段 / 旗标 / 错误码，--help 不变。
+
+### Fixed
+
+- import 规格先去 `?query` / `#hash` 再解析（demo-b 实测 `../mcp-server.mjs?ops-tools` 被计为 unresolved）；unresolved 报告仍用原规格；
+  `#` 开头的 Node imports 字段写法不解析（按外部忽略，不计 unresolved）。
+- 契约 §8 回执字段表漏列 `unownedByRepo`（0.27.0 起已输出），补上——字段表与实测回执此前不一致，由新测试发现。
+
+### Added
+
+- 契约治理节：trace order 回执顶层字段 ≤18。`test/trajectory-cli.test.mjs` 以契约 §8 字段表为唯一来源，断言实测回执（full 与 --brief）
+  顶层字段与之相同、字段数不超预算；`test/trajectory-workspace.test.mjs` 断言多仓、单仓、无锚定节点空态三条路径字段集合一致。
+  沿命令 / 旗标预算的既有做法（契约写预算、测试断言占用），不放进行数门禁 verify-size-budgets（该门禁只管文本行数，不跑代码）。
+
+### 实证附记
+
+npm test 651 项 650 通过 0 失败 1 异机跳过（+3 例）；字段预算测试经两次反向验证（契约删一字段 → 失败；预算调为 17 → 失败）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变。
+
 ## [0.29.0] - 2026-09-27
 
 import 解析覆盖面（设计 docs/superpowers/specs/2026-09-27-import-coverage-design.md）。f-xui（Go）此前 import 类先后事实为零；
@@ -96,31 +121,9 @@ npm test 629 项 628 通过 0 失败 1 异机跳过；sync-generated --check / r
 
 npm test 626 项 625 通过 0 失败 1 异机跳过（含审阅修复 4 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 136 文件（+2）幂等、隐私零命中。效果复测交 umax（demo-b）。
 
-## [0.26.0] - 2026-09-27
-
-demo-b 真实项目实测（远端 umax，657 节点 / 1633 提交）三项小修。实测确认单仓能力成立（全量约 1.2s、M 级 import 边抽样全对、
-进行中 × 最后活动交叉揪出 2 个账面在做实际停摆的节点），同时暴露：notSeen 不分因（嵌套仓 187 / 仓外 99 混列）、--node 回执
-781KB 未瘦身、recency 不带账本状态需自行联查。最大缺口「多仓工作区」（44% 节点失明）另批设计。
-
-### Breaking
-
-- (b) `--node` 聚焦时 `unowned` 由文件数组改为 `{ omitted: 'focus', count }`：无主改动不属于任何节点，聚焦时只披露计数；
-  不给空数组（空数组会被读成「无无主改动」）。迁移：需要全量无主改动的调用方去掉 `--node` 再取。
-
-### Added
-
-- `recency` 条目并列 `progress` / `ledger`（节点账本状态，缺省 null）——事实并列，不作「停摆」判断。
-- `notSeenReasons`：未被 git 触及的节点按原因分桶——outsideRepo（锚在代码仓外）/ nestedRepo（锚在嵌套独立 git 仓内，顶层历史
-  看不见）/ neverCommitted（锚在仓内但从未进入任何提交）/ mixed，附 `nestedRepos: [{ root, nodes }]`；`notSeen` 字符串数组保持不变。
-- `--node` 聚焦时 `notSeen` / `notSeenReasons` 随之收窄。
-
-### 实证附记
-
-npm test 615 项 614 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过。效果复测交由 umax。
-
 ---
 
-更早的 53 个版本（0.1.0 → 0.25.1）：
+更早的 54 个版本（0.1.0 → 0.26.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

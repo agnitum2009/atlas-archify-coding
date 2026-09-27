@@ -269,3 +269,18 @@ test('0.29.0 多仓：三项披露跨仓合并（路径相对 sourcePath）；�
   assert.deepEqual(d.importsNotApplicable, ['.md', '.sql']);
   assert.deepEqual(d.importsUnparsed, ['.py']);
 });
+
+// —— 0.29.1 ——
+test('0.29.1 多仓与单仓回执顶层字段集合一致（字段预算只由 CLI 测试对照契约断言一处）', (t) => {
+  const { ws, sidecar } = workspace(t);
+  const multi = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos: withCommits(discoverRepos(ws, sidecar)), events: [] });
+  const one = path.join(tmp(t), 'one');
+  fs.mkdirSync(one);
+  git(one, '2026-08-01T00:00:00Z', 'init', '-q');
+  commitAt(one, '2026-08-01T00:00:00Z', { 'a.mjs': 'a\n' }, 'A');
+  const sc = sidecarOf(one, { A: ['a.mjs'] });
+  const single = computeWorkspaceOrder({ sidecar: sc, sourceRoot: one, repos: withCommits(discoverRepos(one, sc)), events: [] });
+  const none = computeWorkspaceOrder({ sidecar: { nodes: {} }, sourceRoot: one, repos: withCommits(discoverRepos(one, sc)), events: [] });
+  assert.deepEqual(Object.keys(multi).sort(), Object.keys(single).sort());
+  assert.deepEqual(Object.keys(none).sort(), Object.keys(single).sort(), '无锚定节点的空态回执同形');
+});

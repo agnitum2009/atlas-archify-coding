@@ -180,3 +180,18 @@ test('Go：只解析首个顶层声明之前的 import（原始字符串里的 i
   });
   assert.deepEqual(parse(repo, 'gen/g.go'), { deps: ['internal/util/'], unresolved: [] });
 });
+
+// —— 0.29.1 ——
+test('JS/TS 规格先去 ?query / #hash 再解析（报告仍用原规格）；# 开头的 Node imports 写法忽略', (t) => {
+  const repo = repoWith(t, {
+    'src/a.mjs': 'export const a = 1;\n',
+    'src/b.ts': 'export const b = 1;\n',
+    'src/m.mjs': [
+      "import a from './a.mjs?raw';",
+      "import { b } from './b?x=1#frag';",
+      "import { c } from './gone.mjs?ops-tools';",
+      "import { i } from '#internal/util';",
+    ].join('\n') + '\n',
+  });
+  assert.deepEqual(parse(repo, 'src/m.mjs'), { deps: ['src/a.mjs', 'src/b.ts'], unresolved: ['./gone.mjs?ops-tools'] });
+});

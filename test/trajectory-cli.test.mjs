@@ -129,3 +129,35 @@ test('I1（CLI 级）：trace order --since 不把同提交创建的 import 错�
   assert.deepEqual(r.receipt.data.facts.dependsOnNewer, [], '窗口内先改 b 后改 a 不代表 a 晚于 b 出现');
   assert.deepEqual(r.receipt.data.facts.builtOn.map((x) => [x.from, x.to]), [['demo-a', 'demo-b']]);
 });
+
+// —— 0.29.1：回执顶层字段预算（契约为唯一来源）——
+// 契约 §8「order → { … }」的顶层字段表 = 实测回执顶层字段；字段数 ≤ 契约治理节写明的预算。
+// 防回执字段被动膨胀：命令 / 旗标有预算、回执字段没有，0.24.0→0.29.0 顶层由 10 涨到 18。
+const CONTRACT = new URL('../specs/command-contract.md', import.meta.url).pathname;
+function contractReceiptFields(text) {
+  const start = text.indexOf('order → {');
+  assert.ok(start >= 0, '契约 §8 缺「order → { … }」回执字段表');
+  const open = { '{': '}', '[': ']', '（': '）' };
+  const stack = [];
+  let body = '';
+  for (const ch of text.slice(start + 'order → '.length)) {
+    if (open[ch]) stack.push(open[ch]);
+    else if (ch === stack[stack.length - 1]) { stack.pop(); if (stack.length === 0) break; }
+    if (stack.length === 1 && ch !== '{') body += ch;
+    else if (stack.length > 1) body += ' ';
+  }
+  return body.split(',').map((s) => (s.trim().match(/^[A-Za-z]+/) || [''])[0]).filter(Boolean);
+}
+
+test('0.29.1 回执字段预算：实测顶层字段 = 契约 §8 字段表；字段数 ≤ 契约治理节预算', (t) => {
+  const text = fs.readFileSync(CONTRACT, 'utf8');
+  const fields = contractReceiptFields(text);
+  const budget = Number((text.match(/trace order 回执顶层字段 ≤(\d+)/) || [])[1]);
+  assert.ok(budget > 0, '契约治理节须写明「trace order 回执顶层字段 ≤N」');
+  assert.ok(fields.length <= budget, `契约字段表 ${fields.length} 个 > 预算 ${budget}`);
+  const f = fixture(t);
+  const full = run(['trace', 'order', '--sidecar', f.sidecar]);
+  const brief = run(['trace', 'order', '--brief', '--sidecar', f.sidecar]);
+  assert.deepEqual(Object.keys(full.receipt.data).sort(), [...fields].sort());
+  assert.deepEqual(Object.keys(brief.receipt.data).sort(), [...fields].sort());
+});
