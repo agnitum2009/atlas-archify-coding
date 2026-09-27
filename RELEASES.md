@@ -3,6 +3,28 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.26.0] - 2026-09-27
+
+demo-b 真实项目实测（远端 umax，657 节点 / 1633 提交）三项小修。实测确认单仓能力成立（全量约 1.2s、M 级 import 边抽样全对、
+进行中 × 最后活动交叉揪出 2 个账面在做实际停摆的节点），同时暴露：notSeen 不分因（嵌套仓 187 / 仓外 99 混列）、--node 回执
+781KB 未瘦身、recency 不带账本状态需自行联查。最大缺口「多仓工作区」（44% 节点失明）另批设计。
+
+### Breaking
+
+- (b) `--node` 聚焦时 `unowned` 由文件数组改为 `{ omitted: 'focus', count }`：无主改动不属于任何节点，聚焦时只披露计数；
+  不给空数组（空数组会被读成「无无主改动」）。迁移：需要全量无主改动的调用方去掉 `--node` 再取。
+
+### Added
+
+- `recency` 条目并列 `progress` / `ledger`（节点账本状态，缺省 null）——事实并列，不作「停摆」判断。
+- `notSeenReasons`：未被 git 触及的节点按原因分桶——outsideRepo（锚在代码仓外）/ nestedRepo（锚在嵌套独立 git 仓内，顶层历史
+  看不见）/ neverCommitted（锚在仓内但从未进入任何提交）/ mixed，附 `nestedRepos: [{ root, nodes }]`；`notSeen` 字符串数组保持不变。
+- `--node` 聚焦时 `notSeen` / `notSeenReasons` 随之收窄。
+
+### 实证附记
+
+npm test 615 项 614 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过。效果复测交由 umax。
+
 ## [0.25.1] - 2026-09-27
 
 最后活动视图（真实项目试跑发现：回答「现在到底什么状态」最有用的是各节点最后一次活动，而非首现——f-xui 14 个模块中 9 个
@@ -88,46 +110,9 @@ npm test 609 项 608 通过 0 失败 1 异机跳过（含审阅修复 4 例）�
 ### 实证附记
 
 
-## [0.23.0] - 2026-09-27
-
-减法批二（命令面单源化，设计 docs/superpowers/specs/2026-09-27-single-source-surface-design.md）。结构性事实只写一次：
-错误码 = lib/error-codes.mjs，命令与旗标 = COMMANDS/OPTIONS 注册表；契约附录 A 与技能命令速查由 scripts/sync-generated.mjs
-生成。守"副本一致"的两个门禁因无副本可守而删除。命令行为、回执形状、退出码、错误码集合零变化。
-
-### Changed
-
-- **错误码注册表**：92 条自契约附录 A 逐字迁入 `lib/error-codes.mjs`（迁移前后附录数据行 diff = 0）；`diag()` 成为唯一诊断
-  构造器（lib 内 7 份本地助手与 12 处内联字面量收口），未登记码构造即抛错——测试先红，生产 = 顶层 catch exit 2。取代旧门禁
-  "只认四种形态"的静态扫描。
-- **旧门禁盲区补登记**：旧扫描正则 `[a-z][a-z0-9_-]*` 不认带点与大写开头的码，doctor --atlas 的 11 个 `layout.*` 规则码与
-  `P1`–`P6` 从未登记附录 A。以两条模板行 `layout.<rule>`、`P<n>` 登记（模板机制：`<n>` 只放行纯数字后缀），发射码不变。
-- **生成物同步 `scripts/sync-generated.mjs`**：附录 A（← ERROR_CODES）、技能命令速查（← `--help` 原文）、技能副本共享区与
-  metadata.version（原 verify-injection-freshness --write）三处统一写回；`--check` 入 CI 与公开投影；公开树无 integrations
-  时跳过不失败。verify-size-budgets 不再把 generated 标记块内部行计入单件预算（登记新码不撞预算）。
-- **防退化守卫**（整分支审阅修复）：`SIDECAR_OP_CODES` 导出并断言全部已登记（顶层 catch 内 diag 不得抛）；lib/bin
-  内 `diag('…'` / `.code = '…'` / `code: '…'` / `code || '…'` 字面量逐一断言已登记；内联诊断守卫改认任意位置的
-  `rule: '…'`。
-- **预算/旗标/章节对账改单元测试** `test/surface-consistency.test.mjs`：命令 ≤11、旗标 ≤50、每命令旗标 ⊆ usage（只认
-  --help，比旧 flags⊆usage∪契约节更严）、每命令契约章节存在。
-- 技能 SKILL.md：命令速查改为 `--help` 生成块（逐字一致）；「证据锚绝对路径」「compile --previous-receipt」两条并入纪律 8/4；
-  删 v0.10.0 移除历史告示。契约 §5 evidence 历史压成一行，附录说明并入标题行，保 ≤260 行。
-
-### Removed
-
-- `scripts/verify-contract-freshness.mjs（内部件，未随本版发布）`（229 行）、`scripts/verify-injection-freshness.mjs（内部件，未随本版发布）`（116 行）及
-  `test/injection-freshness.test.mjs（内部件，未随本版发布）`；flag-guard 中依赖扫描器的 7 个用例、audit 中扫描器形态用例。CI 门禁 5 → 4。
-- 14 个"关键语义词"检查与 ADAPTER 宽检：命令/旗标已生成，剩余是防纪律散文误删，属内容回归非漂移；部署机
-  `verify-deploy-injection.mjs` 仍以 `injection-terms.mjs` 查部署副本。
-
-### 实证附记
-
-npm test 572 项 571 通过 0 失败 1 异机跳过；sync-generated --check / release-version / deploy-injection（异机跳过）/
-size-budgets 四门禁 ok；export-public --selfcheck 117 文件幂等、隐私零命中；公开树 sync-generated --check exit 0。
-公开树 npm test 514/516：2 个 anchor-roots O1 用例在 main 的投影上同样失败（预先存在，与本批无关）。
-
 ---
 
-更早的 48 个版本（0.1.0 → 0.22.1）：
+更早的 49 个版本（0.1.0 → 0.23.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

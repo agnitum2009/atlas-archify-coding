@@ -215,3 +215,49 @@ test('recency：无锚定节点 = no-anchored-nodes（与 order 同口径）', (
   const data = computeOrder({ sidecar: { nodes: {} }, repo: f.repo, commits: gitCommits(f.repo, null), events: [] });
   assert.deepEqual(data.recency, { status: 'no-anchored-nodes' });
 });
+
+// —— demo-b 实测三项小修（0.26.0）——
+test('recency 附带节点账本状态 progress / ledger（事实并列，不作停摆判断）', (t) => {
+  const f = repoFixture(t);
+  f.commit({ 'a.mjs': 'a\n', 'b.mjs': 'b\n' }, 'create');
+  const sidecar = f.sidecarOf({ A: ['a.mjs'], B: ['b.mjs'] });
+  sidecar.nodes.A.progress = 'in_progress';
+  sidecar.nodes.A.ledger = 'backlog';
+  const data = computeOrder({ sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [] });
+  const byNode = Object.fromEntries(data.recency.map((r) => [r.node, [r.progress, r.ledger]]));
+  assert.deepEqual(byNode, { A: ['in_progress', 'backlog'], B: [null, null] });
+});
+
+test('notSeenReasons：未被 git 触及的节点按原因分桶——仓外 / 嵌套仓 / 从未提交 / 混合；嵌套仓逐个计数', (t) => {
+  const f = repoFixture(t);
+  f.commit({ 'a.mjs': 'a\n' }, 'create a');
+  const nested = path.join(f.repo, 'sub');
+  fs.mkdirSync(nested);
+  execFileSync('git', ['-C', nested, 'init', '-q']);
+  fs.writeFileSync(path.join(nested, 'x.mjs'), 'x\n');
+  fs.writeFileSync(path.join(f.repo, 'untracked.mjs'), 'u\n');
+  const outside = path.join(f.dir, 'outside.txt');
+  fs.writeFileSync(outside, 'o\n');
+  const sidecar = { nodes: {
+    A: { evidence: [path.join(f.repo, 'a.mjs') + ':1'] },
+    N: { evidence: [path.join(nested, 'x.mjs') + ':1'] },
+    O: { evidence: [outside + ':1'] },
+    U: { evidence: [path.join(f.repo, 'untracked.mjs') + ':1'] },
+    M: { evidence: [outside + ':1', path.join(nested, 'x.mjs') + ':1'] },
+  } };
+  const data = computeOrder({ sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [] });
+  assert.deepEqual(data.notSeen, ['M', 'N', 'O', 'U'], 'notSeen 字符串数组保持不变（兼容）');
+  assert.deepEqual(data.notSeenReasons, {
+    outsideRepo: ['O'], nestedRepo: ['N'], neverCommitted: ['U'], mixed: ['M'],
+    nestedRepos: [{ root: 'sub', nodes: 2 }],
+  });
+});
+
+test('--node 瘦身：notSeen / notSeenReasons 随聚焦收窄；unowned 以 { omitted, count } 披露而非空数组', (t) => {
+  const f = baseline(t);
+  const data = computeOrder({ sidecar: f.sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [], focusNode: 'nA' });
+  assert.deepEqual(data.unowned, { omitted: 'focus', count: 1 });
+  assert.deepEqual(data.notSeen, []);
+  const brief = briefOrder(data);
+  assert.deepEqual(brief.unowned, { omitted: 'focus', count: 1 });
+});
