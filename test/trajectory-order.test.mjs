@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { gitCommits, nodeFiles, computeOrder, briefOrder, projectRepo, real, notSeenReasonsOf } from '../lib/trajectory.mjs';
+import { gitCommits, nodeFiles, computeOrder, projectRepo, real, notSeenReasonsOf } from '../lib/trajectory.mjs';
+import { computeWorkspaceOrder, briefOrder } from '../lib/trajectory-workspace.mjs';
 
 const DATE = '2026-09-01T10:00:00Z'; // 全部提交同一时刻：先后只能靠提交序
 function repoFixture(t) {
@@ -37,6 +38,9 @@ function baseline(t) {
   const sidecar = f.sidecarOf({ nA: ['src/a.mjs'], nB: ['src/b.mjs'], nC: ['src/c.mjs'], nP: ['notes/plan.txt'] });
   return { ...f, sidecar };
 }
+
+// 回执形状（CLI 唯一入口）：单仓 = sourceRoot 即仓根。
+const wsOf = (f, sidecar, opts = {}) => computeWorkspaceOrder({ sidecar, sourceRoot: f.repo, repos: [{ repo: '.', root: f.repo, commits: gitCommits(f.repo, null) }], events: [], ...opts });
 
 test('gitCommits：按提交序编号（同一时刻也可排序），files 为绝对路径', (t) => {
   const f = baseline(t);
@@ -118,10 +122,11 @@ test('focusNode 只保留与该节点相连的关系；briefOrder 把数组换�
   assert.deepEqual(data.order.map((o) => o.node), ['nC']);
   assert.deepEqual(data.facts.builtOn, []);
   assert.equal(data.facts.dependsOnNewer.length, 1);
-  const brief = briefOrder(data);
-  assert.deepEqual(brief.facts.dependsOnNewer, { count: 1, top: data.facts.dependsOnNewer });
-  assert.deepEqual(brief.nominations.extractionCandidates, { count: 1, top: data.nominations.extractionCandidates });
-  assert.equal(brief.unowned.count, 1);
+  const ws = wsOf(f, f.sidecar, { focusNode: 'nC' });
+  const brief = briefOrder(ws);
+  assert.deepEqual(brief.facts.dependsOnNewer, { count: 1, top: ws.facts.dependsOnNewer });
+  assert.deepEqual(brief.nominations.extractionCandidates, { count: 1, top: ws.nominations.extractionCandidates });
+  assert.deepEqual(brief.blindSpots.files, { omitted: 'focus', count: 1 });
 });
 
 test('projectRepo：无 sourcePath = project_source_missing；gitCommits 非 git 目录 = project_source_not_git', (t) => {
@@ -208,7 +213,8 @@ test('recency（最后活动视图，M 级）：按最后活动从新到旧；to
   assert.deepEqual(late.recency.map((r) => r.node), ['B', 'A', 'C'], '--since 不得把长期未动的节点从最后活动视图里滤掉');
   const focus = computeOrder({ sidecar, repo: f.repo, commits, events: [], focusNode: 'A' });
   assert.deepEqual(focus.recency.map((r) => r.node), ['A']);
-  assert.deepEqual(briefOrder(data).recency, { count: 3, top: data.recency });
+  const ws = wsOf(f, sidecar);
+  assert.deepEqual(briefOrder(ws).recency, { count: 3, top: ws.recency });
 });
 
 test('recency：无锚定节点 = no-anchored-nodes（与 order 同口径）', (t) => {
@@ -260,8 +266,7 @@ test('--node 瘦身：notSeen / notSeenReasons 随聚焦收窄；unowned 以 { o
   const data = computeOrder({ sidecar: f.sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [], focusNode: 'nA' });
   assert.deepEqual(data.unowned, { omitted: 'focus', count: 1 });
   assert.deepEqual(data.notSeen, []);
-  const brief = briefOrder(data);
-  assert.deepEqual(brief.unowned, { omitted: 'focus', count: 1 });
+  assert.deepEqual(briefOrder(wsOf(f, f.sidecar, { focusNode: 'nA' })).blindSpots.files, { omitted: 'focus', count: 1 });
 });
 
 // —— 多仓准备（0.27.0 Task 1）——

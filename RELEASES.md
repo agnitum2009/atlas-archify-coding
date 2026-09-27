@@ -3,6 +3,52 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.30.0] - 2026-09-27
+
+trace order 盲区披露收敛（设计 docs/superpowers/specs/2026-09-27-blindspots-design.md）。
+
+**依据**：回执顶层字段 0.24.0→0.29.0 由 10 涨到 18，其中 8 个在答同一件事——「atlas 看不见什么、为什么」；每轮实测发现一个盲区就多
+一个兄弟字段。demo-b 的三类盲区（notSeen 89、无主文件 41,570、包名边只有 1 条）同根：证据锚稀疏；atlas 不替用户补锚（写真相），
+能做的只有如实披露——披露应收在一处。本版把 8 个字段收进 `blindSpots`，顶层 18 → 11，预算随之下调到 11。
+
+### Breaking
+
+- (b) 8 个盲区顶层字段收进 `blindSpots = { anchors, nodes, files, imports }`：
+
+  | 旧 | 新 |
+  |---|---|
+  | `anchorsSkipped` | `blindSpots.anchors` |
+  | `notSeen`（列表） | 由 `blindSpots.nodes` 各桶拼出；数量 = `blindSpots.nodes.count` |
+  | `notSeenReasons.<桶>` | `blindSpots.nodes.<桶>` |
+  | `unowned`（分组数组） | `blindSpots.files.groups`；总数 `blindSpots.files.count` |
+  | `unowned`（聚焦 `{ omitted, count }`） | `blindSpots.files`（同形） |
+  | `unownedByRepo` | 去掉；按 `blindSpots.files.groups` 的 repo 求和 |
+  | `importsUnparsed` / `importsNotApplicable` / `importsUnresolved` | `blindSpots.imports.unparsed` / `.notApplicable` / `.unresolved` |
+
+  `nodes.count` = 四桶之和（桶互斥）；`files.count` = 去重后无主文件数 = 各组之和 = 聚焦时 count。聚焦：nodes 收窄、files 只给 count，
+  anchors 与 imports 为全局。`--brief`：nodes 各桶与 files.groups 为 `{ count, top≤10 }`。空态：`nodes` 与 `imports` 均为 `{ status: 'no-anchored-nodes' }`（无锚定文件可解析，不给一组零），anchors、files 照常。
+- `unownedByRepo` 去掉的理由：它按「历史所在仓」计数，groups 按「路径所在仓」归属，是两个口径；0.28.0 复测的 424 条困惑出自两口径并存。
+  依 DEFENSIVE §11 单报并标注口径：契约写明 files 的 repo 是路径归属、不保证该仓自身 git 史含此改动。
+
+### Changed
+
+- 契约治理节：trace order 回执顶层字段预算 18 → 11。契约 §8 写明「import 关系只在两端都有锚的文件之间判定，目标无锚的引用不产生关系、
+  不单独计数（全史口径下其目标必在 blindSpots.files；--since 时 files 只含窗口内改动）」。--help 的 `unowned=无主改动` 改为 `blindSpots=看不见什么及原因〔锚不可用/节点未见/文件无锚/import 未解析〕`（行数不变）。
+- `briefOrder` 从 `lib/trajectory.mjs` 迁到 `lib/trajectory-workspace.mjs`（作用于回执形状）；内核 `computeOrder` 返回形状不变。
+- 单仓路径的无主文件路径统一为 `/`（此前是本机分隔符；顺带修掉 0.28.0 暂缓的 Windows 单仓分隔符问题，Windows 仍标记为未验证）。
+
+### 非变更（明示拒绝）
+
+- 不新增任何信息：无新盲区类别；不算覆盖率百分比（新指标会带来 DEFENSIVE §11 口径问题）；不做 `importsToUnowned`——import 目标在 HEAD 中，
+  必然被提交过，全史口径下无锚即已落在 `blindSpots.files`，盲区已披露，只缺一句说明（已补进契约，并写明 `--since` 时的局限）。
+- 不叫 `coverage`：atlas 已用该词指账本覆盖率百分比（`unowned-oversize-scan`、DEFENSIVE §11 的 `contextView.coverageByContext`）。
+- 不输出任何「应该补锚 / 先补哪里」的建议；排序只是按数量排事实。
+- 不动 order / recency / facts / nominations / repos / commits / totalCommits / span / sessionEvents；不改 anchors 内部键名。
+
+### 实证附记
+
+npm test 655 项 654 通过 0 失败 1 异机跳过（+4 例，既有盲区断言全部迁到新路径；含整分支审阅修复）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变；投影后的公开树 trajectory 测试通过。
+
 ## [0.29.1] - 2026-09-27
 
 0.29.0 demo-b 复测（umax）后的反思批 A：修一处解析缺陷，并给 trace order 回执顶层字段立预算。回执形状不变。
@@ -96,34 +142,9 @@ demo-b 多仓复测（umax，12 仓 / 5127 提交）后的小修与供应链卫�
 
 npm test 629 项 628 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 137 文件（+1 守卫测试）幂等、隐私零命中。
 
-## [0.27.0] - 2026-09-27
-
-多仓工作区回溯（设计 docs/superpowers/specs/2026-09-27-multi-repo-workspace-design.md）。demo-b 实测（umax）：1 顶层仓 + ≥6 嵌套独立仓，
-单 sourcePath 模型下 44% 节点 notSeen、业务主体不可见。本版由证据锚推出参与仓，嵌套仓历史纳入回溯。只回溯不规划，不写侧车。
-
-### Breaking
-
-- (c) 同命令同参数，多仓项目输出显著变化：锚在嵌套仓的节点由 notSeen 进入 order / recency；`unowned` 路径基准由仓根改为
-  sourcePath（单仓不变）；sourcePath 不再要求本身是 git 仓（非 git 工作区根合法，其下无锚所在仓才报 project_source_not_git）。
-  迁移：依赖「嵌套仓节点在 notSeen」的调用方改读 `repos` 与 `notSeenReasons`。
-- (c) sourcePath 位于某仓的子目录（不是仓根）且其下无锚所在的嵌套仓：0.26.0 返回 ok 但把节点全部误报 neverCommitted，
-  现报 project_source_not_git 并提示改登记仓根。
-
-### Added
-
-- 回执 `repos: [{ repo, commits, totalCommits, span }]`；`order` / `recency` 条目增 `firstRepo` / `lastRepo`，跨多仓节点增
-  `repos` 明细；`recency` 条目增 `firstSeq` / `firstAt`；`facts.*` 每条增 `repo`（关系只在同仓内判定）；`unownedByRepo`。
-- 任一参与仓 git 失败 → 整体 fail-loud `project_source_not_git` 并点名该仓。空仓（已 init、HEAD 尚无提交）按 0 提交处理，不算读取失败。
-- 整分支审阅修复：空嵌套仓不再让整条命令失败；非 git 工作区根下的散放锚归 outsideRepo（不再误报 neverCommitted，DEFENSIVE §9）；
-  合并 span 按时刻比较（时区偏移混排时字典序≠时序）。
-
-### 实证附记
-
-npm test 626 项 625 通过 0 失败 1 异机跳过（含审阅修复 4 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 136 文件（+2）幂等、隐私零命中。效果复测交 umax（demo-b）。
-
 ---
 
-更早的 54 个版本（0.1.0 → 0.26.0）：
+更早的 55 个版本（0.1.0 → 0.27.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

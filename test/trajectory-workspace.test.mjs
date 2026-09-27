@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { gitCommits, real, briefOrder } from '../lib/trajectory.mjs';
-import { discoverRepos, computeWorkspaceOrder, groupUnowned } from '../lib/trajectory-workspace.mjs';
+import { gitCommits, real } from '../lib/trajectory.mjs';
+import { discoverRepos, computeWorkspaceOrder, groupUnowned, briefOrder } from '../lib/trajectory-workspace.mjs';
 
 function tmp(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-ws-'));
@@ -65,13 +65,8 @@ test('多仓合并：跨仓按时间归并、仓内序不乱；跨多仓节点�
   assert.deepEqual(opc.repos.map((p) => [p.repo, p.firstSeq, p.lastSeq, p.touches]), [['.', 1, 3, 3], ['opc', 1, 1, 1]]);
   assert.deepEqual(d.recency.map((r) => [r.node, r.commitsSince]), [['SVC2', 0], ['OPC', 0], ['SVC', 1], ['CORE', 2]]);
   assert.deepEqual(d.facts.builtOn.map((r) => [r.from, r.to, r.repo]), [['SVC', 'SVC2', 'svc']], 'core.mjs → svc/s.mjs 跨仓 import 不出');
-  assert.deepEqual(d.notSeen, []);
-  assert.deepEqual(d.unowned, [{ repo: '.', dir: '.', count: 1, sample: ['.gitignore'] }]);
-  assert.deepEqual(d.unownedByRepo, [
-    { repo: '.', count: 1, topDirs: [{ dir: '.gitignore', count: 1 }] },
-    { repo: 'opc', count: 0, topDirs: [] },
-    { repo: 'svc', count: 0, topDirs: [] },
-  ]);
+  assert.equal(d.blindSpots.nodes.count, 0);
+  assert.deepEqual(d.blindSpots.files, { count: 1, groups: [{ repo: '.', dir: '.', count: 1, sample: ['.gitignore'] }] });
 });
 
 test('非 git 工作区根：只有嵌套仓也合法；unowned 路径相对 sourcePath', (t) => {
@@ -85,7 +80,7 @@ test('非 git 工作区根：只有嵌套仓也合法；unowned 路径相对 sou
   assert.deepEqual(repos.map((r) => r.repo), ['svc']);
   const d = computeWorkspaceOrder({ sidecar, sourceRoot: root, repos: withCommits(repos), events: [] });
   assert.deepEqual(d.order.map((o) => [o.node, o.firstRepo]), [['A', 'svc']]);
-  assert.deepEqual(d.unowned, [{ repo: 'svc', dir: 'docs', count: 1, sample: ['svc/docs/n.md'] }]);
+  assert.deepEqual(d.blindSpots.files.groups, [{ repo: 'svc', dir: 'docs', count: 1, sample: ['svc/docs/n.md'] }]);
 });
 
 test('已删除文件的锚仍归到其所在仓；无参与仓 = project_source_not_git；坏仓 git 失败点名', (t) => {
@@ -110,8 +105,7 @@ test('--node 聚焦：只留该节点；unowned / unownedByRepo 以 omitted 披�
   const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos: withCommits(discoverRepos(ws, sidecar)), events: [], focusNode: 'OPC' });
   assert.deepEqual(d.order.map((o) => o.node), ['OPC']);
   assert.deepEqual(d.recency.map((o) => o.node), ['OPC']);
-  assert.deepEqual(d.unowned, { omitted: 'focus', count: 1 });
-  assert.deepEqual(d.unownedByRepo, { omitted: 'focus' });
+  assert.deepEqual(d.blindSpots.files, { omitted: 'focus', count: 1 });
 });
 
 // —— 整分支审阅修复（0.27.0）——
@@ -130,7 +124,7 @@ test('I1：空嵌套仓（已 init、尚无提交）按 0 提交处理，不让�
   const d = computeWorkspaceOrder({ sidecar, sourceRoot: root, repos: withCommits(discoverRepos(root, sidecar)), events: [] });
   assert.deepEqual(d.repos.map((r) => [r.repo, r.totalCommits]), [['fresh', 0], ['svc', 1]]);
   assert.deepEqual(d.order.map((o) => o.node), ['A']);
-  assert.deepEqual(d.notSeenReasons.neverCommitted, ['N']);
+  assert.deepEqual(d.blindSpots.nodes.neverCommitted, ['N']);
 });
 
 test('I2：非 git 工作区根下的散放锚文件不属于任何参与仓 → outsideRepo，不得报 neverCommitted', (t) => {
@@ -142,7 +136,7 @@ test('I2：非 git 工作区根下的散放锚文件不属于任何参与仓 →
   fs.writeFileSync(path.join(root, 'loose.md'), 'l\n');
   const sidecar = sidecarOf(root, { A: ['svc/a.mjs'], L: ['loose.md'] });
   const d = computeWorkspaceOrder({ sidecar, sourceRoot: root, repos: withCommits(discoverRepos(root, sidecar)), events: [] });
-  assert.deepEqual([d.notSeenReasons.outsideRepo, d.notSeenReasons.neverCommitted], [['L'], []]);
+  assert.deepEqual([d.blindSpots.nodes.outsideRepo, d.blindSpots.nodes.neverCommitted], [['L'], []]);
 });
 
 test('M1：合并 span 按时刻比较，不按 ISO 字符串（时区偏移混排）', (t) => {
@@ -180,9 +174,10 @@ test('unowned 口径一致：聚焦时 count = 不聚焦时去重后的 unowned 
   const sidecar = sidecarOf(ws, { CORE: ['core.mjs'], S: ['shared/s.mjs'] });
   const repos = withCommits(discoverRepos(ws, sidecar));
   const all = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
-  assert.deepEqual(all.unowned.filter((g) => g.sample.includes('shared/readme.md')).map((g) => [g.repo, g.count]), [['shared', 1]]);
+  assert.deepEqual(all.blindSpots.files.groups.filter((g) => g.sample.includes('shared/readme.md')).map((g) => [g.repo, g.count]), [['shared', 1]]);
+  assert.equal(all.blindSpots.files.count, all.blindSpots.files.groups.reduce((s, g) => s + g.count, 0));
   const focus = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [], focusNode: 'CORE' });
-  assert.deepEqual(focus.unowned, { omitted: 'focus', count: all.unowned.reduce((s, g) => s + g.count, 0) });
+  assert.deepEqual(focus.blindSpots.files, { omitted: 'focus', count: all.blindSpots.files.count });
   assert.deepEqual(focus.order.map((o) => o.node), ['CORE']);
 });
 
@@ -212,16 +207,16 @@ test('0.28.0 回执：跨仓同一路径归嵌套仓且只计一次；组 count 
   const sidecar = sidecarOf(ws, { CORE: ['core.mjs'], S: ['shared/s.mjs'] });
   const repos = withCommits(discoverRepos(ws, sidecar));
   const all = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
-  assert.deepEqual(all.unowned, [
+  assert.deepEqual(all.blindSpots.files.groups, [
     { repo: '.', dir: '.', count: 1, sample: ['.gitignore'] },
     { repo: 'shared', dir: '.', count: 1, sample: ['shared/readme.md'] },
   ]);
   const focus = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [], focusNode: 'CORE' });
-  assert.equal(focus.unowned.count, all.unowned.reduce((s, g) => s + g.count, 0));
-  assert.deepEqual(briefOrder(all).unowned, { count: 2, top: all.unowned });
+  assert.equal(focus.blindSpots.files.count, all.blindSpots.files.count);
+  assert.deepEqual(briefOrder(all).blindSpots.files.groups, { count: 2, top: all.blindSpots.files.groups });
 });
 
-test('0.28.0 单仓（sourcePath 即仓根）：unowned 同样按两层目录分组；unownedByRepo 不变', (t) => {
+test('0.28.0 单仓（sourcePath 即仓根）：unowned 同样按两层目录分组；0.30.0 起无 unownedByRepo', (t) => {
   const ws = path.join(tmp(t), 'one');
   fs.mkdirSync(ws);
   git(ws, '2026-05-01T00:00:00Z', 'init', '-q');
@@ -230,12 +225,11 @@ test('0.28.0 单仓（sourcePath 即仓根）：unowned 同样按两层目录分
   const repos = withCommits(discoverRepos(ws, sidecar));
   assert.deepEqual(repos.map((r) => r.repo), ['.']);
   const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
-  assert.deepEqual(d.unowned, [
+  assert.deepEqual(d.blindSpots.files.groups, [
     { repo: '.', dir: '.', count: 1, sample: ['x.md'] },
     { repo: '.', dir: 'p', count: 1, sample: ['p/t.md'] },
     { repo: '.', dir: 'p/q', count: 1, sample: ['p/q/r/s.md'] },
   ]);
-  assert.deepEqual(d.unownedByRepo, [{ repo: '.', count: 3, topDirs: [{ dir: 'p', count: 2 }, { dir: 'x.md', count: 1 }] }]);
 });
 
 // —— 0.29.0 ——
@@ -248,13 +242,13 @@ test('0.29.0 单仓：monorepo 包名边入 builtOn；importsUnresolved 为 { co
   const sidecar = sidecarOf(ws, { CORE: ['packages/core/src/index.ts'], APP: ['apps/web/app.ts'] });
   const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos: withCommits(discoverRepos(ws, sidecar)), events: [] });
   assert.deepEqual(d.facts.builtOn.map((r) => [r.from, r.to, r.via]), [['CORE', 'APP', ['apps/web/app.ts → packages/core/src/index.ts']]]);
-  assert.deepEqual(d.importsUnresolved, { count: 1, top: [{ file: 'apps/web/app.ts', spec: './gone' }] });
+  assert.deepEqual(d.blindSpots.imports.unresolved, { count: 1, top: [{ file: 'apps/web/app.ts', spec: './gone' }] });
 });
 
 test('0.29.0 多仓：三项披露跨仓合并（路径相对 sourcePath）；顶层仓相对引用嵌套仓文件既不出边也不计 unresolved', (t) => {
   const { ws, sidecar } = workspace(t);
   const d0 = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos: withCommits(discoverRepos(ws, sidecar)), events: [] });
-  assert.deepEqual(d0.importsUnresolved, { count: 0, top: [] }, 'core.mjs → ./svc/s.mjs 是跨仓引用，不是解析失败');
+  assert.deepEqual(d0.blindSpots.imports.unresolved, { count: 0, top: [] }, 'core.mjs → ./svc/s.mjs 是跨仓引用，不是解析失败');
 
   const root = tmp(t);
   git(root, '2026-07-01T00:00:00Z', 'init', '-q');
@@ -265,9 +259,9 @@ test('0.29.0 多仓：三项披露跨仓合并（路径相对 sourcePath）；�
   commitAt(svc, '2026-07-02T00:00:00Z', { 's.mjs': "import { g } from './gone';\n", 'doc.md': '# d\n', 'x.py': 'import os\n' }, 'svc');
   const sc = sidecarOf(root, { A: ['a.mjs'], Q: ['q.sql'], S: ['svc/s.mjs'], D: ['svc/doc.md'], P: ['svc/x.py'] });
   const d = computeWorkspaceOrder({ sidecar: sc, sourceRoot: root, repos: withCommits(discoverRepos(root, sc)), events: [] });
-  assert.deepEqual(d.importsUnresolved, { count: 2, top: [{ file: 'a.mjs', spec: './nope' }, { file: 'svc/s.mjs', spec: './gone' }] });
-  assert.deepEqual(d.importsNotApplicable, ['.md', '.sql']);
-  assert.deepEqual(d.importsUnparsed, ['.py']);
+  assert.deepEqual(d.blindSpots.imports.unresolved, { count: 2, top: [{ file: 'a.mjs', spec: './nope' }, { file: 'svc/s.mjs', spec: './gone' }] });
+  assert.deepEqual(d.blindSpots.imports.notApplicable, ['.md', '.sql']);
+  assert.deepEqual(d.blindSpots.imports.unparsed, ['.py']);
 });
 
 // —— 0.29.1 ——
@@ -283,4 +277,81 @@ test('0.29.1 多仓与单仓回执顶层字段集合一致（字段预算只由 
   const none = computeWorkspaceOrder({ sidecar: { nodes: {} }, sourceRoot: one, repos: withCommits(discoverRepos(one, sc)), events: [] });
   assert.deepEqual(Object.keys(multi).sort(), Object.keys(single).sort());
   assert.deepEqual(Object.keys(none).sort(), Object.keys(single).sort(), '无锚定节点的空态回执同形');
+});
+
+// —— 0.30.0 blindSpots ——
+function blindFixture(t) {
+  const base = tmp(t);
+  const ws = path.join(base, 'ws');
+  fs.mkdirSync(ws);
+  git(ws, '2026-09-01T00:00:00Z', 'init', '-q');
+  commitAt(ws, '2026-09-01T00:00:00Z', { 'a.mjs': "import { g } from './gone.mjs';\n", 'x.py': 'import os\n', 'q.sql': 'select 1;\n', 'docs/x.md': '# x\n', 'lib/y/z.txt': 'z\n' }, 'A');
+  fs.writeFileSync(path.join(ws, 'wip.mjs'), 'w\n');
+  fs.writeFileSync(path.join(base, 'o.mjs'), 'o\n');
+  const sidecar = sidecarOf(ws, { A: ['a.mjs'], P: ['x.py'], Q: ['q.sql'], L: ['wip.mjs'] });
+  sidecar.nodes.O = { evidence: [path.join(base, 'o.mjs') + ':1'] };
+  sidecar.nodes.R = { evidence: ['rel/r.mjs:1'] };
+  const repos = withCommits(discoverRepos(ws, sidecar));
+  return { ws, sidecar, repos };
+}
+
+test('0.30.0 blindSpots：四类形状与计数；旧的 8 个顶层盲区字段不再出现', (t) => {
+  const { ws, sidecar, repos } = blindFixture(t);
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
+  assert.deepEqual(d.blindSpots, {
+    anchors: { relative: 1, nonFile: 0, nodes: ['R'] },
+    nodes: { count: 2, outsideRepo: ['O'], nestedRepo: [], neverCommitted: ['L'], mixed: [], nestedRepos: [] },
+    files: { count: 2, groups: [
+      { repo: '.', dir: 'docs', count: 1, sample: ['docs/x.md'] },
+      { repo: '.', dir: 'lib/y', count: 1, sample: ['lib/y/z.txt'] },
+    ] },
+    imports: { unparsed: ['.py'], notApplicable: ['.sql'], unresolved: { count: 1, top: [{ file: 'a.mjs', spec: './gone.mjs' }] } },
+  });
+  for (const old of ['anchorsSkipped', 'notSeen', 'notSeenReasons', 'unowned', 'unownedByRepo', 'importsUnparsed', 'importsNotApplicable', 'importsUnresolved']) {
+    assert.equal(old in d, false, '旧顶层字段仍在：' + old);
+  }
+});
+
+test('0.30.0 blindSpots 聚焦：nodes 收窄、files 只给 count、anchors 与 imports 全局；聚焦到只有相对锚的节点不崩', (t) => {
+  const { ws, sidecar, repos } = blindFixture(t);
+  const all = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
+  const f = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [], focusNode: 'L' });
+  assert.deepEqual(f.blindSpots.nodes, { count: 1, outsideRepo: [], nestedRepo: [], neverCommitted: ['L'], mixed: [], nestedRepos: [] });
+  assert.deepEqual(f.blindSpots.files, { omitted: 'focus', count: all.blindSpots.files.count });
+  assert.deepEqual(f.blindSpots.anchors, all.blindSpots.anchors);
+  assert.deepEqual(f.blindSpots.imports, all.blindSpots.imports);
+  const r = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [], focusNode: 'R' });
+  assert.equal(r.blindSpots.nodes.count, 0);
+});
+
+test('0.30.0 brief：nodes 各桶与 files.groups 为 { count, top }；anchors / imports 原样；空态 status 原样', (t) => {
+  const { ws, sidecar, repos } = blindFixture(t);
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
+  const b = briefOrder(d).blindSpots;
+  assert.deepEqual(b.nodes.outsideRepo, { count: 1, top: ['O'] });
+  assert.equal(b.nodes.count, 2);
+  assert.deepEqual(b.files, { count: 2, groups: { count: 2, top: d.blindSpots.files.groups } });
+  assert.deepEqual(b.anchors, d.blindSpots.anchors);
+  assert.deepEqual(b.imports, d.blindSpots.imports);
+  const none = computeWorkspaceOrder({ sidecar: { nodes: {} }, sourceRoot: ws, repos, events: [] });
+  assert.deepEqual(none.blindSpots.nodes, { status: 'no-anchored-nodes' });
+  assert.equal(none.blindSpots.files.count, 5);
+  // 无锚定文件可解析：imports 不是「全部解析成功」而是「无对象」（DEFENSIVE §9），与 nodes 同为 status。
+  assert.deepEqual(none.blindSpots.imports, { status: 'no-anchored-nodes' });
+  assert.deepEqual(briefOrder(none).blindSpots.nodes, { status: 'no-anchored-nodes' });
+});
+
+// —— 整分支审阅修复（0.30.0）——
+test('契约口径钉住：全史下「目标无锚的 import」其目标必在 blindSpots.files；--since 时 files 只含窗口内改动（不在其中）', (t) => {
+  const ws = path.join(tmp(t), 'ws');
+  fs.mkdirSync(ws);
+  git(ws, '2026-01-01T00:00:00Z', 'init', '-q');
+  commitAt(ws, '2026-01-01T00:00:00Z', { 'u.mjs': 'export const u = 1;\n' }, 'u');
+  commitAt(ws, '2026-06-01T00:00:00Z', { 'a.mjs': "import { u } from './u.mjs';\n" }, 'a');
+  const sidecar = sidecarOf(ws, { A: ['a.mjs'] });
+  const repos = withCommits(discoverRepos(ws, sidecar));
+  const all = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
+  assert.ok(all.blindSpots.files.groups.some((g) => g.sample.includes('u.mjs')));
+  const win = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [], sinceIso: '2026-03-01T00:00:00Z' });
+  assert.equal(win.blindSpots.files.count, 0);
 });

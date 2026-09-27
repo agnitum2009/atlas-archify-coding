@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.29.1",
+  "sourceVersion": "0.30.0",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "524769200c29ab70"
+      "sha256": "7e80b2ffa7d23dbe"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "e0cc9121f2ac2c86"
+      "sha256": "8c3ec513ff3922d6"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -117,11 +117,11 @@
     },
     {
       "path": "lib/cmd-trace.mjs",
-      "sha256": "2f107fef020c399a"
+      "sha256": "b558b0c5b32ecfc4"
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "f5b9dc312cb89719"
+      "sha256": "26cb45efd667ec97"
     },
     {
       "path": "lib/compile.mjs",
@@ -209,11 +209,11 @@
     },
     {
       "path": "lib/trajectory-workspace.mjs",
-      "sha256": "b485581b0817a660"
+      "sha256": "c1e017503d73b255"
     },
     {
       "path": "lib/trajectory.mjs",
-      "sha256": "4be3d4ff6ef0cbc9"
+      "sha256": "768d93e19071e745"
     },
     {
       "path": "lib/truth-receipt.mjs",
@@ -225,7 +225,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "ca7115002c5e40d2"
+      "sha256": "69540b8000947ede"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -273,7 +273,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "cac42518ab97042c"
+      "sha256": "bfc03fb26dcd0e60"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -541,11 +541,11 @@
     },
     {
       "path": "test/trajectory-order.test.mjs",
-      "sha256": "440c4539bb0b1ba3"
+      "sha256": "00307c41a4cd3b4b"
     },
     {
       "path": "test/trajectory-workspace.test.mjs",
-      "sha256": "d7b98817b397018b"
+      "sha256": "fe626ddc34529d1b"
     },
     {
       "path": "test/truth-receipt.test.mjs",
