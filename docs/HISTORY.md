@@ -3,6 +3,27 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.27.1] - 2026-09-27
+
+demo-b 多仓复测（umax，12 仓 / 5127 提交）后的小修与供应链卫生。复测确认 0.27.0 成立：notSeen 286→89（余者全为图谱 spec 的仓外锚）、
+嵌套仓失明归零、跨仓关系零泄漏、全量约 2.4s。
+
+### Fixed
+
+- `--node` 聚焦时 `unowned.count` 与非聚焦 `unowned` 条数口径不一（实测聚焦 42694 vs 非聚焦 41570）：各仓不再各自聚焦，
+  先按 sourcePath 相对路径去重、再在合并层施加聚焦——同一路径在顶层旧史与嵌套仓都出现只计一次。
+- 多仓合并不再让各仓计算随即丢弃的 notSeenReasons（`computeOrder` 增 `withNotSeenReasons`，缺省 true）。
+
+### Changed
+
+- 契约 §8 写明同改口径：按改动发生时所在仓的历史判定（文件后来迁入嵌套仓的，其顶层仓时期的同改仍记 repo:'.'）。
+- CI（本仓与公开投影生成的模板）actions 引用钉到 commit SHA：actions/checkout 与 actions/setup-node 均为 v4.4.0 对应提交；
+  新增 `test/ci-pinning.test.mjs` 守卫任何 `uses:` 必须是 40 位 SHA。主版本未升级（v7 已发布，升级另议）。
+
+### 实证附记
+
+npm test 629 项 628 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 137 文件（+1 守卫测试）幂等、隐私零命中。
+
 ## [0.27.0] - 2026-09-27
 
 多仓工作区回溯（设计 docs/superpowers/specs/2026-09-27-multi-repo-workspace-design.md）。demo-b 实测（umax）：1 顶层仓 + ≥6 嵌套独立仓，
@@ -1358,4 +1379,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 55 个版本全量保留；派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 56 个版本全量保留；派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

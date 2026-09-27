@@ -3,6 +3,27 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.27.1] - 2026-09-27
+
+demo-b 多仓复测（umax，12 仓 / 5127 提交）后的小修与供应链卫生。复测确认 0.27.0 成立：notSeen 286→89（余者全为图谱 spec 的仓外锚）、
+嵌套仓失明归零、跨仓关系零泄漏、全量约 2.4s。
+
+### Fixed
+
+- `--node` 聚焦时 `unowned.count` 与非聚焦 `unowned` 条数口径不一（实测聚焦 42694 vs 非聚焦 41570）：各仓不再各自聚焦，
+  先按 sourcePath 相对路径去重、再在合并层施加聚焦——同一路径在顶层旧史与嵌套仓都出现只计一次。
+- 多仓合并不再让各仓计算随即丢弃的 notSeenReasons（`computeOrder` 增 `withNotSeenReasons`，缺省 true）。
+
+### Changed
+
+- 契约 §8 写明同改口径：按改动发生时所在仓的历史判定（文件后来迁入嵌套仓的，其顶层仓时期的同改仍记 repo:'.'）。
+- CI（本仓与公开投影生成的模板）actions 引用钉到 commit SHA：actions/checkout 与 actions/setup-node 均为 v4.4.0 对应提交；
+  新增 `test/ci-pinning.test.mjs` 守卫任何 `uses:` 必须是 40 位 SHA。主版本未升级（v7 已发布，升级另议）。
+
+### 实证附记
+
+npm test 629 项 628 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 137 文件（+1 守卫测试）幂等、隐私零命中。
+
 ## [0.27.0] - 2026-09-27
 
 多仓工作区回溯（设计 docs/superpowers/specs/2026-09-27-multi-repo-workspace-design.md）。demo-b 实测（umax）：1 顶层仓 + ≥6 嵌套独立仓，
@@ -86,39 +107,9 @@ npm test 612 项 611 通过 0 失败 1 异机跳过；sync-generated --check / r
 
 npm test 610 项 609 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过。atlas-engine 本仓试跑重跑：dependsOnNewer 60 条，其中 wiredAtCreation=true 42 条（进 I 级 extractionCandidates），18 条「B 后来才接入 A」不再被称为抽出。f-xui（Go）试跑另记：9/14 模块首现于整体导入提交、Go import 未解析、共改稀疏——见后续批候选。
 
-## [0.24.0] - 2026-09-27
-
-轨迹回溯（设计 docs/superpowers/specs/2026-09-27-trajectory-precedence-design.md）。回应初衷「轨迹随会话消失」与开放项
-「轨迹自动捕获未做」：回溯已发生开发中**节点之间谁先谁后、谁建于谁之上**，并显化无主改动。只回溯不规划——不排期、不预测、
-不估算、不判优先级；只读派生，不写任何状态轴。
-
-### Added
-
-- `trace import --source <规整事件 JSONL>`：只追加至 `<atlas>/data/<项目>/trajectory.jsonl`，source+session+eventId 幂等去重。
-  内核只认规整事件格式（schemaVersion 1），harness 中立。
-- `trace order [--node] [--since] [--brief]`：git 提交序（非日期）× 节点证据锚归属 → `facts`（M 级：order / builtOn /
-  extractedLater / importSameCommit / coChange）与 `nominations`（I 级提名：会话读后写，批量提及按 1/n 降权）分组输出；
-  `unowned` 列出被改动却无节点锚定的文件；空态分辨 `no-data` / `no-anchored-nodes`；重命名历史前移到最终路径。
-- 整分支审阅修复：`--since` 不再改变先后分类（首现按全史，窗口只收窄输出——修复前窗口内先改 B 后改 A 会被错判为「A 自 B 抽出」的 M 级事实）；
-  import 读 HEAD 版本并去注释（修复前注释里的 import 与未提交改动都会产生 M 级 builtOn）；回执增 `anchorsSkipped` 披露被跳过的相对锚 /
-  git 形态锚及因此无从归属的节点（DEFENSIVE §9：无对象可查不得静默）。
-- `scripts/trajectory-from-claude-code.mjs`：Claude Code 会话 JSONL → 规整事件（本批唯一转换器，公开投影收录）。
-- 错误码 5 个：trajectory_source_unreadable / trajectory_bad_event / trajectory_no_atlas / project_source_missing /
-  project_source_not_git。旗标 `source`、`brief` 作用域扩至 trace（唯一旗标仍 50/50，命令仍 10/11）。
-
-### 设计依据与记录不做
-
-- 探针（atlas-engine 本仓，丢弃式）：git 提取 13 ms、产出约 2.2k token；会话轨迹提取 96 ms、产出约 1.1k token，直接读原始
-  日志约 265 万 token——会话轨迹必须本地投影。移植外部 harness 的事件模型，不复制其代码。
-- 不做：其他 harness 转换器、先后关系注入图谱（compile）、手工 trace add 事件迁移——留后续批。
-
-### 实证附记
-
-npm test 609 项 608 通过 0 失败 1 异机跳过（含审阅修复 4 例）；sync-generated --check / release-version / size-budgets 通过，deploy-injection 异机跳过；export-public --selfcheck 134 文件（+6）幂等、隐私零命中。--help 49 行（help 行数门禁 <50：import 与 order 合为一行，不提门禁）。冒烟：init 空账本对本仓 trace order → exit 0、157 提交、order.status=no-anchored-nodes、unowned 186——空态分辨生效。
-
 ---
 
-更早的 50 个版本（0.1.0 → 0.23.1）：
+更早的 51 个版本（0.1.0 → 0.24.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

@@ -164,3 +164,25 @@ test('M4：无参与仓的报错说明「不是仓根」并提示登记仓根（
   const root = tmp(t);
   assert.throws(() => computeWorkspaceOrder({ sidecar: { nodes: {} }, sourceRoot: root, repos: [], events: [] }), (e) => e.code === 'project_source_not_git' && /仓根/.test(e.message));
 });
+
+// —— 0.27.1 ——
+test('unowned 口径一致：聚焦时 count = 不聚焦时去重后的 unowned 条数（同一路径在顶层旧史与嵌套仓都出现只计一次）', (t) => {
+  const ws = path.join(tmp(t), 'ws');
+  fs.mkdirSync(ws);
+  git(ws, '2026-04-01T00:00:00Z', 'init', '-q');
+  commitAt(ws, '2026-04-01T00:00:00Z', { 'core.mjs': 'c\n', 'shared/readme.md': 'r1\n', 'shared/s.mjs': 's\n' }, 'T1');
+  fs.writeFileSync(path.join(ws, '.gitignore'), 'shared/\n');
+  git(ws, '2026-04-02T00:00:00Z', 'rm', '-r', '-q', '--cached', 'shared');
+  commitAt(ws, '2026-04-02T00:00:00Z', {}, 'split');
+  const shared = path.join(ws, 'shared');
+  git(shared, '2026-04-03T00:00:00Z', 'init', '-q');
+  commitAt(shared, '2026-04-03T00:00:00Z', { 'readme.md': 'r2\n' }, 'N1');
+  const sidecar = sidecarOf(ws, { CORE: ['core.mjs'], S: ['shared/s.mjs'] });
+  const repos = withCommits(discoverRepos(ws, sidecar));
+  const all = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [] });
+  assert.ok(all.unowned.includes('shared/readme.md'));
+  assert.equal(all.unowned.filter((f) => f === 'shared/readme.md').length, 1);
+  const focus = computeWorkspaceOrder({ sidecar, sourceRoot: ws, repos, events: [], focusNode: 'CORE' });
+  assert.deepEqual(focus.unowned, { omitted: 'focus', count: all.unowned.length });
+  assert.deepEqual(focus.order.map((o) => o.node), ['CORE']);
+});

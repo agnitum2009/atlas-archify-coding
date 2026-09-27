@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.27.0",
+  "sourceVersion": "0.27.1",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "f8836f0d48b4dc52"
+      "sha256": "9ef1ee6fabb2c8c7"
     },
     {
       "path": ".gitignore",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "5c4912ce03c885ff"
+      "sha256": "3772d6b672462b6c"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "6db47de67114a03c"
+      "sha256": "1974b5d956d9d884"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -205,11 +205,11 @@
     },
     {
       "path": "lib/trajectory-workspace.mjs",
-      "sha256": "b21770b1a04f0eab"
+      "sha256": "aa5547ec8def3ba8"
     },
     {
       "path": "lib/trajectory.mjs",
-      "sha256": "11cc206500337e0c"
+      "sha256": "42cbeea17f697170"
     },
     {
       "path": "lib/truth-receipt.mjs",
@@ -221,7 +221,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "6efa88f18e9f6bf4"
+      "sha256": "606333f980ce71f8"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -269,7 +269,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "1934b7c8157a07a4"
+      "sha256": "0cc1a6fa61de924c"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -302,6 +302,10 @@
     {
       "path": "test/build-portal.test.mjs",
       "sha256": "1567e022bbfa31b9"
+    },
+    {
+      "path": "test/ci-pinning.test.mjs",
+      "sha256": "af611889b193800f"
     },
     {
       "path": "test/cli-error-codes.test.mjs",
@@ -529,11 +533,11 @@
     },
     {
       "path": "test/trajectory-order.test.mjs",
-      "sha256": "f7020cb3fcf3e8e3"
+      "sha256": "54a9a4e14bec2aca"
     },
     {
       "path": "test/trajectory-workspace.test.mjs",
-      "sha256": "db3bf0fdc44ff677"
+      "sha256": "edebc19df76ceca4"
     },
     {
       "path": "test/truth-receipt.test.mjs",

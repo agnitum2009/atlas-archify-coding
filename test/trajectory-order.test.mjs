@@ -288,3 +288,10 @@ test('notSeenReasonsOf readRoots：嵌套仓已被读取但文件从未提交 �
   const read = notSeenReasonsOf(own, ['N'], f.repo, new Set([real(nested)]));
   assert.deepEqual([read.nestedRepo, read.neverCommitted], [[], ['N']]);
 });
+
+test('computeOrder withNotSeenReasons=false：跳过分桶计算（多仓合并层丢弃的结果不再重复算）', (t) => {
+  const f = baseline(t);
+  const data = computeOrder({ sidecar: f.sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [], withNotSeenReasons: false });
+  assert.equal(data.notSeenReasons, undefined);
+  assert.ok(Array.isArray(data.notSeen));
+});
