@@ -3,6 +3,25 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.30.1] - 2026-09-27
+
+trace import 冻结（裁决回执 rulings/RULINGS-2026-09-27-trace-import-freeze.md）。
+
+### Changed
+
+- 契约 §8 与 --help 标注 trace import **冻结**：demo-b 实测（umax，事先写死判定标准）会话提名抽样真 0/10——共享锚 `run-gates.sh` 被 25 节点认领致提名扇出
+  （552/733 条权重恰为 20）、Bash 运行脚本被计为读、Bash 推定 writes 8/10 无踪迹；demo-b 的 Claude Code 日志只覆盖到 08-25，主力 harness 无转换器。
+  负责人裁定：保留不删、行为不变、不再投入。
+
+### 非变更（明示拒绝）
+
+- 不删除、不弃用 trace import / 规整事件格式 / 转换器 / readBeforeWrite / sessionEvents / 相关错误码；不改任何输出；不加运行时冻结告警。
+- 不做降噪、不写 一线席位 / pi 转换器。git 回溯（facts / recency / order / blindSpots）不受影响。
+
+### 实证附记
+
+npm test 655 项 654 通过 0 失败 1 异机跳过（无新增——只改文字）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 49 行不变。
+
 ## [0.30.0] - 2026-09-27
 
 trace order 盲区披露收敛（设计 docs/superpowers/specs/2026-09-27-blindspots-design.md）。
@@ -121,30 +140,9 @@ trace order 完整回执瘦身（设计 docs/superpowers/specs/2026-09-27-unowne
 
 npm test 632 项 631 通过 0 失败 1 异机跳过（+3 例：groupUnowned 边界、跨仓去重与聚焦口径、单仓回执形状）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 137 文件幂等、隐私零命中；--help 49 行不变。
 
-## [0.27.1] - 2026-09-27
-
-demo-b 多仓复测（umax，12 仓 / 5127 提交）后的小修与供应链卫生。复测确认 0.27.0 成立：notSeen 286→89（余者全为图谱 spec 的仓外锚）、
-嵌套仓失明归零、跨仓关系零泄漏、全量约 2.4s。
-
-### Fixed
-
-- `--node` 聚焦时 `unowned.count` 与非聚焦 `unowned` 条数口径不一（实测聚焦 42694 vs 非聚焦 41570）：各仓不再各自聚焦，
-  先按 sourcePath 相对路径去重、再在合并层施加聚焦——同一路径在顶层旧史与嵌套仓都出现只计一次。
-- 多仓合并不再让各仓计算随即丢弃的 notSeenReasons（`computeOrder` 增 `withNotSeenReasons`，缺省 true）。
-
-### Changed
-
-- 契约 §8 写明同改口径：按改动发生时所在仓的历史判定（文件后来迁入嵌套仓的，其顶层仓时期的同改仍记 repo:'.'）。
-- CI（本仓与公开投影生成的模板）actions 引用钉到 commit SHA：actions/checkout 与 actions/setup-node 均为 v4.4.0 对应提交；
-  新增 `test/ci-pinning.test.mjs` 守卫任何 `uses:` 必须是 40 位 SHA。主版本未升级（v7 已发布，升级另议）。
-
-### 实证附记
-
-npm test 629 项 628 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 137 文件（+1 守卫测试）幂等、隐私零命中。
-
 ---
 
-更早的 55 个版本（0.1.0 → 0.27.0）：
+更早的 56 个版本（0.1.0 → 0.27.1）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

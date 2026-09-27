@@ -3,6 +3,25 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.30.1] - 2026-09-27
+
+trace import 冻结（裁决回执 rulings/RULINGS-2026-09-27-trace-import-freeze.md）。
+
+### Changed
+
+- 契约 §8 与 --help 标注 trace import **冻结**：demo-b 实测（umax，事先写死判定标准）会话提名抽样真 0/10——共享锚 `run-gates.sh` 被 25 节点认领致提名扇出
+  （552/733 条权重恰为 20）、Bash 运行脚本被计为读、Bash 推定 writes 8/10 无踪迹；demo-b 的 Claude Code 日志只覆盖到 08-25，主力 harness 无转换器。
+  负责人裁定：保留不删、行为不变、不再投入。
+
+### 非变更（明示拒绝）
+
+- 不删除、不弃用 trace import / 规整事件格式 / 转换器 / readBeforeWrite / sessionEvents / 相关错误码；不改任何输出；不加运行时冻结告警。
+- 不做降噪、不写 一线席位 / pi 转换器。git 回溯（facts / recency / order / blindSpots）不受影响。
+
+### 实证附记
+
+npm test 655 项 654 通过 0 失败 1 异机跳过（无新增——只改文字）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 49 行不变。
+
 ## [0.30.0] - 2026-09-27
 
 trace order 盲区披露收敛（设计 docs/superpowers/specs/2026-09-27-blindspots-design.md）。
@@ -1497,4 +1516,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 60 个版本全量保留；派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 61 个版本全量保留；派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
