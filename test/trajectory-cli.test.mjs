@@ -45,7 +45,7 @@ test('trace order：facts.builtOn 由 git + 证据锚推出；无会话事件 = 
   const r = run(['trace', 'order', '--sidecar', f.sidecar]);
   assert.equal(r.code, 0, r.stdout);
   assert.deepEqual(r.receipt.data.facts.builtOn.map((x) => [x.from, x.to, x.level]), [['demo-a', 'demo-b', 'M']]);
-  assert.deepEqual(r.receipt.data.nominations, { status: 'no-data' });
+  assert.deepEqual(r.receipt.data.nominations.readBeforeWrite, { status: 'no-data' });
   assert.deepEqual(fs.readFileSync(f.sidecar), before, 'trace order 不得写侧车');
 });
 
@@ -105,7 +105,7 @@ test('红路：自由侧车（非 atlas 版式）trace order = trajectory_no_atl
   assert.equal(r.receipt.diagnostics[0].rule, 'trajectory_no_atlas');
 });
 
-test('I1（CLI 级）：trace order --since 不把同提交创建的 import 错判为 extractedLater', (t) => {
+test('I1（CLI 级）：trace order --since 不把同提交创建的 import 错判为 dependsOnNewer', (t) => {
   const f = fixture(t);
   const env = (d) => ({ ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_AUTHOR_DATE: d, GIT_COMMITTER_DATE: d });
   const commitAt = (d, rel, body) => {
@@ -118,6 +118,6 @@ test('I1（CLI 级）：trace order --since 不把同提交创建的 import 错�
   commitAt('2026-09-11T00:00:00Z', 'src/a.mjs', 'export const a = 2;\n');
   const r = run(['trace', 'order', '--since', '2026-09-05T00:00:00Z', '--sidecar', f.sidecar]);
   assert.equal(r.code, 0, r.stdout);
-  assert.deepEqual(r.receipt.data.facts.extractedLater, [], '窗口内先改 b 后改 a 不代表 a 自 b 抽出');
+  assert.deepEqual(r.receipt.data.facts.dependsOnNewer, [], '窗口内先改 b 后改 a 不代表 a 晚于 b 出现');
   assert.deepEqual(r.receipt.data.facts.builtOn.map((x) => [x.from, x.to]), [['demo-a', 'demo-b']]);
 });

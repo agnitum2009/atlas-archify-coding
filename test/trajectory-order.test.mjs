@@ -45,15 +45,18 @@ test('gitCommits：按提交序编号（同一时刻也可排序），files 为�
   assert.ok(commits[1].files.includes(path.join(f.repo, 'src/b.mjs')));
 });
 
-test('computeOrder：order 按首现提交序；builtOn / extractedLater 判定；facts 皆 M 级', (t) => {
+test('computeOrder：order 按首现提交序；builtOn / dependsOnNewer 判定；facts 皆 M 级；抽出只作 I 级提名', (t) => {
   const f = baseline(t);
   const data = computeOrder({ sidecar: f.sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [] });
   assert.deepEqual(data.order.map((o) => [o.node, o.firstSeq]), [['nA', 1], ['nP', 1], ['nB', 2], ['nC', 3]]);
   assert.deepEqual(data.facts.builtOn.map((r) => [r.from, r.to, r.level]), [['nA', 'nB', 'M']]);
-  assert.deepEqual(data.facts.extractedLater.map((r) => [r.from, r.to, r.level]), [['nC', 'nB', 'M']]);
+  // c 首现的提交同时改了 b 的 import 文件：M 级只记「b 依赖了比自己晚出现的 c」+ wiredAtCreation 事实；「抽出」只作 I 级提名。
+  assert.deepEqual(data.facts.dependsOnNewer.map((r) => [r.from, r.to, r.level, r.wiredAtCreation]), [['nC', 'nB', 'M', true]]);
+  assert.equal(data.facts.extractedLater, undefined, 'extractedLater 已移除（0.25.0）');
+  assert.deepEqual(data.nominations.extractionCandidates.map((r) => [r.from, r.to, r.level]), [['nC', 'nB', 'I']]);
   assert.deepEqual(data.unowned, ['docs/readme.md']);
   assert.deepEqual(data.importsUnparsed, ['.txt']);
-  assert.deepEqual(data.nominations, { status: 'no-data' });
+  assert.deepEqual(data.nominations.readBeforeWrite, { status: 'no-data' });
   assert.equal(data.sessionEvents, 0);
 });
 
@@ -112,9 +115,10 @@ test('focusNode 只保留与该节点相连的关系；briefOrder 把数组换�
   const data = computeOrder({ sidecar: f.sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [], focusNode: 'nC' });
   assert.deepEqual(data.order.map((o) => o.node), ['nC']);
   assert.deepEqual(data.facts.builtOn, []);
-  assert.equal(data.facts.extractedLater.length, 1);
+  assert.equal(data.facts.dependsOnNewer.length, 1);
   const brief = briefOrder(data);
-  assert.deepEqual(brief.facts.extractedLater, { count: 1, top: data.facts.extractedLater });
+  assert.deepEqual(brief.facts.dependsOnNewer, { count: 1, top: data.facts.dependsOnNewer });
+  assert.deepEqual(brief.nominations.extractionCandidates, { count: 1, top: data.nominations.extractionCandidates });
   assert.equal(brief.unowned.count, 1);
 });
 
@@ -146,7 +150,7 @@ test('I1：--since 不改变先后分类——首现一律按全史，since 只�
   commitAt('2026-01-03T00:00:00Z', { 'util.mjs': 'export const u = 2;\n' }, 'touch util');
   const sidecar = f.sidecarOf({ U: ['util.mjs'], F: ['feat.mjs'] });
   const data = computeOrder({ sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [], sinceIso: '2026-01-01T00:00:00Z' });
-  assert.deepEqual(data.facts.extractedLater, []);
+  assert.deepEqual(data.facts.dependsOnNewer, []);
   assert.deepEqual(data.facts.importSameCommit.map((r) => [r.from, r.to]), [['U', 'F']]);
   assert.deepEqual(data.order.map((o) => [o.node, o.firstSeq]), [['F', 1], ['U', 1]]);
   assert.equal(data.commits, 2, '窗口内提交数');
@@ -169,4 +173,15 @@ test('M1：相对锚 / 非文件锚被跳过时披露 anchorsSkipped，不让节
   const sidecar = { nodes: { ...f.sidecar.nodes, R: { evidence: ['src/a.mjs:1'] }, G: { evidence: ['git abc1234'] } } };
   const data = computeOrder({ sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [] });
   assert.deepEqual(data.anchorsSkipped, { relative: 1, nonFile: 1, nodes: ['G', 'R'] });
+});
+
+test('后来接入 ≠ 抽出：A 单独创建、B 几个提交后才接入 → dependsOnNewer wiredAtCreation=false，不进抽出候选', (t) => {
+  const f = repoFixture(t);
+  f.commit({ 'b.mjs': 'export const b = 1;\n' }, 'b first');
+  f.commit({ 'a.mjs': 'export const a = 1;\n' }, 'a created alone');
+  f.commit({ 'other.mjs': 'x\n' }, 'unrelated');
+  f.commit({ 'b.mjs': "import { a } from './a.mjs';\nexport const b = a;\n" }, 'b adopts a later');
+  const data = computeOrder({ sidecar: f.sidecarOf({ A: ['a.mjs'], B: ['b.mjs'] }), repo: f.repo, commits: gitCommits(f.repo, null), events: [] });
+  assert.deepEqual(data.facts.dependsOnNewer.map((r) => [r.from, r.to, r.wiredAtCreation]), [['A', 'B', false]]);
+  assert.deepEqual(data.nominations.extractionCandidates, []);
 });

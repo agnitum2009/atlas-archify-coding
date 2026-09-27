@@ -3,6 +3,27 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.25.0] - 2026-09-27
+
+纠正 trace order 的「后来抽出」判定（真实项目试跑发现）。0.24.0 把「B 依赖了比自己晚出现的 A」这一事实直接解读为「A 自 B 抽出」
+并标 M 级——atlas-engine 本仓试跑 60 条中至少 20 条（33%）实为「B 后来才接入新模块 A」，违背证据分级（解读冒充事实）。
+
+### Breaking
+
+- (b) `facts.extractedLater` 移除，改为 `facts.dependsOnNewer`（M 级事实：B 依赖比自己晚出现的 A），每条附可观测事实
+  `wiredAtCreation`（A 首现的提交是否同时改动了 B 中 import A 的文件）。迁移：读 extractedLater 的调用方改读 dependsOnNewer；
+  需要「抽出」判断的改读 `nominations.extractionCandidates`。
+- (b) `nominations` 改为逐列表给状态：`{ readBeforeWrite: [...] | { status: 'no-data' }, extractionCandidates: [...], note }`。
+  0.24.0 无会话事件时整个 nominations 为 `{ status: 'no-data' }`；现改读 `nominations.readBeforeWrite.status`。
+
+### Added
+
+- `nominations.extractionCandidates`（I 级提名）：wiredAtCreation 为真的 dependsOnNewer 条目，「A 自 B 抽出」只提名不裁决。
+
+### 实证附记
+
+npm test 610 项 609 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过。atlas-engine 本仓试跑重跑：dependsOnNewer 60 条，其中 wiredAtCreation=true 42 条（进 I 级 extractionCandidates），18 条「B 后来才接入 A」不再被称为抽出。f-xui（Go）试跑另记：9/14 模块首现于整体导入提交、Go import 未解析、共改稀疏——见后续批候选。
+
 ## [0.24.0] - 2026-09-27
 
 轨迹回溯（设计 docs/superpowers/specs/2026-09-27-trajectory-precedence-design.md）。回应初衷「轨迹随会话消失」与开放项
@@ -118,52 +139,9 @@ size-budgets 四门禁 ok；export-public --selfcheck 117 文件幂等、隐私�
 npm test 568 项 567 通过 0 失败 1 跳过（部署机专属文件异机跳过，设计内）；五门禁全过；export-public --selfcheck
 114 文件幂等、隐私零命中。
 
-## [0.22.0] - 2026-09-26
-
-写入规则收敛批（负责人 2026-09-26 确认）。0.16.0→0.21.2 同族守卫六天九版反复补洞，根因审计：组合规则读写两份实现、
-纠错可豁免范围逐规则散写、提前 return 使规则互相吞噬、单测刻意隔离规则交互、修复范围 = 复核单复现范围。本版
-不再逐例补洞，改为**一条公理 + 全空间门禁**：ADD-SPEC §2.4.2 规则四族（P 路径 / S 状态 / A 权限 / X 外部事实）
-为写入规则唯一规格源，`--correction` 只豁免 P 族。新增规则须先归族并通过 test/invariant-exhaustive.test.mjs。
-
-### Breaking
-
-- (a) `--correction` 只被 `state set` 接受：transition / settle / block / evidence-* 等传入 = `bad_args`（指引
-  `state set --correction`）。此前 transition 上的纠错可豁免 `settled_requires_event` 与（0.21.2 起）
-  `cancelled_requires_clean`，其余子命令静默忽略旗标。
-- (a) 组合表不可纠错：`set --correction` 不再能写出 `cancelled × ledger≠clean`（0.21.1/0.21.2 的「直接放行，
-  孤儿照落」通道关闭）；settled 半边由「只拦直达事件」收口为组合判定，新码 `settled_requires_verified`
-  ——纠错直达 settled 须写后 progress=verified。补救均有表内路径（先 ledger --correction 核销 / 先使 verified）。
-- (a) 证据不可纠错：`set --correction` 不再豁免 `verified_requires_evidence` / `cancelled_requires_evidence`
-  （含 init 首写）与 `evidence_unresolvable`，与 `--help`「不免除…证据」、report 读边「零证据 verified 恒为 error」、
-  evidence-remove「纠错也不能删最后一条证据」对齐。0.17.0 为清理存量保留的零证据出口由同版 `state import` 取代；
-  现须先 `evidence-add` 再纠错。`set ledger→settled`（纠错）同样要求证据非空且可解析。
-- (a) S 族按「改动成员字段」执法：cancelled×backlog、in_progress×settled 等存量表外节点，改动 progress/ledger
-  的写入写后须回到表内（修复写仍可达，见可达性证明）；truth/class/同值写不受影响。
-
-### Fixed
-
-- 0.21.2 回归：组合守卫命中后提前 return 跳过证据守卫——`transition --correction` 可把 planned×backlog 零证据
-  节点写成 cancelled（契约 §2 明文 transition 纠错不豁免证据）。一次写入的违规现全部报出（P、A、S、X 序），
-  不再「修一个冒一个」；transition 的违表不再先于证据/回执短路。
-- 契约 report 约束段恢复 0.21.1 压缩行数时误删的 A1 报码说明与「存量清洗（0.17.0）」指引。
-- 契约保鲜扫描看不见组合两码（`out.push` 字面量不在采集形态内，删附录行不报错，0.19.1 同型盲区）：组合表改为
-  声明式 `CROSS_AXIS_RULES`，90 码全覆盖、零宽容 warning。
-
-### Added
-
-- history 纠错事件在 `corrected: true` 之外增记 `waivedRules: [规则码]`（纯增字段）——此前只有布尔值，
-  事后无法分辨一次纠错绕过了什么。
-- test/invariant-exhaustive.test.mjs：set/transition × progress/ledger × 全部前态 × 证据{无,可解析,不可解析}
-  × 是否纠错 共 1092 例实跑 CLI，对照按 §2.4.2 独立推导的预言（退出码、全部诊断码、零写入、豁免留痕）；
-  可达性模型：16 个表内状态两两可达、14 个表外/违例存量均可修复——收紧纠错不造死路。
-
-### 迁移
-
-  （docs/ADOPTION-BASELINE-2026-08-17.md（内部件，未随本版发布）），cancelled 半边存量 0，影响面限于自动化脚本对 transition 传纠错旗标。
-
 ---
 
-更早的 46 个版本（0.1.0 → 0.21.2）：
+更早的 47 个版本（0.1.0 → 0.22.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 
