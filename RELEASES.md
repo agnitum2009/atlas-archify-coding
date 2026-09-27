@@ -3,6 +3,36 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.24.0] - 2026-09-27
+
+轨迹回溯（设计 docs/superpowers/specs/2026-09-27-trajectory-precedence-design.md）。回应初衷「轨迹随会话消失」与开放项
+「轨迹自动捕获未做」：回溯已发生开发中**节点之间谁先谁后、谁建于谁之上**，并显化无主改动。只回溯不规划——不排期、不预测、
+不估算、不判优先级；只读派生，不写任何状态轴。
+
+### Added
+
+- `trace import --source <规整事件 JSONL>`：只追加至 `<atlas>/data/<项目>/trajectory.jsonl`，source+session+eventId 幂等去重。
+  内核只认规整事件格式（schemaVersion 1），harness 中立。
+- `trace order [--node] [--since] [--brief]`：git 提交序（非日期）× 节点证据锚归属 → `facts`（M 级：order / builtOn /
+  extractedLater / importSameCommit / coChange）与 `nominations`（I 级提名：会话读后写，批量提及按 1/n 降权）分组输出；
+  `unowned` 列出被改动却无节点锚定的文件；空态分辨 `no-data` / `no-anchored-nodes`；重命名历史前移到最终路径。
+- 整分支审阅修复：`--since` 不再改变先后分类（首现按全史，窗口只收窄输出——修复前窗口内先改 B 后改 A 会被错判为「A 自 B 抽出」的 M 级事实）；
+  import 读 HEAD 版本并去注释（修复前注释里的 import 与未提交改动都会产生 M 级 builtOn）；回执增 `anchorsSkipped` 披露被跳过的相对锚 /
+  git 形态锚及因此无从归属的节点（DEFENSIVE §9：无对象可查不得静默）。
+- `scripts/trajectory-from-claude-code.mjs`：Claude Code 会话 JSONL → 规整事件（本批唯一转换器，公开投影收录）。
+- 错误码 5 个：trajectory_source_unreadable / trajectory_bad_event / trajectory_no_atlas / project_source_missing /
+  project_source_not_git。旗标 `source`、`brief` 作用域扩至 trace（唯一旗标仍 50/50，命令仍 10/11）。
+
+### 设计依据与记录不做
+
+- 探针（atlas-engine 本仓，丢弃式）：git 提取 13 ms、产出约 2.2k token；会话轨迹提取 96 ms、产出约 1.1k token，直接读原始
+  日志约 265 万 token——会话轨迹必须本地投影。移植外部 harness 的事件模型，不复制其代码。
+- 不做：其他 harness 转换器、先后关系注入图谱（compile）、手工 trace add 事件迁移——留后续批。
+
+### 实证附记
+
+npm test 609 项 608 通过 0 失败 1 异机跳过（含审阅修复 4 例）；sync-generated --check / release-version / size-budgets 通过，deploy-injection 异机跳过；export-public --selfcheck 134 文件（+6）幂等、隐私零命中。--help 49 行（help 行数门禁 <50：import 与 order 合为一行，不提门禁）。冒烟：init 空账本对本仓 trace order → exit 0、157 提交、order.status=no-anchored-nodes、unowned 186——空态分辨生效。
+
 ## [0.23.1] - 2026-09-27
 
 减法批三（commands.mjs 拆分，设计 docs/superpowers/specs/2026-09-27-split-commands-design.md）。纯内部重构：命令、旗标、
@@ -131,22 +161,9 @@ npm test 568 项 567 通过 0 失败 1 跳过（部署机专属文件异机跳�
 
   （docs/ADOPTION-BASELINE-2026-08-17.md（内部件，未随本版发布）），cancelled 半边存量 0，影响面限于自动化脚本对 transition 传纠错旗标。
 
-## [0.21.2] - 2026-09-18
-
-守卫完整性修复批（0.21.1 的 cancelled_requires_clean 经 ds41x 席位独立复核——可证实也可证伪的复核单，实测坐实两个缺陷后收口；新增 6 项先红后绿测试，test/ruling-2026-09-18-followup.test.mjs）。
-
-### Breaking
-
-- (a) `cancelled_requires_clean` 从「progress 轴写入」扩为「组合判定」：cancelled×clean 节点经 ledger 轴 set/transition 写 backlog 昨天（0.21.1）合法、今天被拒（exit 1 零写入）——0.21.1 只拦了 progress→cancelled 一个方向，反向挂账路径漏拦。只拦 progress/ledger 成员轴写入；truth/class 等无关轴对存量孤儿的补记不冻结。--correction 显式核销通道语义不变（corrected:true 留痕，孤儿照落、读边持续告警）。
-
-### Fixed
-
-- 守卫补救消息归真：原指引「先 state settle 核销欠账再取消」在唯一可触发状态（planned×backlog）下被 illegal_transition 拒（settle 要求 progress∈{in_progress,verified}，ds41x 实测），且 verified 无出边、settle 后永不可取消——死路指引。消息改为实测可达路径：先 `state set --axis ledger --value clean --correction` 核销欠账（backlog→clean 不在 A2 表，必经纠错通道）再取消。
-- 契约与 ADD-SPEC 同步：附录 A cancelled_requires_clean 行、§2.4.1 执法口径段改写为组合判定语义。
-
 ---
 
-更早的 45 个版本（0.1.0 → 0.21.1）：
+更早的 46 个版本（0.1.0 → 0.21.2）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

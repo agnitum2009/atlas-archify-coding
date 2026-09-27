@@ -111,6 +111,7 @@ nonClaims（显式声明的机器不可判项）：truth 轴业务生效性需�
 
 用途：TraceEvent 入侧车 + anchors（event.node → Node.traceRefs 回指）。
 子命令：trace add --kind tool_call|decision|diagram_diff|evidence|ruling|command --actor <name> [--note] [--node <id>]；trace list [--node <id>] [--since <ISO8601>]；trace replay --node <id> [--since <ISO8601>]。
+轨迹回溯（0.24.0；只回溯不规划、不写任何状态轴）：trace import --source <规整事件 JSONL> 只追加至 <atlas>/data/<项目>/trajectory.jsonl（source+session+eventId 幂等去重；内核只认规整格式，harness 原始日志经 scripts/ 转换器规整——harness 中立）；trace order [--node] [--since] [--brief] 读时现算节点开发先后（首现与先后分类一律按全史，--since 只收窄输出；import 读 HEAD 版本且去注释），分组输出 facts（M 级：提交序 order、HEAD import 判 builtOn/extractedLater/importSameCommit、同改 coChange ≥3 且单提交 ≤8 文件）与 nominations（I 级提名：同会话写前 30 事件内读，单文件读计 1、提及 n 文件每文件 1/n，权重 ≥1 才出），unowned = 被改动却无节点证据锚定的文件；空态分辨 nominations.status=no-data、无锚定节点 status=no-anchored-nodes。输出：import → { file, scanned, appended, duplicates, sources }；order → { repo, commits（窗口内）, totalCommits, span, sessionEvents, anchorsSkipped:{relative,nonFile,nodes}, order, notSeen, facts, nominations, unowned, importsUnparsed }（--brief 数组换为 { count, top≤10 }）。
 输出：add → { event, anchors }；list → { count, events }；replay → { node, current, events }。
 --since（A2，2026-08-15 清单，沿用 diff --since 先例补齐）：含边界（at == since 计入）截窗——list 过滤 trace 事件，replay 过滤**三源合并后**时间线（state+trace+lesson 合并排序后统一过滤）；缺省行为完全不变。
 约束：kind 枚举硬校验；显式 node 须为账本自有节点，未知或继承属性返回 node_not_found 且零写入；锚定后回写 node.traceRefs。旧悬空轨迹仍可读。trace/replay/lessons recent 按可解析时间排序，等时稳定；无效旧时间置后按原文字典序排列；--since 格式非法（Date.parse 不可解析）= failed exit 1 rule=bad_args，消息带 ISO8601 示例（2026-08-15T00:00:00.000Z）。
@@ -255,5 +256,10 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 | a1-nonaccounts-scope-unknown | report --spec（A1）：库调用未提供图名，nonAccounts 声明无法按图作用域解释——声明不生效且逐条披露 | 不阻断（warning） | 用 CLI（自动供图名）或改按图声明/认领 |
 | anchor_roots_config_invalid | 写边锚根门禁配置（anchor-roots.json / anchor-root-exemptions.json）已存在但不可读、非 JSON 或形状不符——坏配置不解除门禁 | 1 | 修复或移走该配置文件后重试 |
 | project_gate_config_invalid | state set/transition/settle/block/import（L1/L2 门）：projects.json 不可读/非 JSON/形状不符，或显式 sidecar 声明畸形、匹配条目的 project/seats 畸形——坏配置不解除门禁 | 1 | 修复或移走注册表后重试 |
+| trajectory_source_unreadable | trace import：--source 不存在、是目录或不可读 | 1 | 补救 = 传规整事件 JSONL 文件路径；harness 原始日志先经 scripts/ 下转换器规整（管道可用 /dev/stdin） |
+| trajectory_bad_event | trace import/order：规整事件行不是合法 JSON 或字段形状不符（schemaVersion 1；source/session/eventId/at/tool 非空；reads/writes 为绝对路径数组且不同时为空），消息带文件与行号 | 1 | 补救 = 修正转换器输出后重导；已落盘 trajectory.jsonl 的坏行需人工修复（只追加文件，引擎不自动改写） |
+| trajectory_no_atlas | trace import/order：侧车不在 atlas 版式内，无 data/<项目>/ 落点 | 1 | 补救 = 使用 atlas 版式侧车（atlas-engine init 创建） |
+| project_source_missing | trace order：侧车同目录 projects.json 无本项目 sourcePath | 1 | 补救 = 在 projects.json 本项目条目登记 sourcePath（项目代码 git 仓） |
+| project_source_not_git | trace order：sourcePath 不是可读 git 仓，或 git 调用失败/超时（ATLAS_GIT_TIMEOUT_MS） | 1 | 补救 = 核对 sourcePath 指向 git 工作树；大仓可调大 ATLAS_GIT_TIMEOUT_MS |
 <!-- generated:error-codes:end -->
 注：store 错误码在 diagnostics.rule 原样呈现（load/save 无双前缀）；sidecar_conflict/sidecar_locked/sidecar_readonly 等可操作运行态以 failed/exit 1/自身码呈现（不落 internal/exit 2，测试 test/cli-error-codes.test.mjs）；退役码与旧语义史实在 RELEASES 相应版本释义。契约保鲜由 scripts/sync-generated.mjs --check 与 test/surface-consistency.test.mjs 机器执行。

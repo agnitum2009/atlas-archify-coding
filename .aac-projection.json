@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.23.1",
+  "sourceVersion": "0.24.0",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "bb1bf2423824e3d7"
+      "sha256": "c349061b5e4886d6"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "5dbf2d4567181ca3"
+      "sha256": "f727829e3ca69c32"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -73,7 +73,7 @@
     },
     {
       "path": "lib/cli-options.mjs",
-      "sha256": "2e29ef8e7e55cb1b"
+      "sha256": "4f0807178e0d95d6"
     },
     {
       "path": "lib/cli-util.mjs",
@@ -117,11 +117,11 @@
     },
     {
       "path": "lib/cmd-trace.mjs",
-      "sha256": "7159e3005d8e7978"
+      "sha256": "aeea7c38d0923752"
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "cdf0e1ca413e7f39"
+      "sha256": "f5b9dc312cb89719"
     },
     {
       "path": "lib/compile.mjs",
@@ -141,7 +141,7 @@
     },
     {
       "path": "lib/error-codes.mjs",
-      "sha256": "8b92d608750f1f4d"
+      "sha256": "276fe943b87b1ede"
     },
     {
       "path": "lib/evidence.mjs",
@@ -204,6 +204,10 @@
       "sha256": "7a4ce3e9a33acb13"
     },
     {
+      "path": "lib/trajectory.mjs",
+      "sha256": "35ee0b7f79a08e43"
+    },
+    {
       "path": "lib/truth-receipt.mjs",
       "sha256": "43342fffe41a32b9"
     },
@@ -213,7 +217,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "444eaf2cbece86db"
+      "sha256": "cbd868db282cd573"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -244,6 +248,10 @@
       "sha256": "8ea4f4143fb2ddec"
     },
     {
+      "path": "scripts/trajectory-from-claude-code.mjs",
+      "sha256": "8380bb42699d735c"
+    },
+    {
       "path": "scripts/verify-release-version.mjs",
       "sha256": "192724e5fb56645a"
     },
@@ -257,11 +265,11 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "7b0ecff0d84fdc2d"
+      "sha256": "38931f177d5c9feb"
     },
     {
       "path": "specs/snapshot-policy.md",
-      "sha256": "95040edb190024e7"
+      "sha256": "986b011de6c3bf04"
     },
     {
       "path": "test/a1a2a3d3.test.mjs",
@@ -329,7 +337,7 @@
     },
     {
       "path": "test/error-codes.test.mjs",
-      "sha256": "9b9636c9514c953a"
+      "sha256": "3d402bc0f445c2fc"
     },
     {
       "path": "test/evidence-cli.test.mjs",
@@ -502,6 +510,22 @@
     {
       "path": "test/trace-lessons.test.mjs",
       "sha256": "1ffc721720c979c8"
+    },
+    {
+      "path": "test/trajectory-cli.test.mjs",
+      "sha256": "7cf3290184c6050e"
+    },
+    {
+      "path": "test/trajectory-convert.test.mjs",
+      "sha256": "f181a8731d31c6e2"
+    },
+    {
+      "path": "test/trajectory-import.test.mjs",
+      "sha256": "d51d4f3ca69a7d14"
+    },
+    {
+      "path": "test/trajectory-order.test.mjs",
+      "sha256": "313110e1ace55132"
     },
     {
       "path": "test/truth-receipt.test.mjs",

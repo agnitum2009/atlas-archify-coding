@@ -8,8 +8,8 @@ import { ERROR_CODES, isRegisteredRule, diag } from '../lib/error-codes.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-test('注册表：94 条、code 唯一、四字段均为非空字符串、冻结', () => {
-  assert.equal(ERROR_CODES.length, 94);
+test('注册表：99 条、code 唯一、四字段均为非空字符串、冻结', () => {
+  assert.equal(ERROR_CODES.length, 99);
   assert.equal(new Set(ERROR_CODES.map((e) => e.code)).size, ERROR_CODES.length, 'code 重复');
   for (const e of ERROR_CODES) {
     for (const k of ['code', 'source', 'exit', 'remedy']) assert.ok(typeof e[k] === 'string' && e[k].length > 0, e.code + '.' + k);

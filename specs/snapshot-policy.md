@@ -51,6 +51,8 @@
 | history[].engine（条目） | 账本语义世系：该条 history 事件由哪个引擎版本写入，回答「这条账是哪个引擎语义写的」（2026-08-15 增长控制开发规范批一#1；lib/version.mjs 启动读一次 package.json） | lib/store.mjs:228-231（appendHistory 单一构造点）；detail 同戳见 lib/cli-util.mjs:80 |
 | evidenceMeta（节点） | 证据锚行哈希 { 锚字符串: { h:目标行 trim 后 sha256 前 12 hex, at:ISO } }：锚内容三态 ok/drifted 判据（锁口② 语义绑定增强 2026-08-16；先例=pi-readseek 的 LINE:HASH 模式；旧侧车无此字段=unhashed 照常，evidence 数组保持纯字符串不动） | lib/commands.mjs（evidence-add 落哈希）、lib/evidence.mjs（lineHash/computeLocatorHash/anchorState）、scripts/backfill-evidence-hashes.mjs（存量回填） |
 
+非侧车数据文件（0.24.0）：`<atlas>/data/<项目>/trajectory.jsonl`——只追加，一行一个规整轨迹事件 { schemaVersion:1, source, session, eventId, at, tool, reads[], writes[] }（形状见 lib/trajectory.mjs validateEvent）；读方遇坏行 fail-loud（trajectory_bad_event），引擎不自动改写。
+
 ### 5.3 读方立场：未知字段默认容忍
 
 - load/save 共用 validateSidecarShape：校验 schemaVersion、nodes/已知数组与记录形状、revision；未知字段原样保留，不拒绝、不告警。
