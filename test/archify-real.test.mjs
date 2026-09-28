@@ -50,8 +50,8 @@ for (const [profile, bin] of [['v2', process.env.ATLAS_REAL_ARCHIFY_V2], ['v3', 
     else assert.ok(html.includes('当前焦点（在途 1）'), 'v3 焦点卡渲染');
 
     // ② lifecycle：自写三状态小图，state 'building' 在途 → tag 注入。
-    // 2.16 的 lifecycle 渲染（v1 固定三带布局）画布高于首屏，而 2.16 visual-check 不允许纵向溢出——内核自带示例与最小图
-    // 原样都过不了（2026-09-29 实测，与 atlas 无关、0.31 同样）；故 2.x 只断言 validate / deliver 通过，v3 断言全闸通过。
+    // 2.16 visual-check 不允许纵向溢出：本机 v2.16.0 标签下内核自带 lifecycle 示例与这张最小图原样都溢出（与 atlas 无关、0.31 同样），
+    // 但某真实项目的 8 状态 lifecycle 在 2.16.0-dev.0 下全过——是否溢出取决于图的尺寸。故 2.x 只允许停在 visual-check，v3 断言全闸通过。
     const lcSrc = path.join(base, 'lc-src.json');
     fs.writeFileSync(lcSrc, JSON.stringify({ schema_version: 1, diagram_type: 'lifecycle', meta: { title: '发布流程', quality_profile: 'showcase' },
       lanes: [{ id: 'main', label: '主流程' }],

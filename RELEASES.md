@@ -26,8 +26,9 @@ deliver → 严格溯源 check → 浏览器检查；3.0.1 起 deliver 自带联
 
 - v3 上游移除了交互式引导章节，atlas 在 v3 下以焦点卡 + 节点 tag 承接，交互式章节不可恢复。
 - 焦点卡不在 2.x 生成：2.16 visual-check 禁首屏纵向溢出，2.16 自带示例加一张五行卡即 `viewer/viewport-overflow`。
-- 2.16 下 lifecycle 图过不了 visual-check：2.16 的 lifecycle（v1 布局）画布高于首屏，内核自带示例与最小三状态图原样都溢出——与 atlas 无关、
-  0.31 同样；v3 下同图通过。
+- 部分 lifecycle 图在 2.16 过不了 visual-check：本机 v2.16.0 标签下，内核自带的两个 lifecycle 示例与一张最小三状态图原样都纵向溢出
+  （与 atlas 无关、0.31 同样；v3 下同图通过）。**并非 lifecycle 必然过不了**——umax 的 2.16.0-dev.0 上 demo-b 的 8 状态 lifecycle 三闸全过
+  （2026-09-29 复测更正）：是否溢出取决于具体图的尺寸。
 
 ### 非变更（明示拒绝）
 

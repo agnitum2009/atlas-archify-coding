@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "8ac155048efcb197"
+      "sha256": "07f9db0d8ca26b28"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "e4eb0038e5b3cc17"
+      "sha256": "b641d2fade7f2c5d"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -293,7 +293,7 @@
     },
     {
       "path": "test/archify-real.test.mjs",
-      "sha256": "2801905f1625591e"
+      "sha256": "2325edd1135552ed"
     },
     {
       "path": "test/archify-v3-gate.test.mjs",
