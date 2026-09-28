@@ -3,6 +3,42 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.32.0] - 2026-09-29
+
+接驳 archify v3，双版本兼容 2.16 / 3.x（设计 docs/superpowers/specs/2026-09-29-archify-v3-bridge-design.md；负责人裁定：双版本兼容、焦点卡仅 v3）。
+
+**依据**（2026-09-28/29 实测，本地 archify 3.0.1 克隆与 2.16.0 worktree）：v3 要求 `meta.output`（RELEASES 未载）——atlas 的 init 模板与
+compile 产物都没有，v3 下 gate 在 validate 闸全部失败；v3 退役 `meta.views`，atlas 的「当前焦点」章节静默消失；v3 官方验收链改为
+deliver → 严格溯源 check → 浏览器检查；3.0.1 起 deliver 自带联网更新检查。
+
+### Added
+
+- 内核契约族判定 `kernelProfile` / `kernelOf`（只读 bin 旁 package.json，先解析符号链接以覆盖 `npm i -g` / `npm link` 安装；major ≥ 3 → v3，其余与未知 → v2，`versionKnown` 如实标）。
+- compile：`meta.output` 缺则补 `<图名>.html`（portable；作者已写原样保留）；v3 内核下另加一张 atlas 自管说明卡「当前焦点（在途 n）」置 `cards` 首位
+  （只替换 atlas 生成的精确格式卡——amber 且标题「当前焦点（在途 N）」，作者卡即使同前缀也不动；2.x / 版本未知 / 无在途时不生成并清除残留）；回执 `injected.focusCard`、`injected.kernel`。init 模板补 `meta.output`。
+- gate：v3 闸链 validate → deliver → **check**（`--require-provenance`，核对 ok / file / provenance=current / 产物摘要 / deliveryReceiptId，
+  不符 `check-receipt`、非零 `check-failed`）→ visual_check（加 `--require-provenance`）；2.x 三闸不变。回执 `data.kernel`，v3 `results.check`；
+  gate-detail.jsonl 逐闸记录随实际闸链并带 `kernel`。gate 调 archify 的子进程一律 `ARCHIFY_UPDATE_CHECK_DISABLED=1`。
+- doctor：`archify-kernel` 的 detail 披露 `profile=v2|v3`。
+- `test/archify-real.test.mjs`：真内核集成测试（选跑；设 `ATLAS_REAL_ARCHIFY_V2` / `ATLAS_REAL_ARCHIFY_V3` 时执行）。
+
+### 已知差异（如实记录）
+
+- v3 上游移除了交互式引导章节，atlas 在 v3 下以焦点卡 + 节点 tag 承接，交互式章节不可恢复。
+- 焦点卡不在 2.x 生成：2.16 visual-check 禁首屏纵向溢出，2.16 自带示例加一张五行卡即 `viewer/viewport-overflow`。
+- 2.16 下 lifecycle 图过不了 visual-check：2.16 的 lifecycle（v1 布局）画布高于首屏，内核自带示例与最小三状态图原样都溢出——与 atlas 无关、
+  0.31 同样；v3 下同图通过。
+
+### 非变更（明示拒绝）
+
+- 不接仓库证据（`sources` / `--repo-root`）与 compare；不改 diff；不改 2.x 闸链的调用与回执形状；不提高耦合基线（仍 2.14）。
+- 不改用 `finalize`（不产截图，改过去即丢现有视觉证据）；不单独加 `browser-check`（v3 的 visual-check 已含其全部测量）。
+- 不新增旗标（50/50 已满）、命令、错误码行；不安装 / 升级 archify。
+
+### 实证附记
+
+npm test 689 项 686 通过 0 失败 3 跳过（含整分支审阅修复 3 例）（1 异机、2 真内核选跑）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 141 文件幂等、隐私零命中；--help 49 行不变；投影后的公开树相关测试通过。真内核实跑（本机 2.16.0 worktree 与 3.0.1 克隆，WORKDIR 置 $HOME 下以避开 snap Chromium 的 /tmp 限制）：两版 2/2 通过——架构图全闸（v2 三闸、v3 四闸）、visualReview=pending、进度 tag、2.x 焦点章节、v3 焦点卡、lifecycle tag 注入（v3 全闸）、失败诊断原样带出。
+
 ## [0.31.0] - 2026-09-27
 
 共享锚口径并报（设计 docs/superpowers/specs/2026-09-27-shared-anchor-caliber-design.md；负责人裁定方向 A「逐条标注口径」）。
@@ -120,40 +156,9 @@ npm test 655 项 654 通过 0 失败 1 异机跳过（+4 例，既有盲区断�
 
 npm test 651 项 650 通过 0 失败 1 异机跳过（+3 例）；字段预算测试经两次反向验证（契约删一字段 → 失败；预算调为 17 → 失败）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变。
 
-## [0.29.0] - 2026-09-27
-
-import 解析覆盖面（设计 docs/superpowers/specs/2026-09-27-import-coverage-design.md）。f-xui（Go）此前 import 类先后事实为零；
-demo-b（TS monorepo）只认相对路径 import；`.sql/.sh` 与真正未解析的语言混在 `importsUnparsed`。本版补齐，只读 HEAD、只出能落到仓内的边。
-
-### Breaking
-
-- (b) `importsUnparsed` 语义收窄：只列「有 import 机制但未解析」的扩展名（如 `.py .sh .css`）；本无 import 的扩展名
-  （文档/数据/配置/`.sql`/图片/无扩展名）移至新字段 `importsNotApplicable`。
-- (c) 同命令同参数 facts 增多：JS/TS 补全 `.tsx/.mts/.cts/.jsx/.cjs` 与 `index.*`、`./a.js → a.ts`、`require()` / `import()` 字面量
-  （字符串字面量内的示例不算）；仓内 `package.json` name 的包名引用（入口 exports/module/main，回退 `src/index.*`、`index.*`）；
-  Go 按最近 `go.mod` 的 module 前缀解析到包目录（该目录下被锚定的非 `_test.go` 文件的节点都是被依赖方，via 形如 `cmd/a.go → internal/b/`）。
-  解析改以 HEAD 文件清单为准：工作树里未提交的新文件不再能被命中。
-- 迁移：依赖 `importsUnparsed` 判断「有无解析缺口」的调用方，同时看新字段 `importsUnresolved.count`。
-
-### Added
-
-- `importsUnresolved: { count, top≤10:[{ file, spec }] }`：仓内相对或包名引用解析失败（file 相对 sourcePath）；第三方包、Go 外部包、跨仓引用不计。
-- `lib/trajectory-imports.mjs`：HEAD 批读（`git cat-file --batch`）+ HEAD 文件清单索引 + 语言登记表；`trajectory.mjs` 旧解析迁出。
-
-Non-Goals：TS 路径别名、跨嵌套仓包名引用、Python、CSS `@import`、shell `source`。
-
-### 实证附记
-
-npm test 648 项 647 通过 0 失败 1 异机跳过（+16 例，含整分支审阅修复 3 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变。
-本机冒烟（合成节点表：每个源码目录一个节点，新旧两版对比）：f-xui（Go，42 节点）builtOn / dependsOnNewer / importSameCommit
-0/0/0 → 13/21/29，unresolved 4（均为 vendored `URI.min.js` 引用未收录的模块）、耗时 243→123ms；atlas-engine 事实不变、unresolved 0、406→86ms；
-Xray-core（Go，167 节点 / 898 文件，本地仅 1 提交）importSameCommit 0 → 1349、unresolved 0、206ms。冒烟发现字符串字面量内的
-`require()` 被误认为引用，已修（RED→GREEN）。整分支审阅修复（均 RED→GREEN）：单仓仓外锚致整批 cat-file 失败（回归）、缺失文件名含空格致其后文件静默丢失、
-含换行路径串位、Go 原始字符串内 import 模板误认、`../` 出仓引用误计 unresolved、未提交 Go 锚作被依赖方。
-
 ---
 
-更早的 57 个版本（0.1.0 → 0.28.0）：
+更早的 58 个版本（0.1.0 → 0.29.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

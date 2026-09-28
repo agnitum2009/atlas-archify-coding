@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.31.0",
+  "sourceVersion": "0.32.0",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "49bacebb5cef7a30"
+      "sha256": "8ac155048efcb197"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "b0f3614eb1e4d5e4"
+      "sha256": "e4eb0038e5b3cc17"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -93,7 +93,7 @@
     },
     {
       "path": "lib/cmd-gate.mjs",
-      "sha256": "bade34dc466e681f"
+      "sha256": "a85b4338a34d0527"
     },
     {
       "path": "lib/cmd-init.mjs",
@@ -121,11 +121,11 @@
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "326f092c2e052600"
+      "sha256": "6cc9df598c7e2883"
     },
     {
       "path": "lib/compile.mjs",
-      "sha256": "ac58ba508479bc87"
+      "sha256": "efcfa86bb0de40f2"
     },
     {
       "path": "lib/diff.mjs",
@@ -133,7 +133,7 @@
     },
     {
       "path": "lib/doctor.mjs",
-      "sha256": "2aca4aac824ccc3f"
+      "sha256": "3d4dc0197ba86099"
     },
     {
       "path": "lib/envelope.mjs",
@@ -141,7 +141,7 @@
     },
     {
       "path": "lib/error-codes.mjs",
-      "sha256": "276fe943b87b1ede"
+      "sha256": "138cc2721f23d0b2"
     },
     {
       "path": "lib/evidence.mjs",
@@ -149,11 +149,11 @@
     },
     {
       "path": "lib/gate.mjs",
-      "sha256": "c97ea9b2f2f00eac"
+      "sha256": "ee90990a20474f01"
     },
     {
       "path": "lib/init.mjs",
-      "sha256": "3ddc202dfe7f51a9"
+      "sha256": "a285e0c925efdd06"
     },
     {
       "path": "lib/layout.mjs",
@@ -181,7 +181,7 @@
     },
     {
       "path": "lib/resolve-archify.mjs",
-      "sha256": "e92bd95986afa00c"
+      "sha256": "7939b3fd0263c38c"
     },
     {
       "path": "lib/spec-id.mjs",
@@ -225,7 +225,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "baebe9605016171c"
+      "sha256": "6e09fd856dbe159c"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -273,7 +273,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "bd15512eea898771"
+      "sha256": "9a2d12fcaf65122e"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -289,7 +289,15 @@
     },
     {
       "path": "test/archify-adapt.test.mjs",
-      "sha256": "a10c39956ff7a1dc"
+      "sha256": "85fad99fab51b076"
+    },
+    {
+      "path": "test/archify-real.test.mjs",
+      "sha256": "2801905f1625591e"
+    },
+    {
+      "path": "test/archify-v3-gate.test.mjs",
+      "sha256": "cb67cccba3081428"
     },
     {
       "path": "test/atlas-data.test.mjs",
@@ -329,7 +337,7 @@
     },
     {
       "path": "test/compile.test.mjs",
-      "sha256": "694afe944b1df10a"
+      "sha256": "7ad306616e639b43"
     },
     {
       "path": "test/deprecated.test.mjs",
@@ -369,7 +377,7 @@
     },
     {
       "path": "test/fake-archify.mjs",
-      "sha256": "79fb599d87ce4752"
+      "sha256": "b40cac7fedc60be7"
     },
     {
       "path": "test/field-2026-08-23.test.mjs",
@@ -393,7 +401,7 @@
     },
     {
       "path": "test/init-cli.test.mjs",
-      "sha256": "b6f330e11d23c688"
+      "sha256": "6fc8f5d71cc22e41"
     },
     {
       "path": "test/invariant-exhaustive.test.mjs",
@@ -513,7 +521,7 @@
     },
     {
       "path": "test/surface-consistency.test.mjs",
-      "sha256": "243b679e86fd8403"
+      "sha256": "54924ecfdfb51178"
     },
     {
       "path": "test/trace-identity.test.mjs",

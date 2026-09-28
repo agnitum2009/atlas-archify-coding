@@ -2,7 +2,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compileAtlas, PROGRESS_TAGS } from '../lib/compile.mjs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { compileAtlas, compileFiles, PROGRESS_TAGS, FOCUS_CARD_PREFIX, portableOutputOf } from '../lib/compile.mjs';
 
 function diagram() {
   return {
@@ -153,4 +156,95 @@ test('explicit old tag wording is restored; malformed and duplicate ownership re
 
 test('duplicate diagram identities cannot produce ambiguous ownership receipts', () => {
   assert.throws(() => compileAtlas({ components: [{ id: 'x' }, { id: 'x' }] }, { nodes: { x: { progress: 'verified' } } }), { code: 'bad_input' });
+});
+
+// —— 0.32.0 接驳 archify v3 ——
+const V3 = { version: '3.0.1', profile: 'v3', versionKnown: true };
+const V2 = { version: '2.16.0', profile: 'v2', versionKnown: true };
+const node = (progress) => ({ owner: 'o', truth: 'candidate', progress, ledger: 'clean', evidence: [], history: [] });
+const inFlight = (...ids) => ({ schemaVersion: 1, nodes: Object.fromEntries(ids.map((id) => [id, node('in_progress')])) });
+
+test('0.32.0 meta.output：缺则按图名补 portable 路径；作者已写（含不合规值）原样保留', () => {
+  assert.equal(compileAtlas(diagram(), inFlight(), { diagramName: 'main' }).out.meta.output, 'main.html');
+  assert.equal(compileAtlas(diagram(), inFlight()).out.meta.output, 'diagram.html');
+  const d = diagram();
+  d.meta.output = 'reports/x.html';
+  assert.equal(compileAtlas(d, inFlight(), { diagramName: 'main' }).out.meta.output, 'reports/x.html');
+  d.meta.output = '/abs/not-portable.html';
+  assert.equal(compileAtlas(d, inFlight(), { diagramName: 'main' }).out.meta.output, '/abs/not-portable.html');
+  assert.deepEqual(['a b/c', 'con', null, '.hidden', '研发'].map(portableOutputOf), ['a-b-c.html', 'diagram-con.html', 'diagram.html', 'hidden.html', 'diagram.html']);
+});
+
+test('0.32.0 焦点卡：v3 且有在途节点 → cards 首位（views 照旧注入）；2.x 与未知内核不生成', () => {
+  const v3 = compileAtlas(diagram(), inFlight('a'), { kernel: V3 });
+  assert.equal(v3.focusCard, true);
+  assert.deepEqual(v3.kernel, V3);
+  assert.deepEqual(v3.out.cards, [{ dot: 'amber', title: FOCUS_CARD_PREFIX + ' 1）', items: ['A（a）'] }]);
+  assert.equal(v3.out.meta.views[0].id, 'current-focus');
+  const v2 = compileAtlas(diagram(), inFlight('a'), { kernel: V2 });
+  assert.equal(v2.focusCard, false);
+  assert.deepEqual(v2.out.cards, []);
+  const unknown = compileAtlas(diagram(), inFlight('a'));
+  assert.equal(unknown.focusCard, false);
+  assert.deepEqual(unknown.kernel, { version: null, profile: 'v2', versionKnown: false });
+});
+
+test('0.32.0 焦点卡所有权：只替换自管卡、作者卡不动；无在途或 2.x 时清除残留；输入不被改；再编译幂等', () => {
+  const d = diagram();
+  d.cards = [{ dot: 'amber', title: FOCUS_CARD_PREFIX + ' 9）', items: ['旧'] }, { dot: 'cyan', title: '作者卡', items: ['x'] }];
+  const author = { dot: 'cyan', title: '作者卡', items: ['x'] };
+  const v3 = compileAtlas(d, inFlight('a'), { kernel: V3 });
+  assert.deepEqual(v3.out.cards, [{ dot: 'amber', title: FOCUS_CARD_PREFIX + ' 1）', items: ['A（a）'] }, author]);
+  assert.deepEqual(compileAtlas(d, inFlight(), { kernel: V3 }).out.cards, [author]);
+  assert.deepEqual(compileAtlas(d, inFlight('a'), { kernel: V2 }).out.cards, [author]);
+  assert.equal(d.cards.length, 2, '输入对象不被改');
+  const again = compileAtlas(v3.out, inFlight('a', 'b'), { kernel: V3, diagramName: 'main' });
+  assert.equal(again.out.cards.filter((c) => c.title.startsWith(FOCUS_CARD_PREFIX)).length, 1);
+  assert.deepEqual(again.out.cards[0].items, ['A（a）', 'B（b）']);
+  assert.equal(again.out.meta.output, v3.out.meta.output);
+});
+
+test('0.32.0 lifecycle：v3 焦点卡用 state label；原图无 cards 时新建', () => {
+  const lc = { schema_version: 1, diagram_type: 'lifecycle', meta: { title: 'L' }, states: [{ id: 's1', type: 'active', label: '运行中', lane: 'main', col: 0 }], transitions: [] };
+  const r = compileAtlas(lc, inFlight('s1'), { kernel: V3 });
+  assert.deepEqual(r.out.cards, [{ dot: 'amber', title: FOCUS_CARD_PREFIX + ' 1）', items: ['运行中（s1）'] }]);
+  assert.equal(Object.hasOwn(compileAtlas(lc, inFlight('s1'), { kernel: V2 }).out, 'cards'), false);
+});
+
+test('0.32.0 compileFiles：回执披露 kernel 与 focusCard（按 archifyBin 旁 package.json 判定）', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'compile-kernel-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(dir, 'skill', 'bin'), { recursive: true });
+  const bin = path.join(dir, 'skill', 'bin', 'archify.mjs');
+  fs.writeFileSync(bin, 'process.exit(0);\n');
+  fs.writeFileSync(path.join(dir, 'skill', 'package.json'), JSON.stringify({ version: '3.0.1' }));
+  const spec = path.join(dir, 'main.json');
+  fs.writeFileSync(spec, JSON.stringify(diagram()));
+  const ledger = path.join(dir, 'state.json');
+  fs.writeFileSync(ledger, JSON.stringify({ schemaVersion: 1, atlas: null, nodes: { a: node('in_progress') } }));
+  const out = path.join(dir, 'compiled.json');
+  const r = compileFiles(spec, ledger, out, { archifyBin: bin });
+  assert.deepEqual(r.injected.kernel, V3);
+  assert.equal(r.injected.focusCard, true);
+  assert.equal(JSON.parse(fs.readFileSync(out, 'utf8')).meta.output, 'main.html');
+  const r2 = compileFiles(spec, ledger, out, { archifyBin: path.join(dir, 'missing.mjs') });
+  assert.deepEqual(r2.injected.kernel, { version: null, profile: 'v2', versionKnown: false });
+  assert.equal(r2.injected.focusCard, false);
+});
+
+// —— 整分支审阅修复（0.32.0）——
+test('焦点卡所有权只认 atlas 精确格式：作者卡标题恰好以同一前缀开头也不被删', () => {
+  const d = diagram();
+  const author = { dot: 'amber', title: FOCUS_CARD_PREFIX + '项说明）', items: ['作者写的'] };
+  const authorCyan = { dot: 'cyan', title: FOCUS_CARD_PREFIX + ' 3）', items: ['不同颜色也是作者的'] };
+  d.cards = [author, authorCyan];
+  assert.deepEqual(compileAtlas(d, inFlight(), { kernel: V2 }).out.cards, [author, authorCyan]);
+  assert.deepEqual(compileAtlas(d, inFlight('a'), { kernel: V3 }).out.cards.slice(1), [author, authorCyan]);
+});
+
+test('portableOutputOf：保留名带扩展（con.v2）与超长名也产出 v3 可接受的路径', () => {
+  assert.equal(portableOutputOf('con.v2'), 'diagram-con.v2.html');
+  assert.equal(portableOutputOf('AUX.draft'), 'diagram-AUX.draft.html');
+  const long = portableOutputOf('x'.repeat(400));
+  assert.ok(long.length <= 200 && long.endsWith('.html'), long.length);
 });

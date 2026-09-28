@@ -16,6 +16,9 @@ export function fakeArchifySource(opts = {}) {
     extraDeliver = '{}',
     extraValidate = '{}',
     extraVisual = '{}',
+    extraCheck = '{}',
+    checkExit = 0,
+    probe = null,
   } = opts;
   const visualBranch = visualizeScript === null
     ? `const receipt = { schemaVersion: 1, ok: ${visualStatus === 'pass' ? 'true' : 'false'}, command: 'visual-check', status: '${visualStatus}', visualReview: 'pending',
@@ -35,6 +38,7 @@ const cmd = argv[0];
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 const specPath = argv[2];
 const outPath = argv[3];
+if (${JSON.stringify(probe)}) fs.appendFileSync(${JSON.stringify(probe)}, JSON.stringify({ cmd, argv, updateCheckDisabled: process.env.ARCHIFY_UPDATE_CHECK_DISABLED || null }) + '\\n');
 if (cmd === 'validate') {
   const receipt = { schemaVersion: 1, ok: true, command: 'validate', type: argv[1], input: specPath, checks: [{ name: 'composition', ok: true }], composition: { profile: 'showcase', status: 'pass', summary: { errors: 0, warnings: 0 } } };
   Object.assign(receipt, ${extraValidate});
@@ -45,7 +49,7 @@ if (cmd === 'deliver') {
   const html = '<html><body>ok</body></html>';
   if (${mutateOutPath}) { fs.mkdirSync(path.dirname(outPath), { recursive: true }); fs.writeFileSync(outPath, html); }
   const spec = fs.readFileSync(specPath);
-  const receipt = { schemaVersion: 1, ok: true, command: 'deliver', type: argv[1], input: specPath, output: outPath,
+  const receipt = { schemaVersion: 1, ok: true, command: 'deliver', type: argv[1], receiptId: 'rid-1', input: specPath, output: outPath,
     specification: { sha256: sha(spec), bytes: spec.byteLength },
     artifact: { sha256: sha(Buffer.from(html)), bytes: Buffer.byteLength(html) },
     validation: { checksPassed: 1, checkCount: 1, compositionProfile: 'showcase', compositionStatus: 'pass', errors: 0, warnings: 0 } };
@@ -53,6 +57,14 @@ if (cmd === 'deliver') {
   Object.assign(receipt, ${extraDeliver});
   console.log(JSON.stringify(receipt));
   process.exit(0);
+}
+if (cmd === 'check') {
+  const artifact = argv[1];
+  const buf = fs.readFileSync(artifact);
+  const receipt = { ok: ${checkExit === 0}, file: artifact, artifact: { sha256: sha(buf), bytes: buf.byteLength }, checks: [], composition: {}, provenance: 'current', deliveryReceiptId: 'rid-1' };
+  Object.assign(receipt, ${extraCheck});
+  console.log(JSON.stringify(receipt));
+  process.exit(${checkExit});
 }
 if (cmd === 'visual-check') {
   const artifact = argv[1];
@@ -71,4 +83,11 @@ export function writeFakeArchify(dir, name, opts) {
 
 export function tmpDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix || 'atlas-fake-'));
+}
+
+// v3 假内核：bin/archify.mjs + 上级 package.json（version 决定 gate 的契约族判定）。
+export function writeFakeArchifyV3(dir, opts, version = '3.0.1') {
+  fs.mkdirSync(path.join(dir, 'bin'), { recursive: true });
+  if (version !== null) fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'fake-archify', version }));
+  return writeFakeArchify(path.join(dir, 'bin'), 'archify.mjs', opts);
 }
