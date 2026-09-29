@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { probeArchifyVersion, isBelowBaseline, ARCHIFY_BASELINE } from '../lib/resolve-archify.mjs';
+import { probeArchifyVersion, isBelowBaseline, ARCHIFY_BASELINE, kernelProfile, kernelOf } from '../lib/resolve-archify.mjs';
 import { runDoctor } from '../lib/doctor.mjs';
 import { runGate } from '../lib/gate.mjs';
 import { writeFakeArchify } from './fake-archify.mjs';
@@ -144,4 +144,41 @@ test('gate：visual-check 回执全 pass（status 非 fail）→ 不附摘要（
   assert.ok(r.tail.includes('captures'), '只点名真正失败的子项：' + r.tail);
   assert.ok(!r.tail.includes('containment、'), 'pass 子项不点名');
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+// —— 0.32.0 接驳 v3：契约族判定 ——
+test('kernelProfile：major ≥ 3 → v3；2.x / 预发布按 major；null 与不可解析 → v2 且 versionKnown:false', () => {
+  assert.deepEqual(kernelProfile('3.0.1'), { version: '3.0.1', profile: 'v3', versionKnown: true });
+  assert.deepEqual(kernelProfile('3.0.0-dev.1'), { version: '3.0.0-dev.1', profile: 'v3', versionKnown: true });
+  assert.deepEqual(kernelProfile('2.17.0-dev.1'), { version: '2.17.0-dev.1', profile: 'v2', versionKnown: true });
+  assert.deepEqual(kernelProfile('2.16.0'), { version: '2.16.0', profile: 'v2', versionKnown: true });
+  assert.deepEqual(kernelProfile(null), { version: null, profile: 'v2', versionKnown: false });
+  assert.deepEqual(kernelProfile('garbage'), { version: 'garbage', profile: 'v2', versionKnown: false });
+  const dir = fixtureSkill('3.0.1');
+  assert.equal(kernelOf(path.join(dir, 'bin', 'archify.mjs')).profile, 'v3');
+  assert.deepEqual(kernelOf(null), { version: null, profile: 'v2', versionKnown: false });
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('doctor archify-kernel：披露契约族（v3 含溯源 check；版本未知按 2.x）', () => {
+  const v3 = fixtureSkill('3.0.1');
+  const v2 = fixtureSkill('2.16.0');
+  const bare = fixtureSkill(null);
+  const detail = (dir) => runDoctor({ archifyBin: path.join(dir, 'bin', 'archify.mjs') }).checks.find((c) => c.name === 'archify-kernel').detail;
+  assert.match(detail(v3), /profile=v3（闸链含溯源 check）/);
+  assert.match(detail(v2), /profile=v2/);
+  assert.match(detail(bare), /按 2\.x 闸链/);
+  for (const d of [v3, v2, bare]) fs.rmSync(d, { recursive: true, force: true });
+});
+
+// —— 整分支审阅修复（0.32.0）——
+test('版本探测解析符号链接：npm i -g / npm link 的 PATH 链接指向 v3 bin 时仍判 v3（否则闸链与焦点卡静默降级）', () => {
+  const dir = fixtureSkill('3.0.1');
+  const linkDir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-link-'));
+  const link = path.join(linkDir, 'archify');
+  fs.symlinkSync(path.join(dir, 'bin', 'archify.mjs'), link);
+  assert.equal(probeArchifyVersion(link), '3.0.1');
+  assert.equal(kernelOf(link).profile, 'v3');
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.rmSync(linkDir, { recursive: true, force: true });
 });

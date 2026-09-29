@@ -91,5 +91,5 @@ node "$ATLAS_ENGINE_BIN" state settle --node demo-task --reason 交付 --owner r
 ## 六、验证方式
 
 - 测试：在仓库根运行 `npm test`，结果与耗时以本次输出为准。
-- 门禁：node scripts/verify-contract-freshness.mjs（--help/错误码与 command-contract 对账）及 CI 中其他验证器。
+- 门禁：node scripts/sync-generated.mjs --check（契约附录 A 与 lib/error-codes.mjs 对账）及 CI 中其他验证器。
 - 活样：trace replay --node <示范节点>（10 条三源时间线示范，见早期试点账）

@@ -58,27 +58,33 @@ test('transition 直达 ledger→settled 必须经 settle/import 事件', () => 
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('S3 transition ledger correction leaves corrected event and correction receipt', (t) => {
+// 0.22.0（ADD-SPEC §2.4.2）改钉：transition 不接受 --correction（纠错唯一入口 = state set），bad_args 零写入。
+test('S3 transition rejects --correction as bad_args (single correction entry is state set)', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-transition-guard-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const sidecar = path.join(dir, 'atlas-state.json');
   assert.equal(run(['state', 'set', '--node', 'n', '--axis', 'ledger', '--value', 'backlog', '--reason', 'start', '--owner', '一线席位', '--class', 'task'], sidecar).code, 0);
+  const before = fs.readFileSync(sidecar, 'utf8');
   const result = run(['state', 'transition', '--node', 'n', '--axis', 'ledger', '--from', 'backlog', '--to', 'settled', '--reason', 'repair', '--owner', '一线席位', '--correction'], sidecar);
-  assert.equal(result.code, 0, result.stdout);
-  assert.equal(JSON.parse(fs.readFileSync(sidecar)).nodes.n.history.at(-1).corrected, true);
-  assert.equal(result.receipt.data.receipt.rule, 'A2-correction');
+  assert.equal(result.code, 1, result.stdout);
+  assert.equal(result.receipt.diagnostics[0].rule, 'bad_args');
+  assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
 });
 
 for (const [from, to] of [['in_progress', 'verified'], ['planned', 'cancelled']]) {
-  test('S3 transition correction cannot waive zero-evidence ' + to, (t) => {
+  test('S3 transition cannot reach zero-evidence ' + to + ' (with or without --correction)', (t) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-transition-guard-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     const sidecar = path.join(dir, 'atlas-state.json');
     assert.equal(run(['state', 'set', '--node', 'n', '--axis', 'progress', '--value', from, '--owner', '一线席位', '--reason', 'start', '--class', 'task'], sidecar).code, 0);
     const before = fs.readFileSync(sidecar, 'utf8');
-    const result = run(['state', 'transition', '--node', 'n', '--axis', 'progress', '--from', from, '--to', to, '--owner', '一线席位', '--reason', 'claim', '--correction'], sidecar);
+    const args = ['state', 'transition', '--node', 'n', '--axis', 'progress', '--from', from, '--to', to, '--owner', '一线席位', '--reason', 'claim'];
+    const result = run(args, sidecar);
     assert.equal(result.code, 1, result.stdout);
     assert.equal(result.receipt.diagnostics[0].rule, to + '_requires_evidence');
+    const corrected = run([...args, '--correction'], sidecar);
+    assert.equal(corrected.code, 1, corrected.stdout);
+    assert.equal(corrected.receipt.diagnostics[0].rule, 'bad_args');
     assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
   });
 }

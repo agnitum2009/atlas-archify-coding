@@ -246,3 +246,14 @@ test('init preflights every output against symlink escapes', () => {
     }
   } finally { fs.rmSync(base, {recursive:true, force:true}); }
 });
+
+test('0.32.0 init 模板补 meta.output（archify v3 必填、2.16 接受）', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'init-output-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const r = spawnSync(process.execPath, [BIN, 'init', '--dir', path.join(dir, 'a'), '--title', 'T', '--template', 'demo'], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stdout);
+  const specDir = path.join(dir, 'a', 'spec');
+  const project = fs.readdirSync(specDir)[0];
+  assert.equal(JSON.parse(fs.readFileSync(path.join(specDir, project, 'main.json'), 'utf8')).meta.output, 'main.html');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(specDir, project, 'demo-map.json'), 'utf8')).meta.output, 'demo-map.html');
+});

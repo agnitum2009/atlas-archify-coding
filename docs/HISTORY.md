@@ -3,6 +3,488 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.32.1] - 2026-09-29
+
+v3 生产路径加固。生产内核已切到 archify v3.0.1（裁决回执 rulings/RULINGS-2026-09-29-archify-v3-switch.md：10 项目 143 图双内核普查、49 图修复、
+51 次生产 gate 均走四闸），0.32.0 暂缓的三项 v3 相关 Minor 随之转正。回执形状不变，纯加固。
+
+### Fixed
+
+- v3 的 visual-check 回执（`--require-provenance`）由 gate 自行核对 `provenance=current` 与 `deliveryReceiptId`=本轮 deliver `receiptId`，
+  不再只靠内核退出码——与 check 闸同口径；不符 reason=`visual-check-artifact-mismatch`。2.x 无此契约，不要求。
+- 侧车 gate 留痕（trace detail.result）带 `kernel`：侧车历史可区分一次 gate 走的是 v2 还是 v3（此前只有 gate-detail.jsonl 有）。
+
+### Added
+
+- 测试：v3 visual-check 溯源字段三种不符；v2 不要求溯源字段；v3 停在 deliver 时 gate-detail.jsonl 与侧车留痕都把 check / visual_check 记为 skip 并带 kernel。
+
+### 实证附记
+
+npm test 694 项 691 通过 0 失败 3 跳过（+5 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变。真内核实跑（本机 2.16.0 与 3.0.1）2/2 通过——v3 visual-check 回执溯源字段在真内核上逐项核对成立。
+
+## [0.32.0] - 2026-09-29
+
+接驳 archify v3，双版本兼容 2.16 / 3.x（设计 docs/superpowers/specs/2026-09-29-archify-v3-bridge-design.md；负责人裁定：双版本兼容、焦点卡仅 v3）。
+
+**依据**（2026-09-28/29 实测，本地 archify 3.0.1 克隆与 2.16.0 worktree）：v3 要求 `meta.output`（RELEASES 未载）——atlas 的 init 模板与
+compile 产物都没有，v3 下 gate 在 validate 闸全部失败；v3 退役 `meta.views`，atlas 的「当前焦点」章节静默消失；v3 官方验收链改为
+deliver → 严格溯源 check → 浏览器检查；3.0.1 起 deliver 自带联网更新检查。
+
+### Added
+
+- 内核契约族判定 `kernelProfile` / `kernelOf`（只读 bin 旁 package.json，先解析符号链接以覆盖 `npm i -g` / `npm link` 安装；major ≥ 3 → v3，其余与未知 → v2，`versionKnown` 如实标）。
+- compile：`meta.output` 缺则补 `<图名>.html`（portable；作者已写原样保留）；v3 内核下另加一张 atlas 自管说明卡「当前焦点（在途 n）」置 `cards` 首位
+  （只替换 atlas 生成的精确格式卡——amber 且标题「当前焦点（在途 N）」，作者卡即使同前缀也不动；2.x / 版本未知 / 无在途时不生成并清除残留）；回执 `injected.focusCard`、`injected.kernel`。init 模板补 `meta.output`。
+- gate：v3 闸链 validate → deliver → **check**（`--require-provenance`，核对 ok / file / provenance=current / 产物摘要 / deliveryReceiptId，
+  不符 `check-receipt`、非零 `check-failed`）→ visual_check（加 `--require-provenance`）；2.x 三闸不变。回执 `data.kernel`，v3 `results.check`；
+  gate-detail.jsonl 逐闸记录随实际闸链并带 `kernel`。gate 调 archify 的子进程一律 `ARCHIFY_UPDATE_CHECK_DISABLED=1`。
+- doctor：`archify-kernel` 的 detail 披露 `profile=v2|v3`。
+- `test/archify-real.test.mjs`：真内核集成测试（选跑；设 `ATLAS_REAL_ARCHIFY_V2` / `ATLAS_REAL_ARCHIFY_V3` 时执行）。
+
+### 已知差异（如实记录）
+
+- v3 上游移除了交互式引导章节，atlas 在 v3 下以焦点卡 + 节点 tag 承接，交互式章节不可恢复。
+- 焦点卡不在 2.x 生成：2.16 visual-check 禁首屏纵向溢出，2.16 自带示例加一张五行卡即 `viewer/viewport-overflow`。
+- 部分 lifecycle 图在 2.16 过不了 visual-check：本机 v2.16.0 标签下，内核自带的两个 lifecycle 示例与一张最小三状态图原样都纵向溢出
+  （与 atlas 无关、0.31 同样；v3 下同图通过）。**并非 lifecycle 必然过不了**——umax 的 2.16.0-dev.0 上 demo-b 的 8 状态 lifecycle 三闸全过
+  （2026-09-29 复测更正）：是否溢出取决于具体图的尺寸。
+
+### 非变更（明示拒绝）
+
+- 不接仓库证据（`sources` / `--repo-root`）与 compare；不改 diff；不改 2.x 闸链的调用与回执形状；不提高耦合基线（仍 2.14）。
+- 不改用 `finalize`（不产截图，改过去即丢现有视觉证据）；不单独加 `browser-check`（v3 的 visual-check 已含其全部测量）。
+- 不新增旗标（50/50 已满）、命令、错误码行；不安装 / 升级 archify。
+
+### 实证附记
+
+npm test 689 项 686 通过 0 失败 3 跳过（含整分支审阅修复 3 例）（1 异机、2 真内核选跑）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 141 文件幂等、隐私零命中；--help 49 行不变；投影后的公开树相关测试通过。真内核实跑（本机 2.16.0 worktree 与 3.0.1 克隆，WORKDIR 置 $HOME 下以避开 snap Chromium 的 /tmp 限制）：两版 2/2 通过——架构图全闸（v2 三闸、v3 四闸）、visualReview=pending、进度 tag、2.x 焦点章节、v3 焦点卡、lifecycle tag 注入（v3 全闸）、失败诊断原样带出。
+
+## [0.31.0] - 2026-09-27
+
+共享锚口径并报（设计 docs/superpowers/specs/2026-09-27-shared-anchor-caliber-design.md；负责人裁定方向 A「逐条标注口径」）。
+
+**依据**（umax demo-b 只量实测）：锚文件 797 个中 202 个（25%）被 ≥2 个节点认领；639 个被认领节点里 300 个（47%）没有独占锚；
+coChange 1,846 对中只有 6 对有 ≥3 次两端都经独占锚被触及的提交，1,820 对（98.6%）一次都没有；import 三类关系 75–87% 的 via 样本全依赖共享锚。
+节点级关系与活动在文件层为真，但同一件事两个口径相差 300 倍，此前只报一个且不标注（DEFENSIVE §11）。
+
+### Added
+
+- `facts.coChange[].specificCommits`：与 `commits` 同口径的提交中，两端都经独占锚（只被 1 个节点认领的锚文件）被触及的次数。
+- import 三类关系 `edges` / `specificEdges`：构成关系的文件级 import 边数；其中两端都是独占锚的边数（Go 目录目标：A 在该目录有独占锚）。
+- `order[]` / `recency[]` 的 `firstSpecificAt` / `lastSpecificAt`：首次 / 最近一次经独占锚被触及的提交时刻（全史；从未经独占锚被触及则为 null）；`recency[].specificAnchors`：独占锚文件数。
+- `blindSpots.anchors.shared = { files, nodes, top≤10 }`：共享锚文件数、只有共享锚的节点数、被认领节点最多的共享锚。
+- 读法（契约陈述）：`specificCommits` / `specificEdges` 为 0 = 没有任何一次提交（一条边）两端都经独占锚被触及——每次都至少有一端只经共享锚被触及，另一端可能是它自己的独占锚；`lastSpecificAt` 早于 `lastAt` = 最近活动只来自共享锚文件。
+- import 边按文件级去重：同一文件以不同写法（`'./a.mjs'` 与 `'./a'`）引用同一目标只计 1 条（此前 via 已去重，边数随新字段首次计数即按此口径）。
+
+### 非变更（明示拒绝）
+
+- 不改任何既有字段的值与语义；不过滤、不降权任何关系；不改默认判定口径（方向 B「只按独占锚判定」已否决：会丢掉文档介导的真实关联，且等于替账本做判断）。
+- 不给「应该怎么认领 / 哪些锚该拆」的建议；不改侧车（atlas 不替用户改锚）。
+- 回执顶层字段仍 11；无新旗标 / 错误码 / 侧车字段；trace import（已冻结）与 readBeforeWrite 不动。
+
+### 实证附记
+
+npm test 665 项 664 通过 0 失败 1 异机跳过（+10 例，含整分支审阅修复 3 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变；投影后的公开树 trajectory 测试通过。本机冒烟（atlas-engine 本仓人造共享锚：RELEASES.md 被 5 个节点认领）：回执与 umax 只量脚本逐项一致——coChange 61 对、specificCommits=0 的 16 对、≥3 的 30 对、共享锚 1 个。
+
+## [0.30.1] - 2026-09-27
+
+trace import 冻结（裁决回执 rulings/RULINGS-2026-09-27-trace-import-freeze.md）。
+
+### Changed
+
+- 契约 §8 与 --help 标注 trace import **冻结**：demo-b 实测（umax，事先写死判定标准）会话提名抽样真 0/10——共享锚 `run-gates.sh` 被 25 节点认领致提名扇出
+  （552/733 条权重恰为 20）、Bash 运行脚本被计为读、Bash 推定 writes 8/10 无踪迹；demo-b 的 Claude Code 日志只覆盖到 08-25，主力 harness 无转换器。
+  负责人裁定：保留不删、行为不变、不再投入。
+
+### 非变更（明示拒绝）
+
+- 不删除、不弃用 trace import / 规整事件格式 / 转换器 / readBeforeWrite / sessionEvents / 相关错误码；不改任何输出；不加运行时冻结告警。
+- 不做降噪、不写 一线席位 / pi 转换器。git 回溯（facts / recency / order / blindSpots）不受影响。
+
+### 实证附记
+
+npm test 655 项 654 通过 0 失败 1 异机跳过（无新增——只改文字）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 49 行不变。
+
+## [0.30.0] - 2026-09-27
+
+trace order 盲区披露收敛（设计 docs/superpowers/specs/2026-09-27-blindspots-design.md）。
+
+**依据**：回执顶层字段 0.24.0→0.29.0 由 10 涨到 18，其中 8 个在答同一件事——「atlas 看不见什么、为什么」；每轮实测发现一个盲区就多
+一个兄弟字段。demo-b 的三类盲区（notSeen 89、无主文件 41,570、包名边只有 1 条）同根：证据锚稀疏；atlas 不替用户补锚（写真相），
+能做的只有如实披露——披露应收在一处。本版把 8 个字段收进 `blindSpots`，顶层 18 → 11，预算随之下调到 11。
+
+### Breaking
+
+- (b) 8 个盲区顶层字段收进 `blindSpots = { anchors, nodes, files, imports }`：
+
+  | 旧 | 新 |
+  |---|---|
+  | `anchorsSkipped` | `blindSpots.anchors` |
+  | `notSeen`（列表） | 由 `blindSpots.nodes` 各桶拼出；数量 = `blindSpots.nodes.count` |
+  | `notSeenReasons.<桶>` | `blindSpots.nodes.<桶>` |
+  | `unowned`（分组数组） | `blindSpots.files.groups`；总数 `blindSpots.files.count` |
+  | `unowned`（聚焦 `{ omitted, count }`） | `blindSpots.files`（同形） |
+  | `unownedByRepo` | 去掉；按 `blindSpots.files.groups` 的 repo 求和 |
+  | `importsUnparsed` / `importsNotApplicable` / `importsUnresolved` | `blindSpots.imports.unparsed` / `.notApplicable` / `.unresolved` |
+
+  `nodes.count` = 四桶之和（桶互斥）；`files.count` = 去重后无主文件数 = 各组之和 = 聚焦时 count。聚焦：nodes 收窄、files 只给 count，
+  anchors 与 imports 为全局。`--brief`：nodes 各桶与 files.groups 为 `{ count, top≤10 }`。空态：`nodes` 与 `imports` 均为 `{ status: 'no-anchored-nodes' }`（无锚定文件可解析，不给一组零），anchors、files 照常。
+- `unownedByRepo` 去掉的理由：它按「历史所在仓」计数，groups 按「路径所在仓」归属，是两个口径；0.28.0 复测的 424 条困惑出自两口径并存。
+  依 DEFENSIVE §11 单报并标注口径：契约写明 files 的 repo 是路径归属、不保证该仓自身 git 史含此改动。
+
+### Changed
+
+- 契约治理节：trace order 回执顶层字段预算 18 → 11。契约 §8 写明「import 关系只在两端都有锚的文件之间判定，目标无锚的引用不产生关系、
+  不单独计数（全史口径下其目标必在 blindSpots.files；--since 时 files 只含窗口内改动）」。--help 的 `unowned=无主改动` 改为 `blindSpots=看不见什么及原因〔锚不可用/节点未见/文件无锚/import 未解析〕`（行数不变）。
+- `briefOrder` 从 `lib/trajectory.mjs` 迁到 `lib/trajectory-workspace.mjs`（作用于回执形状）；内核 `computeOrder` 返回形状不变。
+- 单仓路径的无主文件路径统一为 `/`（此前是本机分隔符；顺带修掉 0.28.0 暂缓的 Windows 单仓分隔符问题，Windows 仍标记为未验证）。
+
+### 非变更（明示拒绝）
+
+- 不新增任何信息：无新盲区类别；不算覆盖率百分比（新指标会带来 DEFENSIVE §11 口径问题）；不做 `importsToUnowned`——import 目标在 HEAD 中，
+  必然被提交过，全史口径下无锚即已落在 `blindSpots.files`，盲区已披露，只缺一句说明（已补进契约，并写明 `--since` 时的局限）。
+- 不叫 `coverage`：atlas 已用该词指账本覆盖率百分比（`unowned-oversize-scan`、DEFENSIVE §11 的 `contextView.coverageByContext`）。
+- 不输出任何「应该补锚 / 先补哪里」的建议；排序只是按数量排事实。
+- 不动 order / recency / facts / nominations / repos / commits / totalCommits / span / sessionEvents；不改 anchors 内部键名。
+
+### 实证附记
+
+npm test 655 项 654 通过 0 失败 1 异机跳过（+4 例，既有盲区断言全部迁到新路径；含整分支审阅修复）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变；投影后的公开树 trajectory 测试通过。
+
+## [0.29.1] - 2026-09-27
+
+0.29.0 demo-b 复测（umax）后的反思批 A：修一处解析缺陷，并给 trace order 回执顶层字段立预算。回执形状不变。
+
+**为什么立字段预算**：命令（≤11）与旗标（≤50）有预算，回执字段没有；0.24.0→0.29.0 trace order 顶层字段由 10 涨到 18，
+新增 8 个中 5 个是同一类「为什么看不见」的披露，每轮实测发现一个盲区就多一个兄弟字段。先锁在现值止住增长，
+再由下一批把盲区披露收敛为一处（预期下调预算）。准入：第 0 问——防回执膨胀、保持中后期项目可读；只立约束不改输出，
+不改变何为真、无新侧车字段 / 旗标 / 错误码，--help 不变。
+
+### Fixed
+
+- import 规格先去 `?query` / `#hash` 再解析（demo-b 实测 `../mcp-server.mjs?ops-tools` 被计为 unresolved）；unresolved 报告仍用原规格；
+  `#` 开头的 Node imports 字段写法不解析（按外部忽略，不计 unresolved）。
+- 契约 §8 回执字段表漏列 `unownedByRepo`（0.27.0 起已输出），补上——字段表与实测回执此前不一致，由新测试发现。
+
+### Added
+
+- 契约治理节：trace order 回执顶层字段 ≤18。`test/trajectory-cli.test.mjs` 以契约 §8 字段表为唯一来源，断言实测回执（full 与 --brief）
+  顶层字段与之相同、字段数不超预算；`test/trajectory-workspace.test.mjs` 断言多仓、单仓、无锚定节点空态三条路径字段集合一致。
+  沿命令 / 旗标预算的既有做法（契约写预算、测试断言占用），不放进行数门禁 verify-size-budgets（该门禁只管文本行数，不跑代码）。
+
+### 实证附记
+
+npm test 651 项 650 通过 0 失败 1 异机跳过（+3 例）；字段预算测试经两次反向验证（契约删一字段 → 失败；预算调为 17 → 失败）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变。
+
+## [0.29.0] - 2026-09-27
+
+import 解析覆盖面（设计 docs/superpowers/specs/2026-09-27-import-coverage-design.md）。f-xui（Go）此前 import 类先后事实为零；
+demo-b（TS monorepo）只认相对路径 import；`.sql/.sh` 与真正未解析的语言混在 `importsUnparsed`。本版补齐，只读 HEAD、只出能落到仓内的边。
+
+### Breaking
+
+- (b) `importsUnparsed` 语义收窄：只列「有 import 机制但未解析」的扩展名（如 `.py .sh .css`）；本无 import 的扩展名
+  （文档/数据/配置/`.sql`/图片/无扩展名）移至新字段 `importsNotApplicable`。
+- (c) 同命令同参数 facts 增多：JS/TS 补全 `.tsx/.mts/.cts/.jsx/.cjs` 与 `index.*`、`./a.js → a.ts`、`require()` / `import()` 字面量
+  （字符串字面量内的示例不算）；仓内 `package.json` name 的包名引用（入口 exports/module/main，回退 `src/index.*`、`index.*`）；
+  Go 按最近 `go.mod` 的 module 前缀解析到包目录（该目录下被锚定的非 `_test.go` 文件的节点都是被依赖方，via 形如 `cmd/a.go → internal/b/`）。
+  解析改以 HEAD 文件清单为准：工作树里未提交的新文件不再能被命中。
+- 迁移：依赖 `importsUnparsed` 判断「有无解析缺口」的调用方，同时看新字段 `importsUnresolved.count`。
+
+### Added
+
+- `importsUnresolved: { count, top≤10:[{ file, spec }] }`：仓内相对或包名引用解析失败（file 相对 sourcePath）；第三方包、Go 外部包、跨仓引用不计。
+- `lib/trajectory-imports.mjs`：HEAD 批读（`git cat-file --batch`）+ HEAD 文件清单索引 + 语言登记表；`trajectory.mjs` 旧解析迁出。
+
+Non-Goals：TS 路径别名、跨嵌套仓包名引用、Python、CSS `@import`、shell `source`。
+
+### 实证附记
+
+npm test 648 项 647 通过 0 失败 1 异机跳过（+16 例，含整分支审阅修复 3 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变。
+本机冒烟（合成节点表：每个源码目录一个节点，新旧两版对比）：f-xui（Go，42 节点）builtOn / dependsOnNewer / importSameCommit
+0/0/0 → 13/21/29，unresolved 4（均为 vendored `URI.min.js` 引用未收录的模块）、耗时 243→123ms；atlas-engine 事实不变、unresolved 0、406→86ms；
+Xray-core（Go，167 节点 / 898 文件，本地仅 1 提交）importSameCommit 0 → 1349、unresolved 0、206ms。冒烟发现字符串字面量内的
+`require()` 被误认为引用，已修（RED→GREEN）。整分支审阅修复（均 RED→GREEN）：单仓仓外锚致整批 cat-file 失败（回归）、缺失文件名含空格致其后文件静默丢失、
+含换行路径串位、Go 原始字符串内 import 模板误认、`../` 出仓引用误计 unresolved、未提交 Go 锚作被依赖方。
+
+## [0.28.0] - 2026-09-27
+
+trace order 完整回执瘦身（设计 docs/superpowers/specs/2026-09-27-unowned-grouping-design.md）。demo-b 复测（umax）：full 回执 5.2MB，
+主体是 `unowned` 逐文件路径约 4.16 万条——读不动，也看不出哪块没有归属。
+
+### Breaking
+
+- (b) `unowned` 数组元素由路径字符串改为分组 `{ repo, dir, count, sample }`：按「仓 / 仓内前两层目录」聚合（仓根文件 dir 为 `'.'`），
+  每组附字典序前 ≤3 个样本（相对 sourcePath），按 count 降序；同一路径在顶层旧史与嵌套仓都出现只计一次、归前缀最深的参与仓。
+  各组 count 之和 = `--node` 聚焦时 `{ omitted: 'focus', count }` 的 count。`--brief` 下 `unowned.count` 由文件数改为组数。
+  迁移：逐条读路径的调用方改读 `sample`；需要全量清单的，以 `git log --name-only` 对照证据锚自查。`unownedByRepo`、内核 `computeOrder` 不变。
+
+### 实证附记
+
+npm test 632 项 631 通过 0 失败 1 异机跳过（+3 例：groupUnowned 边界、跨仓去重与聚焦口径、单仓回执形状）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 137 文件幂等、隐私零命中；--help 49 行不变。
+
+## [0.27.1] - 2026-09-27
+
+demo-b 多仓复测（umax，12 仓 / 5127 提交）后的小修与供应链卫生。复测确认 0.27.0 成立：notSeen 286→89（余者全为图谱 spec 的仓外锚）、
+嵌套仓失明归零、跨仓关系零泄漏、全量约 2.4s。
+
+### Fixed
+
+- `--node` 聚焦时 `unowned.count` 与非聚焦 `unowned` 条数口径不一（实测聚焦 42694 vs 非聚焦 41570）：各仓不再各自聚焦，
+  先按 sourcePath 相对路径去重、再在合并层施加聚焦——同一路径在顶层旧史与嵌套仓都出现只计一次。
+- 多仓合并不再让各仓计算随即丢弃的 notSeenReasons（`computeOrder` 增 `withNotSeenReasons`，缺省 true）。
+
+### Changed
+
+- 契约 §8 写明同改口径：按改动发生时所在仓的历史判定（文件后来迁入嵌套仓的，其顶层仓时期的同改仍记 repo:'.'）。
+- CI（本仓与公开投影生成的模板）actions 引用钉到 commit SHA：actions/checkout 与 actions/setup-node 均为 v4.4.0 对应提交；
+  新增 `test/ci-pinning.test.mjs` 守卫任何 `uses:` 必须是 40 位 SHA。主版本未升级（v7 已发布，升级另议）。
+
+### 实证附记
+
+npm test 629 项 628 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 137 文件（+1 守卫测试）幂等、隐私零命中。
+
+## [0.27.0] - 2026-09-27
+
+多仓工作区回溯（设计 docs/superpowers/specs/2026-09-27-multi-repo-workspace-design.md）。demo-b 实测（umax）：1 顶层仓 + ≥6 嵌套独立仓，
+单 sourcePath 模型下 44% 节点 notSeen、业务主体不可见。本版由证据锚推出参与仓，嵌套仓历史纳入回溯。只回溯不规划，不写侧车。
+
+### Breaking
+
+- (c) 同命令同参数，多仓项目输出显著变化：锚在嵌套仓的节点由 notSeen 进入 order / recency；`unowned` 路径基准由仓根改为
+  sourcePath（单仓不变）；sourcePath 不再要求本身是 git 仓（非 git 工作区根合法，其下无锚所在仓才报 project_source_not_git）。
+  迁移：依赖「嵌套仓节点在 notSeen」的调用方改读 `repos` 与 `notSeenReasons`。
+- (c) sourcePath 位于某仓的子目录（不是仓根）且其下无锚所在的嵌套仓：0.26.0 返回 ok 但把节点全部误报 neverCommitted，
+  现报 project_source_not_git 并提示改登记仓根。
+
+### Added
+
+- 回执 `repos: [{ repo, commits, totalCommits, span }]`；`order` / `recency` 条目增 `firstRepo` / `lastRepo`，跨多仓节点增
+  `repos` 明细；`recency` 条目增 `firstSeq` / `firstAt`；`facts.*` 每条增 `repo`（关系只在同仓内判定）；`unownedByRepo`。
+- 任一参与仓 git 失败 → 整体 fail-loud `project_source_not_git` 并点名该仓。空仓（已 init、HEAD 尚无提交）按 0 提交处理，不算读取失败。
+- 整分支审阅修复：空嵌套仓不再让整条命令失败；非 git 工作区根下的散放锚归 outsideRepo（不再误报 neverCommitted，DEFENSIVE §9）；
+  合并 span 按时刻比较（时区偏移混排时字典序≠时序）。
+
+### 实证附记
+
+npm test 626 项 625 通过 0 失败 1 异机跳过（含审阅修复 4 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 136 文件（+2）幂等、隐私零命中。效果复测交 umax（demo-b）。
+
+## [0.26.0] - 2026-09-27
+
+demo-b 真实项目实测（远端 umax，657 节点 / 1633 提交）三项小修。实测确认单仓能力成立（全量约 1.2s、M 级 import 边抽样全对、
+进行中 × 最后活动交叉揪出 2 个账面在做实际停摆的节点），同时暴露：notSeen 不分因（嵌套仓 187 / 仓外 99 混列）、--node 回执
+781KB 未瘦身、recency 不带账本状态需自行联查。最大缺口「多仓工作区」（44% 节点失明）另批设计。
+
+### Breaking
+
+- (b) `--node` 聚焦时 `unowned` 由文件数组改为 `{ omitted: 'focus', count }`：无主改动不属于任何节点，聚焦时只披露计数；
+  不给空数组（空数组会被读成「无无主改动」）。迁移：需要全量无主改动的调用方去掉 `--node` 再取。
+
+### Added
+
+- `recency` 条目并列 `progress` / `ledger`（节点账本状态，缺省 null）——事实并列，不作「停摆」判断。
+- `notSeenReasons`：未被 git 触及的节点按原因分桶——outsideRepo（锚在代码仓外）/ nestedRepo（锚在嵌套独立 git 仓内，顶层历史
+  看不见）/ neverCommitted（锚在仓内但从未进入任何提交）/ mixed，附 `nestedRepos: [{ root, nodes }]`；`notSeen` 字符串数组保持不变。
+- `--node` 聚焦时 `notSeen` / `notSeenReasons` 随之收窄。
+
+### 实证附记
+
+npm test 615 项 614 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过。效果复测交由 umax。
+
+## [0.25.1] - 2026-09-27
+
+最后活动视图（真实项目试跑发现：回答「现在到底什么状态」最有用的是各节点最后一次活动，而非首现——f-xui 14 个模块中 9 个
+首现于同一整体导入提交、排不出先后，但按最后活动一眼可见核心模块自 2021-08 起未再改动）。纯回溯，不作停滞/待办判断。
+
+### Added
+
+- `trace order` 回执增 `recency`（M 级）：每节点 `{ node, lastSeq, lastAt, touches, commitsSince, level }`，按最后活动从新到旧；
+  touches = 触及该节点的提交数，commitsSince = 其最后改动后仓库又产生的提交数。始终按全史计算（`--since` 不得滤掉长期未动的节点），
+  `--node` 聚焦时只留该节点，`--brief` 截为 `{ count, top≤10 }`，无锚定节点 = `{ status: 'no-anchored-nodes' }`。纯增字段，非破坏。
+
+### 实证附记
+
+npm test 612 项 611 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过。真实项目效果测试交由远端 umax 机器执行（负责人安排），本机只做实现与夹具单测。
+
+## [0.25.0] - 2026-09-27
+
+纠正 trace order 的「后来抽出」判定（真实项目试跑发现）。0.24.0 把「B 依赖了比自己晚出现的 A」这一事实直接解读为「A 自 B 抽出」
+并标 M 级——atlas-engine 本仓试跑 60 条中至少 20 条（33%）实为「B 后来才接入新模块 A」，违背证据分级（解读冒充事实）。
+
+### Breaking
+
+- (b) `facts.extractedLater` 移除，改为 `facts.dependsOnNewer`（M 级事实：B 依赖比自己晚出现的 A），每条附可观测事实
+  `wiredAtCreation`（A 首现的提交是否同时改动了 B 中 import A 的文件）。迁移：读 extractedLater 的调用方改读 dependsOnNewer；
+  需要「抽出」判断的改读 `nominations.extractionCandidates`。
+- (b) `nominations` 改为逐列表给状态：`{ readBeforeWrite: [...] | { status: 'no-data' }, extractionCandidates: [...], note }`。
+  0.24.0 无会话事件时整个 nominations 为 `{ status: 'no-data' }`；现改读 `nominations.readBeforeWrite.status`。
+
+### Added
+
+- `nominations.extractionCandidates`（I 级提名）：wiredAtCreation 为真的 dependsOnNewer 条目，「A 自 B 抽出」只提名不裁决。
+
+### 实证附记
+
+npm test 610 项 609 通过 0 失败 1 异机跳过；sync-generated --check / release-version / size-budgets 通过。atlas-engine 本仓试跑重跑：dependsOnNewer 60 条，其中 wiredAtCreation=true 42 条（进 I 级 extractionCandidates），18 条「B 后来才接入 A」不再被称为抽出。f-xui（Go）试跑另记：9/14 模块首现于整体导入提交、Go import 未解析、共改稀疏——见后续批候选。
+
+## [0.24.0] - 2026-09-27
+
+轨迹回溯（设计 docs/superpowers/specs/2026-09-27-trajectory-precedence-design.md）。回应初衷「轨迹随会话消失」与开放项
+「轨迹自动捕获未做」：回溯已发生开发中**节点之间谁先谁后、谁建于谁之上**，并显化无主改动。只回溯不规划——不排期、不预测、
+不估算、不判优先级；只读派生，不写任何状态轴。
+
+### Added
+
+- `trace import --source <规整事件 JSONL>`：只追加至 `<atlas>/data/<项目>/trajectory.jsonl`，source+session+eventId 幂等去重。
+  内核只认规整事件格式（schemaVersion 1），harness 中立。
+- `trace order [--node] [--since] [--brief]`：git 提交序（非日期）× 节点证据锚归属 → `facts`（M 级：order / builtOn /
+  extractedLater / importSameCommit / coChange）与 `nominations`（I 级提名：会话读后写，批量提及按 1/n 降权）分组输出；
+  `unowned` 列出被改动却无节点锚定的文件；空态分辨 `no-data` / `no-anchored-nodes`；重命名历史前移到最终路径。
+- 整分支审阅修复：`--since` 不再改变先后分类（首现按全史，窗口只收窄输出——修复前窗口内先改 B 后改 A 会被错判为「A 自 B 抽出」的 M 级事实）；
+  import 读 HEAD 版本并去注释（修复前注释里的 import 与未提交改动都会产生 M 级 builtOn）；回执增 `anchorsSkipped` 披露被跳过的相对锚 /
+  git 形态锚及因此无从归属的节点（DEFENSIVE §9：无对象可查不得静默）。
+- `scripts/trajectory-from-claude-code.mjs`：Claude Code 会话 JSONL → 规整事件（本批唯一转换器，公开投影收录）。
+- 错误码 5 个：trajectory_source_unreadable / trajectory_bad_event / trajectory_no_atlas / project_source_missing /
+  project_source_not_git。旗标 `source`、`brief` 作用域扩至 trace（唯一旗标仍 50/50，命令仍 10/11）。
+
+### 设计依据与记录不做
+
+- 探针（atlas-engine 本仓，丢弃式）：git 提取 13 ms、产出约 2.2k token；会话轨迹提取 96 ms、产出约 1.1k token，直接读原始
+  日志约 265 万 token——会话轨迹必须本地投影。移植外部 harness 的事件模型，不复制其代码。
+- 不做：其他 harness 转换器、先后关系注入图谱（compile）、手工 trace add 事件迁移——留后续批。
+
+### 实证附记
+
+npm test 609 项 608 通过 0 失败 1 异机跳过（含审阅修复 4 例）；sync-generated --check / release-version / size-budgets 通过，deploy-injection 异机跳过；export-public --selfcheck 134 文件（+6）幂等、隐私零命中。--help 49 行（help 行数门禁 <50：import 与 order 合为一行，不提门禁）。冒烟：init 空账本对本仓 trace order → exit 0、157 提交、order.status=no-anchored-nodes、unowned 186——空态分辨生效。
+
+## [0.23.1] - 2026-09-27
+
+减法批三（commands.mjs 拆分，设计 docs/superpowers/specs/2026-09-27-split-commands-design.md）。纯内部重构：命令、旗标、
+错误码、回执、退出码、`--help` 均不变。
+
+### Changed
+
+- `lib/commands.mjs` 1,425 行 → 注册表 + 帮助文本（≤150 行）；10 个命令实现平铺拆到 `lib/cmd-<族>.mjs`（`lib/` 不建子目录：
+  公开投影与内核计数只枚举一层）。函数体由一次性确定性变换脚本逐字搬运。
+- `runState`（673 行，全仓最大函数）拆为 `stateContext`（前奏：参数/纠错入口/侧车/项目门/席位门）+ `STATE_SUBCOMMANDS`
+  分发表（`hasOwnProperty` 查表，原型链名不命中）+ 11 个子命令函数（最长 `stateSet` ≤120 行）。
+- 新增 `test/cmd-helpers.test.mjs`：锚根 5 助手、`gateOutPlacementDiag`、`stateContext` 三分支的进程内边界测试。
+- `test/surface-consistency.test.mjs` 增结构守卫：commands.mjs ≤150 行且不含 run* 实现；每命令族一个 cmd-*.mjs 且不 import
+  commands.mjs；cmd-* 顶层函数 ≤120 行；lib 其余超长函数只能是白名单（validateLayout 364 / buildReport 317 / runDoctor 276 /
+  runGate 173）且只减不增；cmd-* 的每个 import 须被使用（模块对象须以 名字. 访问——删掉未用的 node:path，使漏解构的 path 报 ReferenceError 而非静默拿到模块）。
+
+### 实证附记
+
+
+## [0.23.0] - 2026-09-27
+
+减法批二（命令面单源化，设计 docs/superpowers/specs/2026-09-27-single-source-surface-design.md）。结构性事实只写一次：
+错误码 = lib/error-codes.mjs，命令与旗标 = COMMANDS/OPTIONS 注册表；契约附录 A 与技能命令速查由 scripts/sync-generated.mjs
+生成。守"副本一致"的两个门禁因无副本可守而删除。命令行为、回执形状、退出码、错误码集合零变化。
+
+### Changed
+
+- **错误码注册表**：92 条自契约附录 A 逐字迁入 `lib/error-codes.mjs`（迁移前后附录数据行 diff = 0）；`diag()` 成为唯一诊断
+  构造器（lib 内 7 份本地助手与 12 处内联字面量收口），未登记码构造即抛错——测试先红，生产 = 顶层 catch exit 2。取代旧门禁
+  "只认四种形态"的静态扫描。
+- **旧门禁盲区补登记**：旧扫描正则 `[a-z][a-z0-9_-]*` 不认带点与大写开头的码，doctor --atlas 的 11 个 `layout.*` 规则码与
+  `P1`–`P6` 从未登记附录 A。以两条模板行 `layout.<rule>`、`P<n>` 登记（模板机制：`<n>` 只放行纯数字后缀），发射码不变。
+- **生成物同步 `scripts/sync-generated.mjs`**：附录 A（← ERROR_CODES）、技能命令速查（← `--help` 原文）、技能副本共享区与
+  metadata.version（原 verify-injection-freshness --write）三处统一写回；`--check` 入 CI 与公开投影；公开树无 integrations
+  时跳过不失败。verify-size-budgets 不再把 generated 标记块内部行计入单件预算（登记新码不撞预算）。
+- **防退化守卫**（整分支审阅修复）：`SIDECAR_OP_CODES` 导出并断言全部已登记（顶层 catch 内 diag 不得抛）；lib/bin
+  内 `diag('…'` / `.code = '…'` / `code: '…'` / `code || '…'` 字面量逐一断言已登记；内联诊断守卫改认任意位置的
+  `rule: '…'`。
+- **预算/旗标/章节对账改单元测试** `test/surface-consistency.test.mjs`：命令 ≤11、旗标 ≤50、每命令旗标 ⊆ usage（只认
+  --help，比旧 flags⊆usage∪契约节更严）、每命令契约章节存在。
+- 技能 SKILL.md：命令速查改为 `--help` 生成块（逐字一致）；「证据锚绝对路径」「compile --previous-receipt」两条并入纪律 8/4；
+  删 v0.10.0 移除历史告示。契约 §5 evidence 历史压成一行，附录说明并入标题行，保 ≤260 行。
+
+### Removed
+
+- `scripts/verify-contract-freshness.mjs（内部件，未随本版发布）`（229 行）、`scripts/verify-injection-freshness.mjs（内部件，未随本版发布）`（116 行）及
+  `test/injection-freshness.test.mjs（内部件，未随本版发布）`；flag-guard 中依赖扫描器的 7 个用例、audit 中扫描器形态用例。CI 门禁 5 → 4。
+- 14 个"关键语义词"检查与 ADAPTER 宽检：命令/旗标已生成，剩余是防纪律散文误删，属内容回归非漂移；部署机
+  `verify-deploy-injection.mjs` 仍以 `injection-terms.mjs` 查部署副本。
+
+### 实证附记
+
+npm test 572 项 571 通过 0 失败 1 异机跳过；sync-generated --check / release-version / deploy-injection（异机跳过）/
+size-budgets 四门禁 ok；export-public --selfcheck 117 文件幂等、隐私零命中；公开树 sync-generated --check exit 0。
+公开树 npm test 514/516：2 个 anchor-roots O1 用例在 main 的投影上同样失败（预先存在，与本批无关）。
+
+## [0.22.1] - 2026-09-27
+
+减法批一（负责人 2026-09-27 令）。方法：清点 → 本质/偶然归类 → 使用证据 → 持有成本 → 移除约束（Tesler）五问；
+本批只做零风险两项——无消费者的导出面与仓内承担历史记录职责的文档。产品行为、回执、退出码零变化。
+
+### Changed
+
+- **导出面清理**：13 个仅在定义文件内部使用的符号去掉 `export`（anchor-roots 4、evidence 3、spec-id 2、
+  atlas-data / gate / notice / state-machine 各 1）；删除生产路径零调用的 `diff.flatten`（3 行包装器）与
+  `state-machine.validateSetWrite`（0.22.0 起被 lib/state-policy.mjs 规则引擎取代，覆盖面由
+  invariant-exhaustive 门禁承担）。lib 6080→6056 行。仍被单元测试直接导入的 10 个生产符号**保留导出**
+  （测试接缝不是死代码；`lineHash` 另有 scripts/reanchor-moved.mjs 消费者）。`flatten` 原守的无原型字典
+  不变量改经公开面 `diffSpecs` 断言。
+- **历史文档归档**：12 份带日期快照（审核摘要、实战反馈 ×2、提案单、事故查证、采纳基线、交接单、方法论拆解、
+  待办清单、升级简报、plan-tree 评估、codegraph 采纳）与 5 份已执行实施计划（原 docs/superpowers/plans/）
+  `git mv` 至 docs/archive/（plans/ 子目录），新增 docs/archive/README.md 说明放入判据。docs/ 根 24→7 件。
+  活引用（README / DEFENSIVE / ADD-PROJECT / command-contract / 两份 SKILL.md / ADAPTER.md /
+  public-projection 测试）同步改写；**本文件旧条目中的路径保持原文**，文件名一一对应可定位。
+  OPTIMIZATION_PROPOSAL_2026-09-14 为 O 系列设计正本且 size-budgets 门禁以其为换入凭据，暂留 docs/ 根。
+
+### 已知副作用
+
+- scripts/verify-size-budgets.mjs（内部件，未随本版发布） 只扫 docs/ 一层，归档件不再受 240 行单件预算约束（当前全部 <240，无实际影响）。
+
+### 实证附记
+
+npm test 568 项 567 通过 0 失败 1 跳过（部署机专属文件异机跳过，设计内）；五门禁全过；export-public --selfcheck
+114 文件幂等、隐私零命中。
+
+## [0.22.0] - 2026-09-26
+
+写入规则收敛批（负责人 2026-09-26 确认）。0.16.0→0.21.2 同族守卫六天九版反复补洞，根因审计：组合规则读写两份实现、
+纠错可豁免范围逐规则散写、提前 return 使规则互相吞噬、单测刻意隔离规则交互、修复范围 = 复核单复现范围。本版
+不再逐例补洞，改为**一条公理 + 全空间门禁**：ADD-SPEC §2.4.2 规则四族（P 路径 / S 状态 / A 权限 / X 外部事实）
+为写入规则唯一规格源，`--correction` 只豁免 P 族。新增规则须先归族并通过 test/invariant-exhaustive.test.mjs。
+
+### Breaking
+
+- (a) `--correction` 只被 `state set` 接受：transition / settle / block / evidence-* 等传入 = `bad_args`（指引
+  `state set --correction`）。此前 transition 上的纠错可豁免 `settled_requires_event` 与（0.21.2 起）
+  `cancelled_requires_clean`，其余子命令静默忽略旗标。
+- (a) 组合表不可纠错：`set --correction` 不再能写出 `cancelled × ledger≠clean`（0.21.1/0.21.2 的「直接放行，
+  孤儿照落」通道关闭）；settled 半边由「只拦直达事件」收口为组合判定，新码 `settled_requires_verified`
+  ——纠错直达 settled 须写后 progress=verified。补救均有表内路径（先 ledger --correction 核销 / 先使 verified）。
+- (a) 证据不可纠错：`set --correction` 不再豁免 `verified_requires_evidence` / `cancelled_requires_evidence`
+  （含 init 首写）与 `evidence_unresolvable`，与 `--help`「不免除…证据」、report 读边「零证据 verified 恒为 error」、
+  evidence-remove「纠错也不能删最后一条证据」对齐。0.17.0 为清理存量保留的零证据出口由同版 `state import` 取代；
+  现须先 `evidence-add` 再纠错。`set ledger→settled`（纠错）同样要求证据非空且可解析。
+- (a) S 族按「改动成员字段」执法：cancelled×backlog、in_progress×settled 等存量表外节点，改动 progress/ledger
+  的写入写后须回到表内（修复写仍可达，见可达性证明）；truth/class/同值写不受影响。
+
+### Fixed
+
+- 0.21.2 回归：组合守卫命中后提前 return 跳过证据守卫——`transition --correction` 可把 planned×backlog 零证据
+  节点写成 cancelled（契约 §2 明文 transition 纠错不豁免证据）。一次写入的违规现全部报出（P、A、S、X 序），
+  不再「修一个冒一个」；transition 的违表不再先于证据/回执短路。
+- 契约 report 约束段恢复 0.21.1 压缩行数时误删的 A1 报码说明与「存量清洗（0.17.0）」指引。
+- 契约保鲜扫描看不见组合两码（`out.push` 字面量不在采集形态内，删附录行不报错，0.19.1 同型盲区）：组合表改为
+  声明式 `CROSS_AXIS_RULES`，90 码全覆盖、零宽容 warning。
+
+### Added
+
+- history 纠错事件在 `corrected: true` 之外增记 `waivedRules: [规则码]`（纯增字段）——此前只有布尔值，
+  事后无法分辨一次纠错绕过了什么。
+- test/invariant-exhaustive.test.mjs：set/transition × progress/ledger × 全部前态 × 证据{无,可解析,不可解析}
+  × 是否纠错 共 1092 例实跑 CLI，对照按 §2.4.2 独立推导的预言（退出码、全部诊断码、零写入、豁免留痕）；
+  可达性模型：16 个表内状态两两可达、14 个表外/违例存量均可修复——收紧纠错不造死路。
+
+### 迁移
+
+  （docs/ADOPTION-BASELINE-2026-08-17.md（内部件，未随本版发布）），cancelled 半边存量 0，影响面限于自动化脚本对 transition 传纠错旗标。
+
 ## [0.21.2] - 2026-09-18
 
 守卫完整性修复批（0.21.1 的 cancelled_requires_clean 经 ds41x 席位独立复核——可证实也可证伪的复核单，实测坐实两个缺陷后收口；新增 6 项先红后绿测试，test/ruling-2026-09-18-followup.test.mjs）。
@@ -95,7 +577,7 @@
 ### Fixed
 
 - `--help` 的 `state transition` 用法补 `--axis …|class`：class 轴（2026-09-10）与 set 用法早已支持，帮助文本此前漏列，属文档与实现不一致（不改实现、不加旗标）。
-- 契约保鲜扫描（scripts/verify-contract-freshness.mjs）此前只采集 `diag('code', …)`、`code = 'code'`、`rule: 'code'` 等直接字面量，漏采策略助手 `requireRule('code', …)` 首参与「首参处以单个标识符条件选码」的三元两个分支——`settled_requires_event`、`cancelled_requires_evidence`、`receipt_not_found`、`receipt_unreadable` 四个仍在发射的码因此被判为“附录历史码”宽容放行（删掉附录行也不报错）。现按有界静态字面量补认上述形态：两分支都计入“已使用”与“必须登记”集合，消息参数（第二实参）里的字符串仍不算错误码；删附录行 = exit 1 逐名列出。局限明示于脚本头部注释（不做通用 JS 数据流分析）。
+- 契约保鲜扫描（scripts/verify-contract-freshness.mjs（内部件，未随本版发布））此前只采集 `diag('code', …)`、`code = 'code'`、`rule: 'code'` 等直接字面量，漏采策略助手 `requireRule('code', …)` 首参与「首参处以单个标识符条件选码」的三元两个分支——`settled_requires_event`、`cancelled_requires_evidence`、`receipt_not_found`、`receipt_unreadable` 四个仍在发射的码因此被判为“附录历史码”宽容放行（删掉附录行也不报错）。现按有界静态字面量补认上述形态：两分支都计入“已使用”与“必须登记”集合，消息参数（第二实参）里的字符串仍不算错误码；删附录行 = exit 1 逐名列出。局限明示于脚本头部注释（不做通用 JS 数据流分析）。
 - 规范整理：补齐 ADD-SPEC 与命令契约中的领域语义、状态迁移、证据守卫及失败边界说明；不据此改动存储模型或状态机。
 
 ## [0.19.0] - 2026-09-15
@@ -1117,4 +1599,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 46 个版本全量保留；派生时丢弃 16 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 64 个版本全量保留；派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

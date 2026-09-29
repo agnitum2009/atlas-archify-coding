@@ -102,7 +102,7 @@ test('import 只登记零执行史节点：in_progress=import_conflict，已 set
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('set 终态守卫：init 直达 settled / backlog→settled 一律 settled_requires_event；--correction 放行并留痕', () => {
+test('set 终态守卫：init 直达 settled / backlog→settled 一律 settled_requires_event；--correction 只豁免该路径规则（0.22.0：写后仍须 verified）', () => {
   const { dir, sidecar, locator } = tmpWorkspace();
   const initDirect = run(['state', 'set', '--node', 'n1', '--axis', 'ledger', '--value', 'settled', '--reason', '直达', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(initDirect.code, 1);
@@ -117,21 +117,36 @@ test('set 终态守卫：init 直达 settled / backlog→settled 一律 settled_
   assert.equal(viaSet.code, 1);
   assert.equal(viaSet.receipt.diagnostics[0].rule, 'settled_requires_event');
 
-  const corrected = run(['state', 'set', '--node', 'n2', '--axis', 'ledger', '--value', 'settled', '--reason', '显式纠错', '--owner', '一线席位', '--correction'], sidecar);
-  assert.equal(corrected.code, 0, corrected.stderr);
-  const last = readSidecar(sidecar).nodes.n2.history.at(-1);
+  // ADD-SPEC §2.4.2：settled ⇒ verified 属 S 族，纠错不豁免——in_progress 节点纠错直达 settled 仍拒。
+  const notVerified = run(['state', 'set', '--node', 'n2', '--axis', 'ledger', '--value', 'settled', '--reason', '显式纠错', '--owner', '一线席位', '--correction'], sidecar);
+  assert.equal(notVerified.code, 1, notVerified.stdout);
+  assert.deepEqual(notVerified.receipt.diagnostics.map((d) => d.rule), ['settled_requires_verified']);
+
+  seed(sidecar, { n3: { owner: '一线席位', truth: 'candidate', progress: 'verified', ledger: 'backlog', evidence: [locator], history: [] } });
+  const corrected = run(['state', 'set', '--node', 'n3', '--axis', 'ledger', '--value', 'settled', '--reason', '显式纠错', '--owner', '一线席位', '--correction'], sidecar);
+  assert.equal(corrected.code, 0, corrected.stdout);
+  const last = readSidecar(sidecar).nodes.n3.history.at(-1);
   assert.equal(last.corrected, true, '纠错通道必须 corrected:true 留痕');
+  assert.deepEqual(last.waivedRules, ['settled_requires_event'], '只记实际豁免的路径规则');
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('set 终态守卫：init/写入 verified 无证据 = verified_requires_evidence；--correction 放行；同值原地写不拦', () => {
-  const { dir, sidecar } = tmpWorkspace();
+test('set 终态守卫：init/写入 verified 无证据 = verified_requires_evidence；--correction 不豁免证据（0.22.0）；同值原地写不拦', () => {
+  const { dir, sidecar, locator } = tmpWorkspace();
   const initDirect = run(['state', 'set', '--node', 'v1', '--axis', 'progress', '--value', 'verified', '--reason', '直达', '--owner', '一线席位', '--class', 'task'], sidecar);
   assert.equal(initDirect.code, 1);
   assert.equal(initDirect.receipt.diagnostics[0].rule, 'verified_requires_evidence');
 
   const corrected = run(['state', 'set', '--node', 'v1', '--axis', 'progress', '--value', 'verified', '--reason', '显式纠错', '--owner', '一线席位', '--correction', '--class', 'task'], sidecar);
-  assert.equal(corrected.code, 0, corrected.stderr);
+  assert.equal(corrected.code, 1, corrected.stdout);
+  assert.equal(corrected.receipt.diagnostics[0].rule, 'verified_requires_evidence');
+
+  // 补救：先建号、补证据，再纠错（planned→verified 违表属 P 族，纠错可豁免）。
+  assert.equal(run(['state', 'set', '--node', 'v1', '--axis', 'class', '--value', 'task', '--reason', '建号', '--owner', '一线席位'], sidecar).code, 0);
+  assert.equal(run(['state', 'evidence-add', '--node', 'v1', '--locator', locator], sidecar).code, 0);
+  const repaired = run(['state', 'set', '--node', 'v1', '--axis', 'progress', '--value', 'verified', '--reason', '显式纠错', '--owner', '一线席位', '--correction'], sidecar);
+  assert.equal(repaired.code, 0, repaired.stdout);
+  assert.deepEqual(readSidecar(sidecar).nodes.v1.history.at(-1).waivedRules, ['illegal_transition']);
 
   // 同值原地写（无状态变更）不触发守卫——否则存量违例节点连 reason 更新都被锁死
   const noop = run(['state', 'set', '--node', 'v1', '--axis', 'progress', '--value', 'verified', '--reason', '原地重写', '--owner', '一线席位'], sidecar);

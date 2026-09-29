@@ -246,7 +246,7 @@ test('CAS 路径：成功操作恰 +1 revision 且锁释放（与 store 测试�
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('S3 cancelled cannot remove last evidence even with correction; removing bad anchors remains possible', (t) => {
+test('S3 cancelled cannot remove last evidence (--correction rejected on evidence-remove); removing bad anchors remains possible', (t) => {
   const { dir, sidecar, a1 } = seedWorkspace('cancel');
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const bad = path.join(dir, 'missing.ts') + ':1';
@@ -254,9 +254,13 @@ test('S3 cancelled cannot remove last evidence even with correction; removing ba
   assert.equal(run(['state', 'set', '--node', 'cancel', '--axis', 'progress', '--value', 'cancelled', '--reason', 'retire', '--owner', '一线席位', '--correction', '--sidecar', sidecar]).code, 0);
   assert.equal(run(['state', 'evidence-remove', '--node', 'cancel', '--locator', a1, '--sidecar', sidecar]).code, 0, 'remaining bad anchor must not block removal');
   const before = fs.readFileSync(sidecar, 'utf8');
-  const rejected = run(['state', 'evidence-remove', '--node', 'cancel', '--locator', bad, '--correction', '--sidecar', sidecar]);
+  const rejected = run(['state', 'evidence-remove', '--node', 'cancel', '--locator', bad, '--sidecar', sidecar]);
   assert.equal(rejected.code, 1, rejected.stdout);
   assert.equal(rejected.receipt.diagnostics[0].rule, 'verified_requires_evidence');
+  assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
+  const withCorrection = run(['state', 'evidence-remove', '--node', 'cancel', '--locator', bad, '--correction', '--sidecar', sidecar]);
+  assert.equal(withCorrection.code, 1, withCorrection.stdout);
+  assert.equal(withCorrection.receipt.diagnostics[0].rule, 'bad_args', '0.22.0：--correction 只被 state set 接受');
   assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
   assert.equal(run(['state', 'evidence-add', '--node', 'cancel', '--locator', a1, '--sidecar', sidecar]).code, 0);
   assert.equal(run(['state', 'evidence-remove', '--node', 'cancel', '--locator', bad, '--sidecar', sidecar]).code, 0);

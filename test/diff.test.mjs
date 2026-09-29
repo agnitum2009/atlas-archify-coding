@@ -2,7 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { diffSpecs, flatten, stateTimeline } from '../lib/diff.mjs';
+import { diffSpecs, stateTimeline } from '../lib/diff.mjs';
 
 test('diffSpecs：added/removed/changed 三类行 + 汇总', () => {
   const base = { schema_version: 1, meta: { title: 'T', quality_profile: 'showcase' }, components: [{ id: 'a', label: 'A' }] };
@@ -70,10 +70,11 @@ test('diffSpecs keeps special segments distinct from nesting and root', () => {
     [{ 'a\\.b': 1 }, { 'a.b': 1 }],
     [{ '': 1 }, 1], [{ '#': 1 }, 1], [{ '': 1 }, { '\\e': 1 }],
   ]) assert.ok(diffSpecs(base, head).rows.length > 0);
-  const flat = flatten(JSON.parse('{"a.b":1,"a\\\\b":2,"":3,"#":4,"__proto__":5,"a":{"b":6}}'));
-  assert.equal(Object.getPrototypeOf(flat), null);
-  assert.deepEqual(Object.keys(flat).sort(), ['\\#', '\\e', '__proto__', 'a.b', 'a\\.b', 'a\\\\b'].sort());
-  assert.equal(flat.__proto__, '5');
+  // 无原型字典不变量经公开面 diffSpecs 断言：__proto__ 键作为普通主题出现，不被原型链吞掉
+  const proto = diffSpecs({}, JSON.parse('{"a.b":1,"a\\\\b":2,"":3,"#":4,"__proto__":5,"a":{"b":6}}'));
+  assert.deepEqual(proto.rows.filter((r) => r.kind === 'added').map((r) => r.subject).sort(),
+    ['\\#', '\\e', '__proto__', 'a.b', 'a\\.b', 'a\\\\b'].sort());
+  assert.deepEqual(proto.rows.find((r) => r.subject === '__proto__'), { subject: '__proto__', kind: 'added', before: null, after: 5 });
   assert.equal(diffSpecs({ a: { b: 1 } }, { a: { b: 2 } }).rows[0].subject, 'a.b');
 });
 

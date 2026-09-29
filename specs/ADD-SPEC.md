@@ -74,10 +74,10 @@
 
 ### 2.4 跨轴事件（一般跨轴操作 vs settled 专用事件）
 
-跨轴写 = 同一事件写两个轴。**一般跨轴操作**（如 block --with-backlog：progress→blocked 且 ledger→backlog 双写）只能走到 settled 之前的状态；**正常路径下写 ledger=settled 的只有 settled 专用事件 settle 与 import**，其余直达（含 set 首写与 transition）一律非法——显式纠错通道 `--correction` 是例外且必须留痕（见 §2.5 与 command-contract §2 写边总则）。
+跨轴写 = 同一事件写两个轴。**一般跨轴操作**（如 block --with-backlog：progress→blocked 且 ledger→backlog 双写）只能走到 settled 之前的状态；**正常路径下写 ledger=settled 的只有 settled 专用事件 settle 与 import**，其余直达（含 set 首写与 transition）一律非法——`state set --correction` 只豁免这条路径规则（settled_requires_event），写后仍须满足 §2.4.2 S/X 族（progress=verified、证据非空且可解析）并留痕。
 
 - 销账事件 settle：前态 progress∈{in_progress,verified} 且 ledger∈{clean,backlog}；同事件写 progress=verified、ledger=settled、history 和 notice，只推进一次 revision。独立 verified 仍可正常销账；仅轴内迁移仍遵循上表，其他前态及重复销账拒绝。
-- 导入事件 import（0.17.0，路线一裁定）：历史/迁移事实的 ledger →settled 与 progress →verified 同事件双写，必须携带 ≥1 条 Evidence；class/source/cutoff 可选，显式 class 校验并留痕，省略 source/cutoff 记为 null（未知）；与 settle 并列为仅有的两条**正常** settled 写入路径——set 直达（含 init 首写）一律非法（纠错通道 --correction 除外，须留痕）。
+- 导入事件 import（0.17.0，路线一裁定）：历史/迁移事实的 ledger →settled 与 progress →verified 同事件双写，必须携带 ≥1 条 Evidence；class/source/cutoff 可选，显式 class 校验并留痕，省略 source/cutoff 记为 null（未知）；与 settle 并列为仅有的两条**正常** settled 写入路径——set 直达（含 init 首写）一律非法（`state set --correction` 除外，受 §2.4.2 约束并留痕）。
 
 #### 2.4.1 progress × ledger 组合表（2026-09-18 负责人裁定；truth 轴与二者正交，无组合约束）
 
@@ -87,7 +87,25 @@
 | verified | 表内 | 表内（待销账） | 表内 |
 | cancelled | 表内 | **表外**（取消的工作不可销账，欠账成孤儿） | **表外** |
 
-两条约束的来源不同：settled ⇒ verified 是 §2.4 双写不变量的成文（写边已由 settled_requires_event 守住）；cancelled ⇒ clean 是**新增观测约束**。执法口径（0.21.1 收口，0.21.2 修正为组合判定）：写入后组合落 cancelled × ledger≠clean 即 failed `cancelled_requires_clean`（exit 1 零写入）——双方向都拦：progress→cancelled 带欠账，或 cancelled 节点经 ledger 轴反向挂账（0.21.1 只拦前一向，ds41x 独立复核实证反向洞后收口）；只拦 progress/ledger 成员轴写入，truth/class 无关轴补记不冻结存量孤儿。补救路径归真：backlog 无 clean 出边（A2 表），核销欠账必经 `state set --axis ledger --value clean --correction`（corrected:true 留痕）再取消；直接 --correction 放行则孤儿照落、读边持续告警。settled ⇒ verified 半边维持 warning 观测（写边已守住，存量为 0.16.x 前直达赋值遗存，与 import_unmarked 同人群，清偿后归零），report 对表外组合发 warning `cross_axis_unlisted`（常开、不阻断、读方不修边）。
+两条约束的来源不同：settled ⇒ verified 是 §2.4 双写不变量的成文；cancelled ⇒ clean 是 2026-09-18 新增约束（取消后欠账无事件可销，成永久孤儿）。两者均属 §2.4.2 的 S 族状态规则，写边按组合判定执法（`settled_requires_verified` / `cancelled_requires_clean`，0.22.0 起不可纠错）；report 对存量表外组合发常开 warning `cross_axis_unlisted`（读方不修边），写边与读边共用同一判定函数（lib/state-machine.mjs `crossAxisUnlisted`）。
+
+#### 2.4.2 写入规则四族与纠错公理（0.22.0，2026-09-26 负责人确认）
+
+每条写入规则按**它约束的对象**恰属一族（互斥且穷尽）；新增规则须先在此归族，归不进或 S/A/X 族要求可纠错 = 须负责人另裁，不得直接写代码。
+
+| 族 | 约束对象 | 规则码 | 可纠错 |
+| --- | --- | --- | --- |
+| P 路径 | 怎么到达（记录的历史） | illegal_transition、settled_requires_event、transition_from_mismatch、import_conflict | **是**（仅 `state set --correction`） |
+| S 状态 | 账本内部现状是否自洽 | 取值域、settled_requires_verified、cancelled_requires_clean、声称⇒证据非空（verified_requires_evidence / cancelled_requires_evidence）、class_required | 否 |
+| A 权限 | 谁有权写 | owner_mismatch、receipt_*、seat_gate、project_prefix_gate | 否 |
+| X 外部事实 | 账本外世界（文件、git） | evidence_unresolvable、anchor_root_*、HEAD 比对 | 否（写边只在产生声称时判定，读边持续判定） |
+
+- **纠错公理**：纠错的目标是一个真实的现状，只能改写错误的路径（P），不能让不自洽的现状（S）、越权（A）或不实的外部依据（X）合法化。现实若在组合表内不可表达 = 模型缺口，走裁定扩表，不走纠错。
+- **唯一入口**：`--correction` 只被 `state set` 接受；其他 state 子命令传入 = bad_args（transition 即「严格沿 P 族迁移」，在其上豁免 P 族自相矛盾）。
+- **S 族执法范围（存量不冻结）**：写入改动了某条 S 规则的成员字段，写后即须满足该规则；未改动其成员字段的写入不因存量违例被拒。成员：组合两规则 = progress、ledger；声称⇒证据按声称分项——verified/cancelled = progress+evidence，settled = ledger+evidence，truth effective/closed = truth+evidence。
+- **X 族时点**：写入使某轴进入声称值（progress→verified、ledger→settled、truth→effective/closed，及 settle/import）时，全部证据锚须可解析；cancelled 只要求非空（取消依据可为非代码锚，2026-09-14 裁定）。
+- **诊断收集**：一次写入的全部违规一并报出（P、A、S、X 顺序），纠错只滤除 P 族；实际豁免时 history 事件记 `corrected: true` 与 `waivedRules: [规则码]`。
+- **可达性**：在本公理下，16 个表内 progress×ledger×有无证据状态两两可达，14 个表外/违例存量状态均可修复回表内（test/invariant-exhaustive.test.mjs 模型断言）。
 
 ### 2.5 真相轴启用协议（2026-08-15 负责人裁定，提案③）
 

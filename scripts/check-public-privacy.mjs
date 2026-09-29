@@ -45,8 +45,8 @@ export const FORBIDDEN_PATHS = [
   // 裁定回执目录（2026-09-14 新增）：裁决/回执天然携带内部项目名、席位名、本机路径与治理用语，
   // 属内部治理档——整体不投影（文件级脱敏不可靠，且回执的价值就在原样可读）。
   /^rulings\//,
-  /^REVIEW\.md$/, /^CHANGELOG\.md$/, /^scripts\/(verify-injection-freshness|verify-deploy-injection|injection-terms|deploy-injection-path|verify-size-budgets|verify-doc-test-count|unowned-oversize-scan|export-public)\.mjs$/,
-  /^test\/(injection-freshness|deploy-injection|public-projection)\.test\.mjs$/,
+  /^REVIEW\.md$/, /^CHANGELOG\.md$/, /^scripts\/(verify-deploy-injection|injection-terms|deploy-injection-path|verify-size-budgets|verify-doc-test-count|unowned-oversize-scan|export-public)\.mjs$/,
+  /^test\/(sync-generated|size-budgets-generated|deploy-injection|public-projection)\.test\.mjs$/,
 ];
 
 // 唯一自我豁免：本文件必须含它要猎的词，故无法自扫。豁免的可核性由导出器保证——
