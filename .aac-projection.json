@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.32.0",
+  "sourceVersion": "0.32.1",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "07f9db0d8ca26b28"
+      "sha256": "316983be8a7b67aa"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "b641d2fade7f2c5d"
+      "sha256": "c18ae4b6827d0ac2"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -93,7 +93,7 @@
     },
     {
       "path": "lib/cmd-gate.mjs",
-      "sha256": "a85b4338a34d0527"
+      "sha256": "146782ea432f14ec"
     },
     {
       "path": "lib/cmd-init.mjs",
@@ -149,7 +149,7 @@
     },
     {
       "path": "lib/gate.mjs",
-      "sha256": "ee90990a20474f01"
+      "sha256": "a6e4f6ed705780c8"
     },
     {
       "path": "lib/init.mjs",
@@ -225,7 +225,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "6e09fd856dbe159c"
+      "sha256": "064b094031a7722c"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -273,7 +273,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "9a2d12fcaf65122e"
+      "sha256": "b461db1e69caa8eb"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -297,7 +297,7 @@
     },
     {
       "path": "test/archify-v3-gate.test.mjs",
-      "sha256": "cb67cccba3081428"
+      "sha256": "af502f3b5d03f2e6"
     },
     {
       "path": "test/atlas-data.test.mjs",
@@ -377,7 +377,7 @@
     },
     {
       "path": "test/fake-archify.mjs",
-      "sha256": "b40cac7fedc60be7"
+      "sha256": "859b549010cddf08"
     },
     {
       "path": "test/field-2026-08-23.test.mjs",

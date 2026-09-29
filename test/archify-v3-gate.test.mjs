@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { runGate, gateNamesFor } from '../lib/gate.mjs';
+import { spawnSync } from 'node:child_process';
 import { writeFakeArchifyV3 } from './fake-archify.mjs';
 
 function setup(t, opts = {}, version = '3.0.1') {
@@ -85,4 +86,49 @@ test('版本未知（无 package.json）：按 v2 闸链，kernel.versionKnown=f
   assert.deepEqual(r.kernel, { version: null, profile: 'v2', versionKnown: false });
   const missing = runGate(f.spec, f.out, path.join(f.dir, 'nope.mjs'));
   assert.deepEqual([missing.final, missing.stage, missing.kernel], ['fail', 'archify-missing', null]);
+});
+
+// —— 0.32.1（umax 切到 v3 后，三项暂缓 Minor 转正）——
+for (const [name, extra] of [
+  ['provenance 非 current', "{ provenance: 'unknown' }"],
+  ['deliveryReceiptId 不符', "{ deliveryReceiptId: 'other' }"],
+  ['缺溯源字段', '{ provenance: undefined, deliveryReceiptId: undefined }'],
+]) {
+  test('0.32.1 v3 visual-check 回执溯源：' + name + ' → visual-check-artifact-mismatch（与 check 闸同口径，不只靠内核退出码）', (t) => {
+    const f = setup(t, { extraVisual: extra });
+    const r = runGate(f.spec, f.out, f.bin);
+    assert.deepEqual([r.final, r.stage, r.reason], ['fail', 'visual-check', 'visual-check-artifact-mismatch'], r.tail);
+    assert.match(r.tail, /溯源/);
+  });
+}
+
+test('0.32.1 v2 visual-check 回执不要求溯源字段（2.x 无此契约）', (t) => {
+  const f = setup(t, { extraVisual: '{ provenance: undefined, deliveryReceiptId: undefined }' }, '2.16.0');
+  assert.equal(runGate(f.spec, f.out, f.bin).final, 'pass');
+});
+
+test('0.32.1 v3 停在 deliver：gate-detail.jsonl 与侧车留痕都把 check / visual_check 记为 skip，并带 kernel', (t) => {
+  const atlas = fs.mkdtempSync(path.join(os.tmpdir(), 'gate-v3-atlas-'));
+  t.after(() => fs.rmSync(atlas, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(atlas, 'state'), { recursive: true });
+  fs.mkdirSync(path.join(atlas, 'spec', 'demo'), { recursive: true });
+  const spec = path.join(atlas, 'spec', 'demo', 'demo.json');
+  fs.writeFileSync(spec, JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'x', output: 'out.html' }, components: [] }));
+  fs.writeFileSync(path.join(atlas, 'state', 'projects.json'), JSON.stringify({ schemaVersion: 1, projects: [{ project: 'demo', umbrella: 'demo-add', sidecar: 'atlas-demo.json' }] }));
+  const sidecar = path.join(atlas, 'state', 'atlas-demo.json');
+  fs.writeFileSync(sidecar, JSON.stringify({ schemaVersion: 1, revision: 0, nodes: {} }, null, 2) + '\n');
+  const bin = writeFakeArchifyV3(path.join(atlas, 'skill'), { extraDeliver: '{ ok: false }' });
+  const cliBin = new URL('../bin/atlas-engine.mjs', import.meta.url).pathname;
+  const r = spawnSync(process.execPath, [cliBin, 'gate', '--diagram', spec, '--out', path.join(atlas, 'out.html'), '--sidecar', sidecar],
+    { encoding: 'utf8', env: { ...process.env, ARCHIFY_BIN: bin } });
+  assert.equal(r.status, 1, r.stdout);
+  const log = path.join(atlas, 'data', 'demo', 'gate-detail.jsonl');
+  const e = JSON.parse(fs.readFileSync(log, 'utf8').trim().split('\n').pop());
+  assert.equal(e.stage, 'deliver');
+  assert.equal(e.kernel.profile, 'v3');
+  assert.deepEqual(Object.keys(e.gates), ['validate', 'deliver', 'check', 'visual_check']);
+  assert.deepEqual([e.gates.check.status, e.gates.visual_check.status], ['skip', 'skip']);
+  const trace = JSON.parse(fs.readFileSync(sidecar, 'utf8')).trace.pop();
+  assert.deepEqual(trace.detail.result.kernel, { version: '3.0.1', profile: 'v3', versionKnown: true });
+  assert.deepEqual([trace.detail.result.gateDetail.check.status, trace.detail.result.gateDetail.visual_check.status], ['skip', 'skip']);
 });

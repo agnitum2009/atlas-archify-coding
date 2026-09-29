@@ -24,7 +24,7 @@ export function fakeArchifySource(opts = {}) {
     ? `const receipt = { schemaVersion: 1, ok: ${visualStatus === 'pass' ? 'true' : 'false'}, command: 'visual-check', status: '${visualStatus}', visualReview: 'pending',
     artifact: { path: artifact, sha256: sha(buf), bytes: buf.byteLength },
     containment: { status: '${visualStatus}' }, readability: { status: '${visualStatus}' }, viewerChrome: { status: '${visualStatus}' }, captures: { status: '${visualStatus}' },
-    sidecars: { receipt: 'x.visual-check.json', contactSheet: 'x.visual-check.html' } };
+    sidecars: { receipt: 'x.visual-check.json', contactSheet: 'x.visual-check.html' }, provenance: 'current', deliveryReceiptId: 'rid-1' };
   Object.assign(receipt, ${extraVisual});
   console.log(JSON.stringify(receipt));
   process.exit(${visualStatus === 'pass' ? 0 : 1});`
