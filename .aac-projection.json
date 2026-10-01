@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.34.0",
+  "sourceVersion": "0.34.1",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "7d029ee086d7c5ef"
+      "sha256": "9f7c0f94ffe11544"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "42a1a710dc1d58ba"
+      "sha256": "b3a33053faab4b31"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -157,7 +157,7 @@
     },
     {
       "path": "lib/layout.mjs",
-      "sha256": "835b1042f8033b6e"
+      "sha256": "f54219e6c4e0a1ba"
     },
     {
       "path": "lib/lessons.mjs",
@@ -177,7 +177,7 @@
     },
     {
       "path": "lib/report.mjs",
-      "sha256": "1ad6431819e6f661"
+      "sha256": "3dd05a0509552508"
     },
     {
       "path": "lib/resolve-archify.mjs",
@@ -225,7 +225,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "68bd2a2285e729d3"
+      "sha256": "6753545038ca6258"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -397,11 +397,11 @@
     },
     {
       "path": "test/help-cli.test.mjs",
-      "sha256": "8c8e06b3c5c56cb4"
+      "sha256": "10df51ce154df985"
     },
     {
       "path": "test/init-cli.test.mjs",
-      "sha256": "0f3434a40274bc5d"
+      "sha256": "873df8c074a2bf05"
     },
     {
       "path": "test/invariant-exhaustive.test.mjs",
@@ -521,7 +521,7 @@
     },
     {
       "path": "test/surface-consistency.test.mjs",
-      "sha256": "c42f062a3fb3d085"
+      "sha256": "9dabcb5d80b124a7"
     },
     {
       "path": "test/trace-identity.test.mjs",

@@ -48,6 +48,29 @@ test('结构守卫：commands.mjs ≤150 行且只含注册表；cmd-*.mjs 不 i
   }
 });
 
+test('结构守卫：cmd-*.mjs 顶层函数 ≤120 行；lib 其余超长函数只能是白名单且不超上限', () => {
+  // 白名单 = 0.23.1 拆分时的存量上帝函数及其行数（只减不增；拆掉一个就删一条）。
+  // 0.34.0 曾因 validateLayout +3 行、buildReport +1 行越限而把本守卫整条删除；0.34.1 恢复守卫并把函数收回上限内。
+  const CEILING = { validateLayout: 364, buildReport: 317, runDoctor: 276, runGateChain: 171 };
+  const lib = path.join(ROOT, 'lib');
+  const over = [];
+  for (const f of fs.readdirSync(lib).filter((n) => n.endsWith('.mjs'))) {
+    const lines = fs.readFileSync(path.join(lib, f), 'utf8').split('\n');
+    let name = null;
+    let start = 0;
+    lines.forEach((line, i) => {
+      const m = line.match(/^(?:export )?(?:async )?function ([A-Za-z0-9_]+)/);
+      if (m) { name = m[1]; start = i; }
+      if (name && line === '}') {
+        const n = i - start + 1;
+        const limit = f.startsWith('cmd-') ? 120 : (CEILING[name] ?? 120);
+        if (n > limit) over.push(f + ':' + name + ' ' + n + ' 行 > ' + limit);
+        name = null;
+      }
+    });
+  }
+  assert.deepEqual(over, []);
+});
 
 test('结构守卫：cmd-*.mjs 的每个 import 在非注释代码中都被使用（防遮蔽变量漏解构时静默拿到模块对象）', () => {
   const lib = path.join(ROOT, 'lib');

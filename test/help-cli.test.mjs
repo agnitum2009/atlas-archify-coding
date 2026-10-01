@@ -19,4 +19,20 @@ test('--help：exit 0，十个命令名全部出现，总长 ≤50 行', () => {
   assert.ok(lines.length <= 50, '--help 超 50 行：' + lines.length);
 });
 
+test('--help（0.10.0 移除面）：不再出现 [evidence] 块与 lessons hit 行，替代路径仍在 state/doctor 行内', () => {
+  // 0.34.1 恢复（0.34.0 删除）；原「行数应下降 <50」断言不再恢复——行数只由上方 ≤50 预算守，不重钉历史行数。
+  const r = spawnSync(process.execPath, [BIN, '--help'], { encoding: 'utf8' });
+  assert.equal(r.status, 0);
+  assert.ok(!r.stdout.includes('[evidence]'), '[evidence] 帮助块应随命令移除');
+  assert.ok(!/^atlas-engine evidence /m.test(r.stdout), 'evidence 顶层命令用法行应移除');
+  assert.ok(!/lessons hit --id/.test(r.stdout), 'lessons hit 用法行应移除（移除注记提及属文档化，非法用行）');
+  assert.ok(r.stdout.includes('state evidence-add'), '替代路径（写）state evidence-add 仍在');
+  assert.ok(r.stdout.includes('[doctor]'), '替代路径（读）doctor 仍在');
+});
 
+test('无参数：等同 --help，exit 0；state 用法行原文保留', () => {
+  const r = spawnSync(process.execPath, [BIN], { encoding: 'utf8' });
+  assert.equal(r.status, 0);
+  assert.ok(r.stdout.includes('atlas-engine state get --node <id> [--sidecar <path>]'));
+  assert.ok(r.stdout.includes('atlas-engine state block --node <id> --reason <text> --owner <o> [--with-backlog] [--sidecar <path>]'));
+});

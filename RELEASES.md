@@ -3,6 +3,20 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.34.1] - 2026-10-01
+
+0.32.1→0.34.0 差异审阅后的纪律补正（裁决回执 rulings/RULINGS-2026-10-01-audit-0.33-0.34.md）。代码行为零变化；不回退 0.34.0。
+
+### Fixed
+
+- 恢复 0.34.0 删除的结构守卫测试（cmd-*.mjs 顶层函数 ≤120 行；lib 超长函数只能是白名单且不超上限）；`validateLayout` 367→362 行、`buildReport` 318→317 行收回白名单上限内（等价改写，无行为变化）。越限的正确处置是收函数，不是删守卫。
+- 恢复 0.34.0 删除而仍成立的测试：init INDEX 两条文案断言、「无参数 = --help」用法行断言、0.10.0 移除面断言（不再重钉历史行数，行数只由 ≤50 预算守）。
+- 补审计批裁决回执：权威链（审计来源、负责人 AE-23 单项例外、负责人合并授权）、仓内可还原的 31 项修复清单、6 项边界债的内容缺口及处置、0.34.0 审阅发现（实测：新 import 解析器在两真实仓上与旧实现逐文件一致；combined diff 语义核对；`gitCommits` 耗时 archify 70ms→1281ms 待 demo-b 实测）。
+
+### 不变
+
+- 不重做 0.33/0.34 任何修复；不改契约与回执形状；不放宽任何预算。
+
 ## [0.34.0] - 2026-10-01
 
 主 Agent 亲自重跑剩余 27 项；仅修当前 0.33.0 实际复现且符合现契约的 21 项。AE-08/12/13/14/24/30 保留边界债；不清洗生产数据、不改 Archify。2026-10-01 经负责人追加授权合并主线，并发布本体及 AAC 0.34.0 正式版本。
@@ -113,36 +127,9 @@ deliver → 严格溯源 check → 浏览器检查；3.0.1 起 deliver 自带联
 
 npm test 689 项 686 通过 0 失败 3 跳过（含整分支审阅修复 3 例）（1 异机、2 真内核选跑）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 141 文件幂等、隐私零命中；--help 49 行不变；投影后的公开树相关测试通过。真内核实跑（本机 2.16.0 worktree 与 3.0.1 克隆，WORKDIR 置 $HOME 下以避开 snap Chromium 的 /tmp 限制）：两版 2/2 通过——架构图全闸（v2 三闸、v3 四闸）、visualReview=pending、进度 tag、2.x 焦点章节、v3 焦点卡、lifecycle tag 注入（v3 全闸）、失败诊断原样带出。
 
-## [0.31.0] - 2026-09-27
-
-共享锚口径并报（设计 docs/superpowers/specs/2026-09-27-shared-anchor-caliber-design.md；负责人裁定方向 A「逐条标注口径」）。
-
-**依据**（umax demo-b 只量实测）：锚文件 797 个中 202 个（25%）被 ≥2 个节点认领；639 个被认领节点里 300 个（47%）没有独占锚；
-coChange 1,846 对中只有 6 对有 ≥3 次两端都经独占锚被触及的提交，1,820 对（98.6%）一次都没有；import 三类关系 75–87% 的 via 样本全依赖共享锚。
-节点级关系与活动在文件层为真，但同一件事两个口径相差 300 倍，此前只报一个且不标注（DEFENSIVE §11）。
-
-### Added
-
-- `facts.coChange[].specificCommits`：与 `commits` 同口径的提交中，两端都经独占锚（只被 1 个节点认领的锚文件）被触及的次数。
-- import 三类关系 `edges` / `specificEdges`：构成关系的文件级 import 边数；其中两端都是独占锚的边数（Go 目录目标：A 在该目录有独占锚）。
-- `order[]` / `recency[]` 的 `firstSpecificAt` / `lastSpecificAt`：首次 / 最近一次经独占锚被触及的提交时刻（全史；从未经独占锚被触及则为 null）；`recency[].specificAnchors`：独占锚文件数。
-- `blindSpots.anchors.shared = { files, nodes, top≤10 }`：共享锚文件数、只有共享锚的节点数、被认领节点最多的共享锚。
-- 读法（契约陈述）：`specificCommits` / `specificEdges` 为 0 = 没有任何一次提交（一条边）两端都经独占锚被触及——每次都至少有一端只经共享锚被触及，另一端可能是它自己的独占锚；`lastSpecificAt` 早于 `lastAt` = 最近活动只来自共享锚文件。
-- import 边按文件级去重：同一文件以不同写法（`'./a.mjs'` 与 `'./a'`）引用同一目标只计 1 条（此前 via 已去重，边数随新字段首次计数即按此口径）。
-
-### 非变更（明示拒绝）
-
-- 不改任何既有字段的值与语义；不过滤、不降权任何关系；不改默认判定口径（方向 B「只按独占锚判定」已否决：会丢掉文档介导的真实关联，且等于替账本做判断）。
-- 不给「应该怎么认领 / 哪些锚该拆」的建议；不改侧车（atlas 不替用户改锚）。
-- 回执顶层字段仍 11；无新旗标 / 错误码 / 侧车字段；trace import（已冻结）与 readBeforeWrite 不动。
-
-### 实证附记
-
-npm test 665 项 664 通过 0 失败 1 异机跳过（+10 例，含整分支审阅修复 3 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变；投影后的公开树 trajectory 测试通过。本机冒烟（atlas-engine 本仓人造共享锚：RELEASES.md 被 5 个节点认领）：回执与 umax 只量脚本逐项一致——coChange 61 对、specificCommits=0 的 16 对、≥3 的 30 对、共享锚 1 个。
-
 ---
 
-更早的 61 个版本（0.1.0 → 0.30.1）：
+更早的 62 个版本（0.1.0 → 0.31.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

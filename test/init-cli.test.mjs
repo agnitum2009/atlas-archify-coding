@@ -47,6 +47,7 @@ test('init 生成 v3 版式（七区 + 项目子目录 + projects.json 注册表
   assert.equal(registry.schemaVersion, 1);
   assert.deepEqual(registry.projects.map((p) => [p.project, p.umbrella, p.sourcePath, p.portals]), [['demo', 'demo-add', null, []]]);
   const index = fs.readFileSync(path.join(dir, 'INDEX.md'), 'utf8');
+  assert.ok(index.includes('七区制'), 'INDEX 未声明目录职责');
   assert.ok(index.includes('demo-map'), 'INDEX 未注册图');
   assert.ok(index.includes('demo-add'), 'INDEX 未注册项目伞目录');
 
@@ -82,6 +83,7 @@ test('init --template：demo 三件落齐；minimal（缺省/显式）不变；�
   assert.equal(sidecar.nodes['demo-a'].progress, 'planned');
   const index = fs.readFileSync(path.join(demoDir, 'INDEX.md'), 'utf8');
   assert.ok(index.includes('demo-map'), 'INDEX 未注册演示图');
+  assert.ok(index.includes('这是演示图，跑通读图→state set→evidence-add→settle→report 全环后可删'), 'INDEX 未写明演示图删除条件');
   assert.ok(demo.receipt.data.created.includes('spec/demo-atlas/demo-map.json'), 'created 清单应含 v3 路径 demo-map.json');
 
   // minimal（缺省）：与既有行为一致，无任何 demo 产物；v3 版式主 spec 落 spec/<项目>/main.json。
