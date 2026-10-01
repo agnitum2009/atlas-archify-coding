@@ -62,3 +62,21 @@ test('readEvents：无文件 = []；已落盘文件被改坏 = trajectory_bad_ev
   fs.writeFileSync(a.data, JSON.stringify(ev()) + '\n' + JSON.stringify(ev({ reads: ['x'] })) + '\n');
   assert.throws(() => readEvents(a.sidecar), (e) => e.code === 'trajectory_bad_event' && /第 2 行/.test(e.message));
 });
+
+test('valid final JSONL record without LF survives append; duplicate imports leave bytes intact', (t) => {
+  const a = atlasSidecar(t);
+  const first = ev({ eventId: 'e0' });
+  const next = ev({ eventId: 'e1' });
+  fs.mkdirSync(path.dirname(a.data), { recursive: true });
+  const oldBytes = JSON.stringify(first);
+  fs.writeFileSync(a.data, oldBytes);
+  const src = path.join(a.dir, 'next.jsonl');
+  fs.writeFileSync(src, JSON.stringify(next) + '\n');
+  assert.deepEqual(readEvents(a.sidecar), [first]);
+  assert.equal(importEvents(a.sidecar, src).appended, 1);
+  assert.deepEqual(readEvents(a.sidecar), [first, next]);
+  assert.equal(fs.readFileSync(a.data, 'utf8').startsWith(oldBytes + '\n'), true);
+  const after = fs.readFileSync(a.data, 'utf8');
+  assert.equal(importEvents(a.sidecar, src).appended, 0);
+  assert.equal(fs.readFileSync(a.data, 'utf8'), after);
+});

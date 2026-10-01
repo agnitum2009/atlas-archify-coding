@@ -85,8 +85,18 @@ node "$ATLAS_ENGINE_BIN" state settle --node demo-task --reason 交付 --owner r
 3. 写状态必须走正规链：set 置 verified 无有效证据会立即被 A3 门禁拒绝；ledger=settled 只经 settle/import。
 4. 侦察件引用的映射载体字段，开工前必须 grep 实测（S5b 首日实证）。
 5. 交付 HTML 默认全图可见 + 当前焦点章节；禁止局部内容版本。
-6. sidecar_conflict = 并发写被 CAS 拦截（store 持锁重读磁盘 revision，不一致即拒绝覆盖）：补救 = 重新 load 最新 sidecar，在其上重放变更再保存；不得强行覆盖。
+6. sidecar_conflict = 并发写被 CAS 拦截：持锁核对存在性与 revision；缺账不等于现存 revision=0。补救 = 重新 load 最新账本并重放变更；不得强行覆盖。新建对象无 revision，已读旧账缺省 0 不代表可在文件消失后重建。
 7. A1 证据 locator 相对运行 root 解析（report --root，缺省 '.'）：跨仓证据须配 --root；locator 失效 = 证据按该 root 不可达，≠ 伪造，先查 root 再下结论。**2026-08-15 批二后**：新锚写入即绝对（state evidence-add 落账前绝对化，见契约 §5），跨仓失效基本绝迹；旧相对锚仍按 --root 解析，doctor evidence-resolvability 会具名提示改为绝对路径（warning 级，不阻断）。
+8. compile 不可原地覆盖 diagram、sidecar、previous-receipt（同路径/链接/inode 均拒绝）；复编用旧产物作 --diagram、成功回执作 --previous-receipt、**另一个**输出作 --out。需要输入整份字节不变时加 --no-trace。
+9. init 先检查所有计划输出，任一占用即拒绝；已有非冲突目录可复用，不把多文件初始化当事务。
+10. 锚根门激活时，悬空链接拒绝；完成声称重新检查真实目标授权。`--allow-root` 只管本条命令，落锚时授权过的根，settle/import 或进入完成状态时仍需显式传入。普通根内待创建路径可落锚，但不可作为可解析的完成证据。
+11. transition 同值也过迁移表（三轴无自环；class 有）；重述现状用 set。block 不绕过跨轴组合表。
+12. report/doctor 按真实目标文件检查 HEAD，仓外链接不能遮蔽脏行。批量移锚保留各锚哈希；回填备份独占创建，不覆盖竞争文件。
+13. trace order 不把跨行字符串里的 import 示例算成 M；不可靠解析列入 blindSpots.imports.unparsed，而不是猜依赖。
+14. diff/trace 的时间窗按解析时刻而非字符串比较；等价时区与毫秒精度不改变先后。lessons --recent 的无效日期末置，不把未知日期当最新。
+15. notice --seat 两端空白统一处理；report --replay 摘要保留删除锚与限图 spec-ref 的身份，原始历史不改写。
+16. 多 sourcePath 的项目全部参与 SHA 核验；失败候选记 unchecked，不猜成 SHA 不存在。图内同 id 的歧义诊断按每张图保留候选。
+17. trace import 仍冻结；2026-10-01 负责人例外仅修合法末行无 LF 的追加分隔，不新增并发承诺或导入能力。
 
 ## 六、验证方式
 

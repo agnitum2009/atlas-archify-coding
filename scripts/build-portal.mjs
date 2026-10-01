@@ -98,6 +98,9 @@ function todayISO(now) {
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+// 文件系统路径先逐段 URL 编码，再由模板做 HTML 转义；#/?/% 不是路径数据分隔符。
+const urlPath = (p) => p.split('/').map(encodeURIComponent).join('/');
+
 
 function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -280,8 +283,8 @@ function buildPortal(opts) {
   categorized.sort((a, b) => catOrder.indexOf(a.cat) - catOrder.indexOf(b.cat));
 
   // 相对链接：门户在 <根>/<伞名>/<伞名>-<日期>/ 两级深度，向上退两级再入区（零拷贝）。
-  const relArtifact = (moduleName, file) => '../../artifacts/' + project + '/' + moduleName + '/' + file;
-  const relEvidence = (id, png) => '../../evidence/' + project + '/' + id + '/' + png;
+  const relArtifact = (moduleName, file) => urlPath('../../artifacts/' + project + '/' + moduleName + '/' + file);
+  const relEvidence = (id, png) => urlPath('../../evidence/' + project + '/' + id + '/' + png);
 
   const catAnchor = (cat) => 'cat-' + cat.replace(/[^a-zA-Z0-9\u4e00-\u9fff]+/g, '-');
   const nav = categorized.length > 1
@@ -553,7 +556,7 @@ function buildRootIndex(opts) {
         const tags = [];
         if (i === 0) tags.push('最新');
         if (curHit !== null && curHit.date === p.date) tags.push('★ 现行');
-        return '<li><a href="' + esc(p.link) + '">' + esc(p.date) + (tags.length > 0 ? '（' + tags.join(' · ') + '）' : '') + '</a></li>';
+        return '<li><a href="' + esc(urlPath(p.link)) + '">' + esc(p.date) + (tags.length > 0 ? '（' + tags.join(' · ') + '）' : '') + '</a></li>';
       });
       // 声明与最新不一致（或声明期不在列表）⇒ 卡内明说，不静默以最新代现行。
       let curNote = '';
@@ -578,7 +581,7 @@ function buildRootIndex(opts) {
     if (v2portals.length > 0) {
       hasPortal = true;
       const latest = v2portals[v2portals.length - 1];
-      v2Html = '<p class="muted">v2 平铺门户（建议迁移）：<a href="' + esc(latest.dir + '/index.html') + '">' + esc(latest.dir) + '</a>（初始化 ' + esc(fmtYYMMDD(v2portals[0].date)) + ' · 最近重扫 ' + esc(fmtYYMMDD(latest.date)) + '）</p>';
+      v2Html = '<p class="muted">v2 平铺门户（建议迁移）：<a href="' + esc(urlPath(latest.dir + '/index.html')) + '">' + esc(latest.dir) + '</a>（初始化 ' + esc(fmtYYMMDD(v2portals[0].date)) + ' · 最近重扫 ' + esc(fmtYYMMDD(latest.date)) + '）</p>';
     }
     if (!hasPortal) {
       blocks.push('<p class="muted">（无门户：node scripts/build-portal.mjs --atlas &lt;根&gt; --project ' + esc(proj) + '）</p>');

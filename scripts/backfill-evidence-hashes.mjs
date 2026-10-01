@@ -57,15 +57,16 @@ if (!fs.existsSync(backupDir) || !fs.statSync(backupDir).isDirectory()) {
   backupFallback = true;
   console.error(SCRIPT + ' 注意：' + path.join(sidecarDir, '..', 'history') + ' 不存在（不代建）——备份退到侧车同目录 ' + sidecarDir + '；若为七区制图谱请先建 history/ 区再重跑');
 }
-function reserveBackupPath() {
-  // 同日重跑不覆盖既有备份：基名被占则追加 -2/-3 序号（首个空闲位）。
-  let candidate = path.join(backupDir, backupBase);
-  let n = 2;
-  while (fs.existsSync(candidate)) {
-    candidate = path.join(backupDir, backupBase.replace(/\.json$/, '-' + n + '.json'));
-    n += 1;
+function copyBackup() {
+  // 独占创建即占位：不能先 exists 再覆盖；晚到占位（含 symlink）保留，改选下一个序号。
+  for (let n = 1; ; n += 1) {
+    const name = n === 1 ? backupBase : backupBase.replace(/\.json$/, '-' + n + '.json');
+    const candidate = path.join(backupDir, name);
+    try {
+      fs.copyFileSync(sidecarPath, candidate, fs.constants.COPYFILE_EXCL);
+      return candidate;
+    } catch (e) { if (e.code !== 'EEXIST') throw e; }
   }
-  return candidate;
 }
 
 // ---------- 回填 ----------
@@ -117,11 +118,10 @@ for (const [id, node] of Object.entries(sidecar.nodes || {})) {
 // ---------- 写入（先备份再 save；幂等重跑零写入） ----------
 let backupPath = null;
 if (filled > 0) {
-  backupPath = reserveBackupPath();
   try {
-    fs.copyFileSync(sidecarPath, backupPath); // 整份字节级备份：回填前原样快照
+    backupPath = copyBackup(); // 整份字节级备份：回填前原样快照
   } catch (e) {
-    fail('备份失败（已中止，侧车未改动）：' + backupPath + '：' + e.message);
+    fail('备份失败（已中止，侧车未改动）：' + e.message);
   }
   try {
     saveSidecar(sidecarPath, sidecar);

@@ -70,3 +70,42 @@ test('receipt validation fails before overwriting output for wrong identity, dig
   assert.throws(() => compileFiles(f.first, f.ledger, output, { previousReceiptPath: f.receiptPath }), { code: 'bad_input' });
   assert.equal(fs.readFileSync(output, 'utf8'), 'unchanged');
 });
+
+test('compile rejects every read-input alias without changing source, ledger or prior receipt', (t) => {
+  const f = setup(t);
+  const data = compileFiles(f.source, f.ledger, f.first);
+  fs.writeFileSync(f.receiptPath, JSON.stringify({ schemaVersion: 1, command: 'compile', status: 'ok', data }));
+  const inputs = [f.first, f.ledger, f.receiptPath];
+  const before = inputs.map(file => fs.readFileSync(file, 'utf8'));
+  for (const [i, input] of inputs.entries()) {
+    const symlink = path.join(f.b, 'symlink-' + i + '.json');
+    const hardlink = path.join(f.b, 'hardlink-' + i + '.json');
+    fs.symlinkSync(input, symlink);
+    fs.linkSync(input, hardlink);
+    for (const output of [input, symlink, hardlink]) {
+      const r = run(f.b, ['--diagram', f.first, '--sidecar', f.ledger, '--out', output, '--previous-receipt', f.receiptPath]);
+      assert.equal(r.code, 1);
+      assert.equal(r.receipt.diagnostics[0].rule, 'bad_input');
+      assert.deepEqual(inputs.map(file => fs.readFileSync(file, 'utf8')), before);
+    }
+  }
+});
+
+test('compile checks the opened output inode before truncating a late input hardlink', (t) => {
+  const f = setup(t);
+  const output = path.join(f.b, 'late.json');
+  const before = [f.source, f.ledger].map(file => fs.readFileSync(file, 'utf8'));
+  const open = fs.openSync;
+  fs.openSync = function(file, flags, ...rest) {
+    if (file === output && typeof flags === 'number' && (flags & fs.constants.O_WRONLY)) {
+      fs.linkSync(f.source, output);
+    }
+    return open.call(this, file, flags, ...rest);
+  };
+  try {
+    assert.throws(() => compileFiles(f.source, f.ledger, output), { code: 'bad_input' });
+  } finally {
+    fs.openSync = open;
+  }
+  assert.deepEqual([f.source, f.ledger].map(file => fs.readFileSync(file, 'utf8')), before);
+});

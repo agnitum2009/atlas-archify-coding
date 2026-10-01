@@ -172,8 +172,13 @@ function dbEdgeKinds(db, fromRelFiles, toRelFiles) {
      JOIN nodes s ON e.source = s.id JOIN nodes t ON e.target = t.id
      WHERE e.kind != 'contains' AND s.file_path IN (${f}) AND t.file_path IN (${t})`
   );
+  const reverseStmt = db.prepare(
+    `SELECT DISTINCT e.kind AS kind FROM edges e
+     JOIN nodes s ON e.source = s.id JOIN nodes t ON e.target = t.id
+     WHERE e.kind != 'contains' AND s.file_path IN (${t}) AND t.file_path IN (${f})`
+  );
   for (const row of stmt.all(...fromRelFiles, ...toRelFiles)) if (row && EDGE_KINDS.has(row.kind)) out.forward.add(row.kind);
-  for (const row of stmt.all(...toRelFiles, ...fromRelFiles)) if (row && EDGE_KINDS.has(row.kind)) out.reverse.add(row.kind);
+  for (const row of reverseStmt.all(...toRelFiles, ...fromRelFiles)) if (row && EDGE_KINDS.has(row.kind)) out.reverse.add(row.kind);
   return out;
 }
 
@@ -398,17 +403,19 @@ for (const [root, relFiles] of byRepoAll) {
   if (rows.length > CAP * 4) { leakScanTruncated = true; rows.length = CAP * 4; }
   leakRowsScanned += rows.length;
   let n = 0;
-  for (const r of rows) {
-    if (n >= CAP) break;
+  nominationRows: for (const r of rows) {
     const cas = fileToComponents.get(path.resolve(root, r.sf));
     const cbs = fileToComponents.get(path.resolve(root, r.tf));
     if (!cas || !cbs) continue;
     const multiOwner = cas.size > 1 || cbs.size > 1;
     for (const ca of cas) {
       for (const cb of cbs) {
-        if (n >= CAP) break;
         if (ca === cb) continue;
         if (edgeKey.has(`${ca}→${cb}`) || edgeKey.has(`${cb}→${ca}`)) continue;
+        if (n >= CAP) {
+          leakScanTruncated = true;
+          break nominationRows;
+        }
         withoutEdge += 1;
         n += 1;
         if (multiOwner) withoutEdgeMultiOwner += 1;
@@ -447,7 +454,7 @@ const data = {
     unchecked,
     uncheckedNote: '未检查范围：ungrounded=端点无账/无锚；ungroundedDeclared=已声明非账本实体；crossRepo=跨仓归人工；'
       + 'specAnchored=锚为本次 spec 自身；noIndexAnchored=无索引仓且锚非 spec（真未检查）；withoutEvidence=同仓无该边；'
-      + (leakScanTruncated ? '漏边扫描本轮被截断（nominationTruncated.truncated=true），未覆盖全部锚文件对' : '漏边扫描未截断'),
+      + (leakScanTruncated ? '漏边扫描本轮被截断（nominationTruncated.truncated=true），未覆盖全部锚文件／节点提名对' : '漏边扫描未截断'),
   },
   ...(connections.length === 0 ? { note: 'spec 无 connections——本报告是"无对象"，不是"全部有边"' } : {}),
 };
@@ -459,7 +466,7 @@ else {
   const classStr = Object.entries(byClass).map(([k, v]) => `${k}=${v}`).join(' · ') || '无';
   console.log(`edge-reconcile ok（文件级提名，非语义证明）：连接 ${data.connections} · 方向+类型双证 ${typedDirectionalHits} · 文件级方向提名 ${directionalFileLevelHits} · 仅反向 ${reverseOnly} · 类型不符 ${kindMismatch} · 无端点 ${ungrounded}（已声明非账本实体 ${ungroundedDeclared}） · 同仓无据 ${withoutEvidence} · 跨仓边 ${crossRepo} · 图内自锚 ${specAnchored} · 无索引未检查 ${noIndexAnchored} · 漏边 ${withoutEdge}（归属不唯一 ${withoutEdgeMultiOwner}） · N/A 仓 ${naRepos.size}`);
   console.log(`  类型声明面：显式可映射 ${kindDeclaredTyped} · 显式不可映射 ${kindDeclaredUnknown} · 未声明 ${kindUndeclared}（未声明的连接不做类型判定）`);
-  console.log(`  漏边分类（事实标註，不改提名口径）：${classStr}${leakScanTruncated ? ' ｜本轮漏边扫描已截断（cap=' + CAP * 4 + ' 行）' : ''}`);
+  console.log(`  漏边分类（事实标註，不改提名口径）：${classStr}${leakScanTruncated ? ' ｜本轮漏边扫描已截断（行 cap=' + CAP * 4 + '／提名 cap=' + CAP + '）' : ''}`);
   for (const f of findings.slice(0, CAP * 2)) console.log(`  [${f.severity}] ${f.subject} ${f.evidence}`.trim());
   if (findings.length > CAP * 2) console.log(`  …另 ${findings.length - CAP * 2} 条（--cap 可调）`);
 }

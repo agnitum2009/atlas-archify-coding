@@ -41,7 +41,7 @@
 
 | 字段 | 用途（一句） | 出处（源码行号） |
 | --- | --- | --- |
-| revision（根） | CAS 版本号：写前持锁重读磁盘核对，不符拒绝覆盖，写后 +1（2026-08-15 侧车 CAS） | lib/store.mjs:39-43（缺省 0）、184-195 |
+| revision（根） | CAS 持锁重读核对**存在性 + revision**；缺失不是现存 0。load 旧账缺省为 0；无 revision 的新建对象只期待缺失，带 0 的对象期待现存零版。成功写后 +1；消失/后来占位均 sidecar_conflict | lib/store.mjs（readDiskRevision / loadSidecar / saveSidecar） |
 | truthReceipts（节点） | truth 轴前进回执落账 {to, receipt, at}，公理 A5 机器化（2026-08-15 裁定③） | lib/truth-receipt.mjs:37-40 |
 | kind:'meta'（节点） | 账务/元节点自声明，豁免 A1 图账交叉 d 项，a/b/c 证据规则照查（2026-08-15 裁定②） | lib/report.mjs:84-85 |
 | notices[]（根） | 席位间主动通知收件箱；缺省 []，非数组 sidecar_bad_shape（2026-08-15 清单 B3） | lib/store.mjs:45-53、lib/notice.mjs |
@@ -50,6 +50,7 @@
 | trace[].detail 与 kind:'command'（条目） | gate/compile/report 自动留痕的结构化摘要 {command, params, result}（2026-08-15 清单 B1） | lib/trace.mjs:7、24-25 |
 | history[].engine（条目） | 账本语义世系：该条 history 事件由哪个引擎版本写入，回答「这条账是哪个引擎语义写的」（2026-08-15 增长控制开发规范批一#1；lib/version.mjs 启动读一次 package.json） | lib/store.mjs:228-231（appendHistory 单一构造点）；detail 同戳见 lib/cli-util.mjs:80 |
 | evidenceMeta（节点） | 证据锚行哈希 { 锚字符串: { h:目标行 trim 后 sha256 前 12 hex, at:ISO } }：锚内容三态 ok/drifted 判据（锁口② 语义绑定增强 2026-08-16；先例=pi-readseek 的 LINE:HASH 模式；旧侧车无此字段=unhashed 照常，evidence 数组保持纯字符串不动） | lib/commands.mjs（evidence-add 落哈希）、lib/evidence.mjs（lineHash/computeLocatorHash/anchorState）、scripts/backfill-evidence-hashes.mjs（存量回填） |
+批量移锚从原 evidence/evidenceMeta 快照映射全部候选，保留哈希及未知字段，先删全部旧键再立新键；apply 前反验目标哈希，一次 CAS 保存（scripts/reanchor-moved.mjs）。回填备份以 COPYFILE_EXCL 独占复制，遇竞争占位追加序号；不覆盖文件或链接（scripts/backfill-evidence-hashes.mjs）。
 
 非侧车数据文件（0.24.0）：`<atlas>/data/<项目>/trajectory.jsonl`——只追加，一行一个规整轨迹事件 { schemaVersion:1, source, session, eventId, at, tool, reads[], writes[] }（形状见 lib/trajectory.mjs validateEvent）；读方遇坏行 fail-loud（trajectory_bad_event），引擎不自动改写。
 

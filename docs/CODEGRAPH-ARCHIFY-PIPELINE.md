@@ -51,3 +51,5 @@
 - 不用 codegraph 的行号/存在性当最终证据（提名不是证据）。
 
 覆盖口径：只有实际执行同仓索引查询的边才计入 coverage.checked；无索引、跨仓与图内自锚先分类为未检查，显式 kind 不得跳过此范围判断。真实查询后无边才计 withoutEvidence。
+
+反向边核验按两端节点成员判方向，不按锚数量拼接字符串；`--cap` 截断候选时仍披露 `nominationTruncated`。本轮未扩充图型支持：该脚本读取 connections/edges，sequence 的 messages、dataflow 的 flows、lifecycle 的 transitions 仍属于待裁定边界（AE-12），不能把零扫描解读为这些图型全部核验通过。

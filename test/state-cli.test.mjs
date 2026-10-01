@@ -150,3 +150,27 @@ test('state get 的可选 class：历史无该字段则省略、显式 null/空�
   assert.equal(fs.readFileSync(sidecar, 'utf8'), bytesBefore, 'state get 是读命令：账本字节不得变动');
 });
 
+
+test('block rejects legacy in_progress × settled without history or notice writes; legal combinations still block', (t) => {
+  const sc = tmpSidecar();
+  t.after(() => fs.rmSync(path.dirname(sc), { recursive: true, force: true }));
+  const seed = ledger => fs.writeFileSync(sc, JSON.stringify({ schemaVersion: 1, revision: 0, notices: [], nodes: {
+    n: { owner: '一线席位', class: 'debt', progress: 'in_progress', ledger, truth: 'candidate', evidence: [], history: [] },
+  } }));
+  seed('settled');
+  const before = fs.readFileSync(sc, 'utf8');
+  const invalid = run(['state', 'block', '--node', 'n', '--reason', 'blocked', '--owner', '一线席位'], sc);
+  assert.equal(invalid.code, 1, invalid.stdout);
+  assert.equal(invalid.receipt.diagnostics[0].rule, 'settled_requires_verified');
+  assert.equal(fs.readFileSync(sc, 'utf8'), before);
+  for (const [ledger, flags, expected] of [['clean', [], 'clean'], ['clean', ['--with-backlog'], 'backlog'], ['backlog', [], 'backlog']]) {
+    seed(ledger);
+    const valid = run(['state', 'block', '--node', 'n', '--reason', 'blocked', '--owner', '一线席位', ...flags], sc);
+    assert.equal(valid.code, 0, valid.stdout);
+    const after = JSON.parse(fs.readFileSync(sc, 'utf8'));
+    assert.equal(after.nodes.n.progress, 'blocked');
+    assert.equal(after.nodes.n.ledger, expected);
+    assert.equal(after.nodes.n.history.at(-1).kind, 'block');
+    assert.equal(after.notices[0].kind, 'blocked');
+  }
+});

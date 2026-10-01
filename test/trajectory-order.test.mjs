@@ -331,3 +331,54 @@ test('单仓：锚在仓外的 .mjs 不让命令失败；../ 出仓引用不计 
   assert.deepEqual(data.facts.builtOn.map((r) => [r.from, r.to]), [['DB', 'CMD']]);
   assert.deepEqual(data.importsUnresolved, []);
 });
+
+test('trajectory M facts exclude multiline examples, include actual imports, and disclose uncertain parsing', (t) => {
+  const f = repoFixture(t);
+  f.commit({ 'src/a.mjs': 'export const a = 1;\n' }, 'dependency');
+  const example = 'const example = `\nimport { a } from "./a.mjs";\nrequire("./a.mjs");\n`;\n';
+  f.commit({ 'src/b.mjs': example + 'export const b = 1;\n' }, 'example only');
+  const sidecar = f.sidecarOf({ A: ['src/a.mjs'], B: ['src/b.mjs'] });
+  const observe = () => computeOrder({ sidecar, repo: f.repo, commits: gitCommits(f.repo, null), events: [] });
+  const noImport = observe();
+  assert.deepEqual(noImport.facts.builtOn, []);
+  assert.deepEqual(noImport.importsUnparsed, []);
+  f.commit({ 'src/b.mjs': example + 'import { a } from "./a.mjs";\nexport const b = a;\n' }, 'actual import');
+  assert.deepEqual(observe().facts.builtOn.map(r => [r.from, r.to, r.level]), [['A', 'B', 'M']]);
+  f.commit({ 'src/b.mjs': 'import "./a.mjs";\nconst unfinished = `\nrequire("./a.mjs");\n' }, 'uncertain context');
+  const uncertain = observe();
+  assert.deepEqual(uncertain.facts.builtOn, []);
+  assert.deepEqual(uncertain.importsUnparsed, ['.mjs']);
+});
+
+test('merge-only files are committed facts without treating inherited parent paths as merge edits', (t) => {
+  const f = repoFixture(t);
+  f.commit({ 'root.txt': 'Root\n' }, 'root');
+  const base = f.git('branch', '--show-current').trim();
+  f.git('checkout', '-q', '-b', 'topic');
+  f.commit({ 'topic.txt': 'Topic\n' }, 'topic');
+  f.git('checkout', '-q', base);
+  f.commit({ 'main.txt': 'Main\n' }, 'main');
+  f.git('merge', '--no-ff', '--no-commit', 'topic');
+  f.commit({ 'merge-only.mjs': 'export const merged = 1;\n' }, 'merge-only');
+  const sha = f.git('rev-parse', 'HEAD').trim();
+  const commits = gitCommits(f.repo);
+  assert.deepEqual(commits.find(c => c.hash === sha).files, [path.join(f.repo, 'merge-only.mjs')]);
+  const data = wsOf(f, f.sidecarOf({ M: ['merge-only.mjs'] }));
+  assert.deepEqual(data.order.map(n => n.node), ['M']);
+  assert.deepEqual(data.blindSpots.nodes.neverCommitted, []);
+});
+
+test('Git NUL filenames remain literal across quotes, tabs, newlines, Unicode and rename history', (t) => {
+  const f = repoFixture(t);
+  const names = ['a"b.mjs', 'a\tb.mjs', 'a\nb.mjs', '中文.mjs', 'a b.mjs'];
+  f.commit(Object.fromEntries(names.map(name => [name, 'export const value = 1;\n'])), 'special paths');
+  const original = f.git('rev-parse', 'HEAD').trim();
+  assert.deepEqual(gitCommits(f.repo).find(c => c.hash === original).files.sort(),
+    names.map(name => path.join(f.repo, name)).sort());
+  f.git('mv', '--', names[0], 'renamed"file.mjs');
+  f.git('commit', '-q', '-m', 'rename quoted');
+  const commits = gitCommits(f.repo);
+  assert.equal(commits[0].files.includes(path.join(f.repo, names[0])), false);
+  assert.equal(commits[0].files.includes(path.join(f.repo, 'renamed"file.mjs')), true);
+  assert.deepEqual(commits[1].files, [path.join(f.repo, 'renamed"file.mjs')]);
+});

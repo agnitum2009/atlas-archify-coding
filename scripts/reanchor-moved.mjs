@@ -82,22 +82,33 @@ for (const [nodeId, node] of Object.entries(sc.nodes || {})) {
 }
 
 if (APPLY && stats.moved.length > 0) {
+  const byNode = new Map();
   for (const mv of stats.moved) {
-    const node = sc.nodes[mv.node];
-    const evidence = node.evidence || [];
-    const idx = evidence.indexOf(mv.from);
-    if (idx === -1) continue; // 已被并发处理
-    if (mv.from !== mv.to) {
-      evidence.splice(idx, 1);
-      if (evidence.indexOf(mv.to) === -1) evidence.push(mv.to); // 与 evidence-reanchor 同：去重合并
+    const expected = sc.nodes[mv.node].evidenceMeta[mv.from].h;
+    if (computeLocatorHash(mv.to, process.cwd()) !== expected) {
+      console.error(JSON.stringify({ schemaVersion: 1, command: 'reanchor-moved', status: 'failed',
+        diagnostics: [{ rule: 'bad_input', severity: 'error', subject: mv.to,
+          evidence: '移锚目标在计划后变动，整批拒写；请重新 dry-run' }] }, null, 2));
+      process.exit(1);
     }
-    if (node.evidenceMeta && typeof node.evidenceMeta === 'object') delete node.evidenceMeta[mv.from];
-    const h = computeLocatorHash(mv.to, process.cwd());
-    if (h !== null) {
-      node.evidenceMeta = node.evidenceMeta && typeof node.evidenceMeta === 'object' ? node.evidenceMeta : {};
-      node.evidenceMeta[mv.to] = { h, at: new Date().toISOString() };
+    if (!byNode.has(mv.node)) byNode.set(mv.node, []);
+    byNode.get(mv.node).push(mv);
+  }
+  const at = new Date().toISOString();
+  for (const [nodeId, moves] of byNode) {
+    const node = sc.nodes[nodeId];
+    const originalMeta = node.evidenceMeta || {};
+    const targets = new Map(moves.map(mv => [mv.from, mv.to]));
+    // 同一原始快照一次映射：相邻移位/循环不能把尚未处理的源锚当成目标合并掉。
+    const evidence = [...new Set((node.evidence || []).map(loc => targets.get(loc) || loc))];
+    const meta = { ...originalMeta };
+    for (const mv of moves) delete meta[mv.from];
+    for (const mv of moves) {
+      meta[mv.to] = { ...meta[mv.to], ...originalMeta[mv.from], at };
+      appendHistory(node, { at, kind: 'evidence-reanchor', from: mv.from, to: mv.to, via: 'reanchor-moved' });
     }
-    appendHistory(node, { at: new Date().toISOString(), kind: 'evidence-reanchor', from: mv.from, to: mv.to, via: 'reanchor-moved' });
+    node.evidence = evidence;
+    node.evidenceMeta = meta;
   }
   saveSidecar(sidecarPath, sc); // 单进程一次 CAS 保存
 }

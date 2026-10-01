@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { anchorQuality } from '../lib/evidence.mjs';
+import { anchorQuality, computeLocatorHash, anchorState } from '../lib/evidence.mjs';
 
 const BIN = new URL('../bin/atlas-engine.mjs', import.meta.url).pathname;
 const SCRIPT = new URL('../scripts/reanchor-moved.mjs', import.meta.url).pathname;
@@ -119,4 +119,51 @@ test('P0-2 脚本：纯移位自动识别+apply 镜像 reanchor 语义；弱行�
   assert.equal(manual.data.movedCount, 0);
   assert.equal(manual.data.manualCount, 1, '真变不自动');
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('batch reanchor preserves adjacent shifts, cycles, hashes and unmoved metadata from one snapshot', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'batch-reanchor-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const rows = ['alpha-content', 'bravo-content', 'charlie-content'];
+  const cases = [
+    { before: rows, after: ['header-content', ...rows], from: [1, 2, 3], to: [2, 3, 4] },
+    { before: ['header-content', ...rows], after: rows, from: [2, 3, 4], to: [1, 2, 3] },
+    { before: rows, after: [rows[2], rows[0], rows[1]], from: [1, 2, 3], to: [2, 3, 1] },
+  ];
+  for (const [i, c] of cases.entries()) {
+    const dir = path.join(root, String(i));
+    fs.mkdirSync(dir);
+    const file = path.join(dir, 'code.ts'), keepFile = path.join(dir, 'keep.ts'), sc = path.join(dir, 'state.json');
+    fs.writeFileSync(file, c.before.join('\n') + '\n');
+    fs.writeFileSync(keepFile, 'unchanged-content\n');
+    const keep = keepFile + ':1';
+    const evidence = [...c.from.map(line => file + ':' + line), keep];
+    const meta = Object.fromEntries(evidence.map((loc, n) => [loc, { h: computeLocatorHash(loc), at: 'old', extra: n }]));
+    fs.writeFileSync(sc, JSON.stringify({ schemaVersion: 1, revision: 0, nodes: {
+      n: { owner: 'o', progress: 'in_progress', ledger: 'backlog', evidence, evidenceMeta: meta, history: [] },
+    } }));
+    fs.writeFileSync(file, c.after.join('\n') + '\n');
+    const original = fs.readFileSync(sc, 'utf8');
+    const dry = spawnSync(process.execPath, [SCRIPT, '--sidecar', sc], { encoding: 'utf8' });
+    assert.equal(dry.status, 0, dry.stderr);
+    assert.equal(JSON.parse(dry.stdout).data.movedCount, 3);
+    assert.equal(fs.readFileSync(sc, 'utf8'), original);
+    const apply = spawnSync(process.execPath, [SCRIPT, '--sidecar', sc, '--apply'], { encoding: 'utf8' });
+    assert.equal(apply.status, 0, apply.stderr);
+    const node = JSON.parse(fs.readFileSync(sc, 'utf8')).nodes.n;
+    assert.deepEqual(node.evidence, [...c.to.map(line => file + ':' + line), keep]);
+    assert.deepEqual(Object.keys(node.evidenceMeta).sort(), [...node.evidence].sort());
+    for (const [n, loc] of node.evidence.entries()) {
+      assert.equal(node.evidenceMeta[loc].h, meta[evidence[n]].h);
+      assert.equal(node.evidenceMeta[loc].extra, n);
+      assert.equal(anchorState(loc, node.evidenceMeta[loc]), 'ok');
+    }
+    assert.deepEqual(node.evidenceMeta[keep], meta[keep]);
+    assert.equal(node.history.filter(event => event.kind === 'evidence-reanchor').length, 3);
+    const saved = fs.readFileSync(sc, 'utf8');
+    const again = spawnSync(process.execPath, [SCRIPT, '--sidecar', sc, '--apply'], { encoding: 'utf8' });
+    assert.equal(again.status, 0, again.stderr);
+    assert.equal(JSON.parse(again.stdout).data.movedCount, 0);
+    assert.equal(fs.readFileSync(sc, 'utf8'), saved);
+  }
 });

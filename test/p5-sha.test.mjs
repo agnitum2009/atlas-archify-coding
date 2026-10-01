@@ -157,3 +157,59 @@ test('P5 跨仓证据：SHA 属项目 sourcePath 源仓时不再报 broken；两
     fs.rmSync(atlas, { recursive: true, force: true });
   }
 });
+
+test('P5 same-project sources are all candidates and registry order cannot reject a present commit', (t) => {
+  const first = gitRepoWithCommit('p5-first-'), second = gitRepoWithCommit('p5-second-');
+  const atlas = fs.mkdtempSync(path.join(os.tmpdir(), 'p5-multisource-'));
+  t.after(() => { for (const dir of [first.dir, second.dir, atlas]) fs.rmSync(dir, { recursive: true, force: true }); });
+  fs.writeFileSync(path.join(first.dir, 'proof.txt'), 'Distinct first source\n');
+  git(first.dir, ['add', 'proof.txt']);
+  git(first.dir, ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'first-source-only']);
+  const sha = git(first.dir, ['rev-parse', 'HEAD']);
+  scaffoldAtlas(atlas);
+  writeCsv(atlas, ['present,git ' + sha]);
+  const projects = [
+    { project: 'demo', umbrella: 'demo-first-add', sourcePath: first.dir },
+    { project: 'demo', umbrella: 'demo-second-add', sourcePath: second.dir },
+  ];
+  for (const ordered of [projects, [...projects].reverse()]) {
+    fs.writeFileSync(path.join(atlas, 'state/projects.json'), JSON.stringify({ schemaVersion: 1, projects: ordered }));
+    const r = withEnv('ATLAS_GIT_ROOT', undefined, () => validateLayout(atlas));
+    assert.deepEqual(r.diagnostics.filter(d => d.rule === 'p5-sha-broken'), []);
+    assert.deepEqual(r.unchecked.filter(x => !UNCHECKED.includes(x)), []);
+  }
+});
+
+test('P5 missing in one candidate and failed in another is unchecked, not a universal absence fact', (t) => {
+  const repo = gitRepoWithCommit('p5-negative-');
+  const atlas = fs.mkdtempSync(path.join(os.tmpdir(), 'p5-partial-'));
+  const failed = fs.mkdtempSync(path.join(os.tmpdir(), 'p5-failed-source-'));
+  t.after(() => { for (const dir of [repo.dir, atlas, failed]) fs.rmSync(dir, { recursive: true, force: true }); });
+  scaffoldAtlas(atlas);
+  writeCsv(atlas, ['uncertain,git ' + '0'.repeat(40)]);
+  fs.writeFileSync(path.join(atlas, 'state/projects.json'), JSON.stringify({ schemaVersion: 1,
+    projects: [{ project: 'demo', umbrella: 'demo-add', sourcePath: failed }] }));
+  const r = withEnv('ATLAS_GIT_ROOT', repo.dir, () => validateLayout(atlas));
+  assert.deepEqual(r.diagnostics.filter(d => d.rule === 'p5-sha-broken'), []);
+  assert.equal(r.unchecked.some(x => x.includes(failed)), true);
+});
+
+test('P5 failed source in an earlier project cannot skip the later independent source', (t) => {
+  const repo = gitRepoWithCommit('p5-later-');
+  const atlas = fs.mkdtempSync(path.join(os.tmpdir(), 'p5-continue-'));
+  const failed = fs.mkdtempSync(path.join(os.tmpdir(), 'p5-earlier-failed-'));
+  t.after(() => { for (const dir of [repo.dir, atlas, failed]) fs.rmSync(dir, { recursive: true, force: true }); });
+  scaffoldAtlas(atlas);
+  for (const project of ['aa', 'bb']) {
+    fs.mkdirSync(path.join(atlas, 'spec', project));
+    fs.mkdirSync(path.join(atlas, 'data', project));
+    fs.writeFileSync(path.join(atlas, 'data', project, 'progress.csv'), 'item,evidence\nabsent,git ' + '0'.repeat(40) + '\n');
+  }
+  fs.writeFileSync(path.join(atlas, 'state/projects.json'), JSON.stringify({ schemaVersion: 1, projects: [
+    { project: 'aa', umbrella: 'aa-add', sourcePath: failed },
+    { project: 'bb', umbrella: 'bb-add', sourcePath: repo.dir },
+  ] }));
+  const r = withEnv('ATLAS_GIT_ROOT', undefined, () => validateLayout(atlas));
+  assert.deepEqual(r.diagnostics.filter(d => d.rule === 'p5-sha-broken').map(d => d.subject), ['data/bb/progress.csv:2']);
+  assert.equal(r.unchecked.some(x => x.includes(failed)), true);
+});

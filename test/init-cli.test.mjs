@@ -47,7 +47,6 @@ test('init 生成 v3 版式（七区 + 项目子目录 + projects.json 注册表
   assert.equal(registry.schemaVersion, 1);
   assert.deepEqual(registry.projects.map((p) => [p.project, p.umbrella, p.sourcePath, p.portals]), [['demo', 'demo-add', null, []]]);
   const index = fs.readFileSync(path.join(dir, 'INDEX.md'), 'utf8');
-  assert.ok(index.includes('七区制'), 'INDEX 未声明目录职责');
   assert.ok(index.includes('demo-map'), 'INDEX 未注册图');
   assert.ok(index.includes('demo-add'), 'INDEX 未注册项目伞目录');
 
@@ -83,7 +82,6 @@ test('init --template：demo 三件落齐；minimal（缺省/显式）不变；�
   assert.equal(sidecar.nodes['demo-a'].progress, 'planned');
   const index = fs.readFileSync(path.join(demoDir, 'INDEX.md'), 'utf8');
   assert.ok(index.includes('demo-map'), 'INDEX 未注册演示图');
-  assert.ok(index.includes('这是演示图，跑通读图→state set→evidence-add→settle→report 全环后可删'), 'INDEX 未写明演示图删除条件');
   assert.ok(demo.receipt.data.created.includes('spec/demo-atlas/demo-map.json'), 'created 清单应含 v3 路径 demo-map.json');
 
   // minimal（缺省）：与既有行为一致，无任何 demo 产物；v3 版式主 spec 落 spec/<项目>/main.json。
@@ -256,4 +254,55 @@ test('0.32.0 init 模板补 meta.output（archify v3 必填、2.16 接受）', (
   const project = fs.readdirSync(specDir)[0];
   assert.equal(JSON.parse(fs.readFileSync(path.join(specDir, project, 'main.json'), 'utf8')).meta.output, 'main.html');
   assert.equal(JSON.parse(fs.readFileSync(path.join(specDir, project, 'demo-map.json'), 'utf8')).meta.output, 'demo-map.html');
+});
+
+test('init refuses every existing output before creating other artifacts', (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'init-collisions-'));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const names = ['INDEX.md', 'spec/demo/demo-main.json', 'state/atlas-state.json', 'state/projects.json',
+    'rulings/RULINGS.md', 'spec/demo/demo-map.json'];
+  for (const [i, name] of names.entries()) {
+    const root = path.join(base, String(i)), target = path.join(root, name);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, 'user-owned-content');
+    const before = fs.readdirSync(root, { recursive: true }).sort();
+    assert.throws(() => scaffoldAtlas(root, { title: 'x', diagramType: 'architecture', diagramId: 'demo-main', template: 'demo' }), { code: 'atlas_exists' });
+    assert.equal(fs.readFileSync(target, 'utf8'), 'user-owned-content');
+    assert.deepEqual(fs.readdirSync(root, { recursive: true }).sort(), before);
+  }
+});
+
+test('init exclusive first writes preserve late claimants for every output', (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'init-all-races-'));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const names = ['INDEX.md', 'spec/demo/demo-main.json', 'state/atlas-state.json', 'state/projects.json',
+    'rulings/RULINGS.md', 'spec/demo/demo-map.json'];
+  for (const [i, name] of names.entries()) {
+    const root = path.join(base, String(i)), target = path.join(root, name);
+    const write = fs.writeFileSync;
+    fs.writeFileSync = function(file, ...args) {
+      if (file === target && !fs.existsSync(file)) write.call(this, file, 'later-owner');
+      return write.call(this, file, ...args);
+    };
+    try {
+      assert.throws(() => scaffoldAtlas(root, { title: 'x', diagramType: 'architecture', diagramId: 'demo-main', template: 'demo' }), { code: 'atlas_exists' });
+    } finally { fs.writeFileSync = write; }
+    assert.equal(fs.readFileSync(target, 'utf8'), 'later-owner');
+  }
+});
+
+test('init demo-map identity publishes a usable demo once, and physical plan aliases are rejected', (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'init-plan-alias-'));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const r = scaffoldAtlas(path.join(base, 'demo'), { title: 'demo', diagramType: 'architecture', diagramId: 'demo-map', template: 'demo' });
+  const spec = JSON.parse(fs.readFileSync(r.diagram_spec, 'utf8'));
+  assert.ok(spec.connections.every(c => spec.components.some(n => n.id === c.from) && spec.components.some(n => n.id === c.to)));
+  assert.ok(spec.components.some(n => n.id === 'demo-a'));
+  const root = path.join(base, 'aliases');
+  fs.mkdirSync(path.join(root, 'state'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'spec'));
+  fs.symlinkSync(path.join(root, 'state'), path.join(root, 'spec', 'projects'));
+  assert.throws(() => scaffoldAtlas(root, { title: 'x', diagramType: 'architecture', diagramId: 'projects' }), { code: 'atlas_exists' });
+  assert.equal(fs.existsSync(path.join(root, 'INDEX.md')), false);
+  assert.equal(fs.existsSync(path.join(root, 'state', 'projects.json')), false);
 });

@@ -56,3 +56,20 @@ test('diff spec CLI reports container replacement and escaped literal keys', () 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('diff state uses equal instants for inclusive cutoffs and chronological node ties', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'diff-time-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const sc = path.join(dir, 'state.json');
+  fs.writeFileSync(sc, JSON.stringify({ schemaVersion: 1, nodes: {
+    z: { history: [{ at: '2026-09-01T00:00:00.000Z', kind: 'set', reason: 'z' }] },
+    a: { history: [{ at: '2026-09-01T08:00:00+08:00', kind: 'set', reason: 'a' }] },
+  } }));
+  for (const since of ['2026-09-01T00:00:00Z', '2026-09-01T08:00:00+08:00']) {
+    const r = run(['diff', 'state', '--sidecar', sc, '--since', since]);
+    assert.equal(r.code, 0);
+    assert.deepEqual(r.receipt.data.rows.map(row => row.node), ['a', 'z']);
+  }
+  const later = run(['diff', 'state', '--sidecar', sc, '--since', '2026-09-01T00:00:00.001Z']);
+  assert.deepEqual(later.receipt.data.rows, []);
+});

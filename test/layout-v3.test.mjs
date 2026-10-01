@@ -180,3 +180,21 @@ test('B3 conflicting registered umbrella owners produce registry warning',()=>{
     assert.ok(validateLayout(root).diagnostics.some(d=>d.rule==='layout.registry' && d.severity==='warning' && /demo-add/.test(d.evidence)));
   } finally {fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test('a conflicting umbrella is warning-only while independent physical portal defects remain errors', (t) => {
+  const dir = tmpdir('layout-conflicting-umbrella-');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  scaffoldV3(dir);
+  fs.mkdirSync(path.join(dir, 'spec', 'other'));
+  fs.writeFileSync(path.join(dir, 'state/projects.json'), JSON.stringify({ schemaVersion: 1, projects: [
+    { project: 'demo', umbrella: 'demo-add' },
+    { project: 'other', umbrella: 'demo-add' },
+  ] }));
+  const r = validateLayout(dir);
+  assert.equal(r.diagnostics.some(d => d.rule === 'layout.registry' && d.severity === 'warning'), true);
+  assert.deepEqual(r.diagnostics.filter(d => d.rule === 'layout.portal' && d.severity === 'error'), []);
+  fs.unlinkSync(path.join(dir, 'demo-add/demo-add-260816/index.html'));
+  const physical = validateLayout(dir);
+  assert.deepEqual(physical.diagnostics.filter(d => d.rule === 'layout.portal' && d.severity === 'error').map(d => d.subject),
+    ['demo-add/demo-add-260816/index.html']);
+});

@@ -104,3 +104,21 @@ test('verify-release-version：人为造不一致（临时拷贝改 RELEASES 顶
   assert.ok(res.stderr.includes(PKG_VERSION), '应列出 package.json 侧版本：' + res.stderr);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('the actual CLI starts from an installation path with URL-reserved and Unicode characters', (t) => {
+  const dir = tmpDir();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const installed = path.join(dir, 'install % # 中文');
+  fs.mkdirSync(installed);
+  for (const entry of ['bin', 'lib', 'package.json']) {
+    fs.cpSync(path.join(ROOT, entry), path.join(installed, entry), { recursive: true });
+  }
+  const r = spawnSync(process.execPath, [path.join(installed, 'bin/atlas-engine.mjs'), '--help'], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const sc = path.join(dir, 'state.json');
+  const written = spawnSync(process.execPath, [path.join(installed, 'bin/atlas-engine.mjs'),
+    'state', 'set', '--node', 'n', '--axis', 'progress', '--value', 'in_progress', '--class', 'task',
+    '--owner', '一线席位', '--reason', 'Installed CLI', '--sidecar', sc], { encoding: 'utf8' });
+  assert.equal(written.status, 0, written.stdout + written.stderr);
+  assert.equal(readSidecar(sc).nodes.n.history[0].engine, PKG_VERSION);
+});

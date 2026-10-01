@@ -196,3 +196,18 @@ test('B3 旧侧车兼容：无 notices 字段 list 出空（exit 0）；notices 
   assert.equal(r2.receipt.diagnostics[0].rule, 'sidecar_bad_shape', 'notices 非数组 fail-loud');
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('padded seat: ack/list roundtrip and canonical ack have the same unread identity', (t) => {
+  const dir = tmpDir();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const sc = seedSidecar(dir, { notices: [{ id: 'n', kind: 'note', summary: 'Message', readBy: [] }] });
+  const ack = run(['notice', 'ack', '--seat', ' alice ', '--sidecar', sc]);
+  assert.equal(ack.code, 0);
+  assert.equal(ack.receipt.data.confirmed, 1);
+  const list = run(['notice', 'list', '--seat', ' alice ', '--sidecar', sc]);
+  assert.equal(list.code, 0);
+  assert.deepEqual(list.receipt.data.notices, []);
+  const repeated = run(['notice', 'ack', '--seat', 'alice', '--sidecar', sc]);
+  assert.equal(repeated.receipt.data.confirmed, 0);
+  assert.deepEqual(readSidecar(sc).notices[0].readBy, ['alice']);
+});
