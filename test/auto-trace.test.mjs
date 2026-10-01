@@ -192,3 +192,19 @@ test('autoTrace bad explicit node degrades without changing preloaded sidecar', 
     assert.equal(fs.readFileSync(p, 'utf8'), disk);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('failed brief reports retain only errors in data.errors when autoTrace degrades', (t) => {
+  const dir = tmpDir();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const sc = seedSidecar(dir, { n: { progress: 'verified', history: [], evidence: [] } });
+  const lock = sc + '.lock';
+  fs.writeFileSync(lock, JSON.stringify({ token: 'test-owned', pid: process.pid, at: new Date().toISOString() }));
+  const baseline = run(['report', '--brief', '--no-trace', '--sidecar', sc]);
+  const r = run(['report', '--brief', '--sidecar', sc], { ATLAS_LOCK_TIMEOUT_MS: '0' });
+  assert.equal(r.code, 1);
+  assert.deepEqual(r.receipt.data.errors.map(d => [d.rule, d.severity]), [['verified_requires_evidence', 'error']]);
+  assert.equal(r.receipt.diagnostics.filter(d => d.severity === 'error').length, 1);
+  assert.equal(r.receipt.diagnostics.filter(d => d.rule === 'trace_degraded' && d.severity === 'warning').length, 1);
+  assert.equal(r.receipt.data.warnings, baseline.receipt.data.warnings + 1);
+  assert.equal(readSidecar(sc).trace, undefined);
+});

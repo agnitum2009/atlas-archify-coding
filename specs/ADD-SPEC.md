@@ -71,10 +71,12 @@
 
 状态集：clean / backlog / settled
 合法迁移：clean → backlog → settled（settled 为终态，保留历史；新欠账产生新条目）
+`state transition` 同值仍是迁移，须有表内自环；以上三轴均无自环。`state set` 同值是现状重述，不走迁移边；class 的表内自环另见 §2.6。
 
 ### 2.4 跨轴事件（一般跨轴操作 vs settled 专用事件）
 
 跨轴写 = 同一事件写两个轴。**一般跨轴操作**（如 block --with-backlog：progress→blocked 且 ledger→backlog 双写）只能走到 settled 之前的状态；**正常路径下写 ledger=settled 的只有 settled 专用事件 settle 与 import**，其余直达（含 set 首写与 transition）一律非法——`state set --correction` 只豁免这条路径规则（settled_requires_event），写后仍须满足 §2.4.2 S/X 族（progress=verified、证据非空且可解析）并留痕。
+`block` 同样先验写后组合，存量 in_progress×settled 不得被写成 blocked×settled；拒绝发生在 history、notice 与落盘之前。
 
 - 销账事件 settle：前态 progress∈{in_progress,verified} 且 ledger∈{clean,backlog}；同事件写 progress=verified、ledger=settled、history 和 notice，只推进一次 revision。独立 verified 仍可正常销账；仅轴内迁移仍遵循上表，其他前态及重复销账拒绝。
 - 导入事件 import（0.17.0，路线一裁定）：历史/迁移事实的 ledger →settled 与 progress →verified 同事件双写，必须携带 ≥1 条 Evidence；class/source/cutoff 可选，显式 class 校验并留痕，省略 source/cutoff 记为 null（未知）；与 settle 并列为仅有的两条**正常** settled 写入路径——set 直达（含 init 首写）一律非法（`state set --correction` 除外，受 §2.4.2 约束并留痕）。

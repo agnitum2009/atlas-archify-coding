@@ -3,6 +3,60 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.34.0] - 2026-10-01
+
+主 Agent 亲自重跑剩余 27 项；仅修当前 0.33.0 实际复现且符合现契约的 21 项。AE-08/12/13/14/24/30 保留边界债；不清洗生产数据、不改 Archify。2026-10-01 经负责人追加授权合并主线，并发布本体及 AAC 0.34.0 正式版本。
+
+### Breaking
+
+- (b) 保存前建目录失败由 internal / exit 2 归位 sidecar_write_failed / exit 1（AE-07），不是成功回执；未提交事实与调用者状态保持不变。
+- (a) 规则段落跨行句末不再误豁免超六行正文；预算扫描对该超限输入由通过转为失败（AE-35）。
+
+### Fixed
+
+- AE-07/09/10：保存建目录失败归位 sidecar_write_failed 并披露未提交；版本路径用 URL 解析；公开导出预检忽略文件占用父路径，在任何发布前拒绝。
+- AE-11/36：反向边核验按端点集合检查成员，锚数量不改变方向；候选截断披露包含多属主过滤。
+- AE-15/16：Git 轨迹纳入 merge 自创文件但不把继承的父分支文件冒充 merge 改动；NUL 分隔保真处理引号、制表符、换行、Unicode 及重命名。
+- AE-18/19/22：按解析时刻比较、排序和含边界截窗；等时刻稳定，无效日期末置。diff state 的 --since 帮助由 version 更正为 ISO8601。
+- AE-20/21/33：replay 摘要保留删除锚与 scoped spec-ref；notice 席位 trim 后一致读写；brief 失败报告 errors 仅含 error，留痕降级 warning 只计 warnings。
+- AE-23：经负责人单项许可，只补合法无 LF 末行追加时所需分隔；trace import 仍冻结，不扩并发/格式/提名能力，AE-24 未修。
+- AE-26/27/28/31/32：同项目全部 sourcePath 参与 SHA 候选；失败候选如实披露 unchecked 且不妨碍其他项目；漏项按全候选判定；每张图保留本图歧义；注册表冲突不再误造项目缺失 error，独立门户缺陷仍报错。
+- AE-35：技能纪律预算按段落实际正文行数核算，删除跨行找句末的截短豁免，超六行正文不再误放行。
+- AE-37：门户的产物、缩略图及期目录 href 逐路径段 URI 编码，保留真实文件名中的 #、?、% 与 Unicode，不把文件名误当 fragment/query。
+
+### Tests
+
+- 增补消费者回归覆盖错误码/零写入、Git 历史与字面文件名、时间边界、JSONL 顺序追加、候选核验、回执与门户 URL。
+- 移除绑定源码函数行数的实现断言，不重钉行数；命令、旗标、文本预算门禁保留原上限。
+
+## [0.33.0] - 2026-10-01
+
+本批只修复审计 AE-01/02/03/04/05/06/17/25/29/34；未清洗生产账本，未修改 Archify 内核。
+
+### Breaking
+
+- (a) `compile --out` 与任一读输入同路径、symlink 或 hardlink 同身份时拒绝（bad_input），不再支持原地覆盖输入；独立输出仍可重写。
+- (a) `init` 任一计划输出已占用即拒绝（atlas_exists），不再只保护侧车；多文件初始化仍非事务。
+- (a) CAS 区分缺失账本与现存 revision=0：新建意图不得覆盖后来创建的零版本账本，读过的零版本账本消失后也不得重建（sidecar_conflict）。
+- (a) `transition` 同值仍过迁移表；三轴自环拒绝，class 表内自环保留。`block` 不得把存量非法 settled 组合写成 blocked。
+- (a) 锚根门激活时，无法解析物理身份的链接拒绝；set/transition 的完成声称及 settle/import 重验当前锚根授权。`--allow-root` 只授权本条命令，完成时需重新提供。
+- (c) HEAD 检查按真实目标文件所在 Git 仓判定；仓外链接不能再把仓内脏行降为 no-git 免检。跨行字符串中的示例不再产生 M 级依赖；不可靠词法上下文列入 import 未解析披露。
+
+### Fixed
+
+- AE-01：输出预检与无截断 fd 打开后的 inode 复验，保护 diagram、sidecar、previous-receipt。
+- AE-02/03：完整 init 输出计划碰撞预检、独占首写，以及含文件存在性的创世 CAS。
+- AE-04：批量移锚从原始 evidence/evidenceMeta 快照一次映射，先删全部旧键再立新键，保留各锚哈希及未知元数据；相邻移位与交换不互相吞锚。
+- AE-34：备份使用 COPYFILE_EXCL；竞争占位后选下一序号，不覆盖后来文件或链接。
+- AE-25/29：真实路径 HEAD 身份、悬空链接 fail-closed 与完成时授权重验；普通根内待创建路径和既有合法存量豁免仍保留。
+- AE-05/06：transition 不再借同值免表，block 在 history/notice/保存之前经过统一跨轴策略。
+- AE-17：按代码词法上下文识别 JS/TS 字面量依赖，区分注释、跨行引号/模板、模板表达式、正则与 JSX 文本；真实静态/动态 import、require 与 module.require 保留。
+
+### 验证
+
+十项隔离真实 CLI/API 场景通过，含双进程 genesis 竞态；真实 trace order 验证示例无 M、实际 import 有 M、不可靠解析明确披露且不写侧车。原生 Archify 3.0.1 五类图四闸及 2.16.0-dev.0 架构图三闸共 6/6 通过；机器闸不代人工视觉批准。
+最终 `npm test`：716 项、714 通过、0 失败、2 跳过（未设置真内核测试环境变量；另已实跑上述六条原生图链）；受影响回归 61/61 通过。删除历史帮助文案/行数下降断言，不重钉旧措辞；既有命令/旗标/帮助及函数尺寸预算未放宽。
+
 ## [0.32.1] - 2026-09-29
 
 v3 生产路径加固。生产内核已切到 archify v3.0.1（裁决回执 rulings/RULINGS-2026-09-29-archify-v3-switch.md：10 项目 143 图双内核普查、49 图修复、
@@ -86,74 +140,9 @@ coChange 1,846 对中只有 6 对有 ≥3 次两端都经独占锚被触及的�
 
 npm test 665 项 664 通过 0 失败 1 异机跳过（+10 例，含整分支审阅修复 3 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变；投影后的公开树 trajectory 测试通过。本机冒烟（atlas-engine 本仓人造共享锚：RELEASES.md 被 5 个节点认领）：回执与 umax 只量脚本逐项一致——coChange 61 对、specificCommits=0 的 16 对、≥3 的 30 对、共享锚 1 个。
 
-## [0.30.1] - 2026-09-27
-
-trace import 冻结（裁决回执 rulings/RULINGS-2026-09-27-trace-import-freeze.md）。
-
-### Changed
-
-- 契约 §8 与 --help 标注 trace import **冻结**：demo-b 实测（umax，事先写死判定标准）会话提名抽样真 0/10——共享锚 `run-gates.sh` 被 25 节点认领致提名扇出
-  （552/733 条权重恰为 20）、Bash 运行脚本被计为读、Bash 推定 writes 8/10 无踪迹；demo-b 的 Claude Code 日志只覆盖到 08-25，主力 harness 无转换器。
-  负责人裁定：保留不删、行为不变、不再投入。
-
-### 非变更（明示拒绝）
-
-- 不删除、不弃用 trace import / 规整事件格式 / 转换器 / readBeforeWrite / sessionEvents / 相关错误码；不改任何输出；不加运行时冻结告警。
-- 不做降噪、不写 一线席位 / pi 转换器。git 回溯（facts / recency / order / blindSpots）不受影响。
-
-### 实证附记
-
-npm test 655 项 654 通过 0 失败 1 异机跳过（无新增——只改文字）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 49 行不变。
-
-## [0.30.0] - 2026-09-27
-
-trace order 盲区披露收敛（设计 docs/superpowers/specs/2026-09-27-blindspots-design.md）。
-
-**依据**：回执顶层字段 0.24.0→0.29.0 由 10 涨到 18，其中 8 个在答同一件事——「atlas 看不见什么、为什么」；每轮实测发现一个盲区就多
-一个兄弟字段。demo-b 的三类盲区（notSeen 89、无主文件 41,570、包名边只有 1 条）同根：证据锚稀疏；atlas 不替用户补锚（写真相），
-能做的只有如实披露——披露应收在一处。本版把 8 个字段收进 `blindSpots`，顶层 18 → 11，预算随之下调到 11。
-
-### Breaking
-
-- (b) 8 个盲区顶层字段收进 `blindSpots = { anchors, nodes, files, imports }`：
-
-  | 旧 | 新 |
-  |---|---|
-  | `anchorsSkipped` | `blindSpots.anchors` |
-  | `notSeen`（列表） | 由 `blindSpots.nodes` 各桶拼出；数量 = `blindSpots.nodes.count` |
-  | `notSeenReasons.<桶>` | `blindSpots.nodes.<桶>` |
-  | `unowned`（分组数组） | `blindSpots.files.groups`；总数 `blindSpots.files.count` |
-  | `unowned`（聚焦 `{ omitted, count }`） | `blindSpots.files`（同形） |
-  | `unownedByRepo` | 去掉；按 `blindSpots.files.groups` 的 repo 求和 |
-  | `importsUnparsed` / `importsNotApplicable` / `importsUnresolved` | `blindSpots.imports.unparsed` / `.notApplicable` / `.unresolved` |
-
-  `nodes.count` = 四桶之和（桶互斥）；`files.count` = 去重后无主文件数 = 各组之和 = 聚焦时 count。聚焦：nodes 收窄、files 只给 count，
-  anchors 与 imports 为全局。`--brief`：nodes 各桶与 files.groups 为 `{ count, top≤10 }`。空态：`nodes` 与 `imports` 均为 `{ status: 'no-anchored-nodes' }`（无锚定文件可解析，不给一组零），anchors、files 照常。
-- `unownedByRepo` 去掉的理由：它按「历史所在仓」计数，groups 按「路径所在仓」归属，是两个口径；0.28.0 复测的 424 条困惑出自两口径并存。
-  依 DEFENSIVE §11 单报并标注口径：契约写明 files 的 repo 是路径归属、不保证该仓自身 git 史含此改动。
-
-### Changed
-
-- 契约治理节：trace order 回执顶层字段预算 18 → 11。契约 §8 写明「import 关系只在两端都有锚的文件之间判定，目标无锚的引用不产生关系、
-  不单独计数（全史口径下其目标必在 blindSpots.files；--since 时 files 只含窗口内改动）」。--help 的 `unowned=无主改动` 改为 `blindSpots=看不见什么及原因〔锚不可用/节点未见/文件无锚/import 未解析〕`（行数不变）。
-- `briefOrder` 从 `lib/trajectory.mjs` 迁到 `lib/trajectory-workspace.mjs`（作用于回执形状）；内核 `computeOrder` 返回形状不变。
-- 单仓路径的无主文件路径统一为 `/`（此前是本机分隔符；顺带修掉 0.28.0 暂缓的 Windows 单仓分隔符问题，Windows 仍标记为未验证）。
-
-### 非变更（明示拒绝）
-
-- 不新增任何信息：无新盲区类别；不算覆盖率百分比（新指标会带来 DEFENSIVE §11 口径问题）；不做 `importsToUnowned`——import 目标在 HEAD 中，
-  必然被提交过，全史口径下无锚即已落在 `blindSpots.files`，盲区已披露，只缺一句说明（已补进契约，并写明 `--since` 时的局限）。
-- 不叫 `coverage`：atlas 已用该词指账本覆盖率百分比（`unowned-oversize-scan`、DEFENSIVE §11 的 `contextView.coverageByContext`）。
-- 不输出任何「应该补锚 / 先补哪里」的建议；排序只是按数量排事实。
-- 不动 order / recency / facts / nominations / repos / commits / totalCommits / span / sessionEvents；不改 anchors 内部键名。
-
-### 实证附记
-
-npm test 655 项 654 通过 0 失败 1 异机跳过（+4 例，既有盲区断言全部迁到新路径；含整分支审阅修复）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变；投影后的公开树 trajectory 测试通过。
-
 ---
 
-更早的 59 个版本（0.1.0 → 0.29.1）：
+更早的 61 个版本（0.1.0 → 0.30.1）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

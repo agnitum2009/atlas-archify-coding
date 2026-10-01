@@ -88,3 +88,37 @@ for (const [from, to] of [['in_progress', 'verified'], ['planned', 'cancelled']]
     assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
   });
 }
+
+test('transition rejects forbidden self-loops while set restatements and class table self-edges remain valid', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'transition-self-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const sidecar = path.join(dir, 'state.json'), proof = path.join(dir, 'proof.ts');
+  fs.writeFileSync(proof, 'consumer-proof\n');
+  const axes = {
+    progress: ['planned', 'in_progress', 'blocked', 'verified', 'cancelled'],
+    truth: ['candidate', 'pending_confirmation', 'effective', 'closed'],
+    ledger: ['clean', 'backlog', 'settled'],
+  };
+  for (const [axis, states] of Object.entries(axes)) {
+    for (const value of states) {
+      const node = { owner: '一线席位', class: 'task', progress: 'in_progress', truth: 'candidate', ledger: 'clean',
+        evidence: [proof + ':1'], history: [], [axis]: value };
+      if (node.ledger === 'settled') node.progress = 'verified';
+      fs.writeFileSync(sidecar, JSON.stringify({ schemaVersion: 1, revision: 0, nodes: { n: node } }));
+      const before = fs.readFileSync(sidecar, 'utf8');
+      const transition = run(['state', 'transition', '--node', 'n', '--axis', axis, '--from', value, '--to', value,
+        '--reason', 'same value', '--owner', '一线席位'], sidecar);
+      assert.equal(transition.code, 1, transition.stdout);
+      assert.equal(transition.receipt.diagnostics[0].rule, 'illegal_transition');
+      assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
+      const restatement = run(['state', 'set', '--node', 'n', '--axis', axis, '--value', value,
+        '--reason', 'restate', '--owner', '一线席位'], sidecar);
+      assert.equal(restatement.code, 0, restatement.stdout);
+      assert.equal(JSON.parse(fs.readFileSync(sidecar, 'utf8')).nodes.n[axis], value);
+    }
+  }
+  const classified = run(['state', 'transition', '--node', 'n', '--axis', 'class', '--from', 'task', '--to', 'task',
+    '--reason', 'class table self-edge', '--owner', '一线席位'], sidecar);
+  assert.equal(classified.code, 0, classified.stdout);
+  assert.equal(JSON.parse(fs.readFileSync(sidecar, 'utf8')).nodes.n.history.at(-1).kind, 'transition');
+});

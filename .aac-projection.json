@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.32.1",
+  "sourceVersion": "0.34.0",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "316983be8a7b67aa"
+      "sha256": "7d029ee086d7c5ef"
     },
     {
       "path": "SECURITY.md",
@@ -37,7 +37,7 @@
     },
     {
       "path": "docs/CODEGRAPH-ARCHIFY-PIPELINE.md",
-      "sha256": "e47567d628bea8b0"
+      "sha256": "99342da56cab7125"
     },
     {
       "path": "docs/DEFENSIVE.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "c18ae4b6827d0ac2"
+      "sha256": "42a1a710dc1d58ba"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -53,7 +53,7 @@
     },
     {
       "path": "docs/USAGE.md",
-      "sha256": "d0f3c20769025dc2"
+      "sha256": "7835c8c91968299b"
     },
     {
       "path": "fixtures/atlas-seed/add-state-axes.json",
@@ -65,7 +65,7 @@
     },
     {
       "path": "lib/anchor-roots.mjs",
-      "sha256": "01a7fc311f84d5b8"
+      "sha256": "4ada454ba14d0a33"
     },
     {
       "path": "lib/atlas-data.mjs",
@@ -109,11 +109,11 @@
     },
     {
       "path": "lib/cmd-report.mjs",
-      "sha256": "28c34d4d4ef2d3e8"
+      "sha256": "2dd72b037d8f895d"
     },
     {
       "path": "lib/cmd-state.mjs",
-      "sha256": "154cc96377d30090"
+      "sha256": "49d06a1addb5b95f"
     },
     {
       "path": "lib/cmd-trace.mjs",
@@ -121,15 +121,15 @@
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "6cc9df598c7e2883"
+      "sha256": "1bfca094a4d6a397"
     },
     {
       "path": "lib/compile.mjs",
-      "sha256": "efcfa86bb0de40f2"
+      "sha256": "953ed9e74e24bc44"
     },
     {
       "path": "lib/diff.mjs",
-      "sha256": "5d6b1d6bec4a2370"
+      "sha256": "6a6f0fa9c6e82e37"
     },
     {
       "path": "lib/doctor.mjs",
@@ -141,11 +141,11 @@
     },
     {
       "path": "lib/error-codes.mjs",
-      "sha256": "138cc2721f23d0b2"
+      "sha256": "7bc7ab81bdb7c449"
     },
     {
       "path": "lib/evidence.mjs",
-      "sha256": "d59e6d6fd48bf750"
+      "sha256": "a1662a549cf9c6b9"
     },
     {
       "path": "lib/gate.mjs",
@@ -153,19 +153,19 @@
     },
     {
       "path": "lib/init.mjs",
-      "sha256": "a285e0c925efdd06"
+      "sha256": "e886c81aeaa4ecb1"
     },
     {
       "path": "lib/layout.mjs",
-      "sha256": "1fafcbfc27a5daf3"
+      "sha256": "835b1042f8033b6e"
     },
     {
       "path": "lib/lessons.mjs",
-      "sha256": "a8ed3b47d38bc34d"
+      "sha256": "71a33582174160a1"
     },
     {
       "path": "lib/notice.mjs",
-      "sha256": "806caed700eb79a4"
+      "sha256": "daac3db83530047d"
     },
     {
       "path": "lib/project-gate.mjs",
@@ -177,7 +177,7 @@
     },
     {
       "path": "lib/report.mjs",
-      "sha256": "7a9db57585acfadf"
+      "sha256": "1ad6431819e6f661"
     },
     {
       "path": "lib/resolve-archify.mjs",
@@ -193,19 +193,19 @@
     },
     {
       "path": "lib/state-policy.mjs",
-      "sha256": "302bdae047c5855a"
+      "sha256": "052e5291d377efd5"
     },
     {
       "path": "lib/store.mjs",
-      "sha256": "8686ac5cb1e749e4"
+      "sha256": "60bca580dc62dd6b"
     },
     {
       "path": "lib/trace.mjs",
-      "sha256": "7a4ce3e9a33acb13"
+      "sha256": "03b5bb486c1fce42"
     },
     {
       "path": "lib/trajectory-imports.mjs",
-      "sha256": "5c30f71ec279ef7c"
+      "sha256": "032ff0b3b00735b3"
     },
     {
       "path": "lib/trajectory-workspace.mjs",
@@ -213,7 +213,7 @@
     },
     {
       "path": "lib/trajectory.mjs",
-      "sha256": "c6ac8be79877841f"
+      "sha256": "9a53f53f9ffe02ec"
     },
     {
       "path": "lib/truth-receipt.mjs",
@@ -221,19 +221,19 @@
     },
     {
       "path": "lib/version.mjs",
-      "sha256": "aaced570759f9c77"
+      "sha256": "495cf8c087ddad36"
     },
     {
       "path": "package.json",
-      "sha256": "064b094031a7722c"
+      "sha256": "68bd2a2285e729d3"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
-      "sha256": "86488e1fabfe8534"
+      "sha256": "8dd560ad2472e350"
     },
     {
       "path": "scripts/build-portal.mjs",
-      "sha256": "890a23f57639f35a"
+      "sha256": "592861ec9098246a"
     },
     {
       "path": "scripts/check-codegraph-freshness.mjs",
@@ -245,11 +245,11 @@
     },
     {
       "path": "scripts/reanchor-moved.mjs",
-      "sha256": "17f201650d03a254"
+      "sha256": "7dab4140f3bcb373"
     },
     {
       "path": "scripts/reconcile-graph-edges.mjs",
-      "sha256": "7eab7487dccde3ef"
+      "sha256": "6a702fab79e68b50"
     },
     {
       "path": "scripts/sync-generated.mjs",
@@ -265,7 +265,7 @@
     },
     {
       "path": "specs/ADD-SPEC.md",
-      "sha256": "09e506c1af54aa6f"
+      "sha256": "5f8cbf5bf731f2e6"
     },
     {
       "path": "specs/atlas-layout.md",
@@ -273,11 +273,11 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "b461db1e69caa8eb"
+      "sha256": "053a4bc8b7e5e927"
     },
     {
       "path": "specs/snapshot-policy.md",
-      "sha256": "986b011de6c3bf04"
+      "sha256": "3c152227c12efb86"
     },
     {
       "path": "test/a1a2a3d3.test.mjs",
@@ -285,7 +285,7 @@
     },
     {
       "path": "test/anchor-roots.test.mjs",
-      "sha256": "6c479be900f8a4b7"
+      "sha256": "c62c0ea59a51ec05"
     },
     {
       "path": "test/archify-adapt.test.mjs",
@@ -309,11 +309,11 @@
     },
     {
       "path": "test/auto-trace.test.mjs",
-      "sha256": "31f5895e9825164a"
+      "sha256": "cd8a552a49beeda9"
     },
     {
       "path": "test/build-portal.test.mjs",
-      "sha256": "1567e022bbfa31b9"
+      "sha256": "3324b793aa7af184"
     },
     {
       "path": "test/ci-pinning.test.mjs",
@@ -333,7 +333,7 @@
     },
     {
       "path": "test/compile-receipt.test.mjs",
-      "sha256": "af04d1260cbe5e34"
+      "sha256": "5ccb00430c87b5f1"
     },
     {
       "path": "test/compile.test.mjs",
@@ -345,7 +345,7 @@
     },
     {
       "path": "test/diff-cli.test.mjs",
-      "sha256": "59789838bc11ec6f"
+      "sha256": "1ea31d0c669c06df"
     },
     {
       "path": "test/diff.test.mjs",
@@ -365,7 +365,7 @@
     },
     {
       "path": "test/evidence-hash.test.mjs",
-      "sha256": "6842863cc7cffb64"
+      "sha256": "7e5ba37497db2d68"
     },
     {
       "path": "test/evidence-lifecycle.test.mjs",
@@ -381,7 +381,7 @@
     },
     {
       "path": "test/field-2026-08-23.test.mjs",
-      "sha256": "6eaaa6002c104a4d"
+      "sha256": "265e164830080f1d"
     },
     {
       "path": "test/flag-guard.test.mjs",
@@ -393,15 +393,15 @@
     },
     {
       "path": "test/head-anchor.test.mjs",
-      "sha256": "3ac3e2e25f1e5dd3"
+      "sha256": "141ae05ca50995a4"
     },
     {
       "path": "test/help-cli.test.mjs",
-      "sha256": "0cb738bce893224b"
+      "sha256": "8c8e06b3c5c56cb4"
     },
     {
       "path": "test/init-cli.test.mjs",
-      "sha256": "6fc8f5d71cc22e41"
+      "sha256": "0f3434a40274bc5d"
     },
     {
       "path": "test/invariant-exhaustive.test.mjs",
@@ -413,7 +413,7 @@
     },
     {
       "path": "test/layout-v3.test.mjs",
-      "sha256": "32710da369ac0ef6"
+      "sha256": "7d4a4835102b3eea"
     },
     {
       "path": "test/layout.test.mjs",
@@ -437,7 +437,7 @@
     },
     {
       "path": "test/notice.test.mjs",
-      "sha256": "444b62c7f8b5315e"
+      "sha256": "f8d76126644cff2f"
     },
     {
       "path": "test/o3-class-axis.test.mjs",
@@ -445,7 +445,7 @@
     },
     {
       "path": "test/p5-sha.test.mjs",
-      "sha256": "d93113ef750853c6"
+      "sha256": "582802e88931a430"
     },
     {
       "path": "test/project-gate.test.mjs",
@@ -453,7 +453,7 @@
     },
     {
       "path": "test/reconcile-graph-edges.test.mjs",
-      "sha256": "3fd0d1f64c421ee5"
+      "sha256": "7ce71102ebf7c2c7"
     },
     {
       "path": "test/report-a1.test.mjs",
@@ -465,7 +465,7 @@
     },
     {
       "path": "test/report-replay.test.mjs",
-      "sha256": "f6ae7998d473fd52"
+      "sha256": "0d99c9f705021746"
     },
     {
       "path": "test/resolve-archify.test.mjs",
@@ -489,7 +489,7 @@
     },
     {
       "path": "test/state-cli.test.mjs",
-      "sha256": "14890bf1b37db7bb"
+      "sha256": "0ac1e2aa8fcac0f2"
     },
     {
       "path": "test/state-closure.test.mjs",
@@ -513,15 +513,15 @@
     },
     {
       "path": "test/state-transition-guard.test.mjs",
-      "sha256": "434ecdadd3b87845"
+      "sha256": "26257f56978e53cd"
     },
     {
       "path": "test/store.test.mjs",
-      "sha256": "1e82bc43f2cca3fb"
+      "sha256": "55447c89b0051400"
     },
     {
       "path": "test/surface-consistency.test.mjs",
-      "sha256": "54924ecfdfb51178"
+      "sha256": "c42f062a3fb3d085"
     },
     {
       "path": "test/trace-identity.test.mjs",
@@ -529,7 +529,7 @@
     },
     {
       "path": "test/trace-lessons.test.mjs",
-      "sha256": "1ffc721720c979c8"
+      "sha256": "5d7e01a0b11993f0"
     },
     {
       "path": "test/trajectory-cli.test.mjs",
@@ -541,15 +541,15 @@
     },
     {
       "path": "test/trajectory-import.test.mjs",
-      "sha256": "d51d4f3ca69a7d14"
+      "sha256": "2aa4cfbcd40a9f38"
     },
     {
       "path": "test/trajectory-imports.test.mjs",
-      "sha256": "8d22caa0144b8450"
+      "sha256": "87af3c8f22556912"
     },
     {
       "path": "test/trajectory-order.test.mjs",
-      "sha256": "42f94314ac38bb34"
+      "sha256": "57c1f72401f6a87b"
     },
     {
       "path": "test/trajectory-workspace.test.mjs",
@@ -565,7 +565,7 @@
     },
     {
       "path": "test/version-stamp.test.mjs",
-      "sha256": "cae42cff316fb600"
+      "sha256": "43f6cae62b05054e"
     }
   ]
 }

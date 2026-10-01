@@ -335,3 +335,41 @@ test('回填脚本：填/幂等/跳过 broken/备份存在（history 区优先�
   fs.rmSync(root, { recursive: true, force: true });
   fs.rmSync(plain, { recursive: true, force: true });
 });
+
+test('backfill preserves late backup claimants and publishes an exclusive byte-exact backup', (t) => {
+  const root = tmpDir();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  for (const mode of ['file', 'symlink']) {
+    const dir = path.join(root, mode), stateDir = path.join(dir, 'state');
+    fs.mkdirSync(stateDir, { recursive: true });
+    fs.mkdirSync(path.join(dir, 'history'));
+    const file = path.join(dir, 'code.ts'), target = path.join(dir, 'owned.txt');
+    fs.writeFileSync(file, 'consumer-proof\n');
+    fs.writeFileSync(target, 'later-owner');
+    const sc = seedSidecar(stateDir, { n: nodeOf({ evidence: [file + ':1'] }) });
+    const before = fs.readFileSync(sc, 'utf8');
+    const signal = path.join(dir, 'contender.txt'), hook = path.join(dir, 'race.cjs');
+    fs.writeFileSync(hook, `
+      const fs = require('node:fs');
+      const copy = fs.copyFileSync;
+      let injected = false;
+      fs.copyFileSync = function(source, destination, ...args) {
+        if (!injected && source === ${JSON.stringify(sc)}) {
+          injected = true;
+          ${mode === 'file' ? "fs.writeFileSync(destination, 'later-owner');" : `fs.symlinkSync(${JSON.stringify(target)}, destination);`}
+          fs.writeFileSync(${JSON.stringify(signal)}, destination);
+        }
+        return copy.call(this, source, destination, ...args);
+      };
+    `);
+    const r = spawnSync(process.execPath, ['--require', hook, BACKFILL, '--sidecar', sc], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    const summary = JSON.parse(r.stdout), contender = fs.readFileSync(signal, 'utf8');
+    assert.equal(fs.readFileSync(contender, 'utf8'), 'later-owner');
+    assert.equal(fs.readFileSync(target, 'utf8'), 'later-owner');
+    assert.equal(fs.lstatSync(contender).isSymbolicLink(), mode === 'symlink');
+    assert.notEqual(summary.backup, contender);
+    assert.equal(fs.readFileSync(summary.backup, 'utf8'), before);
+    assert.equal(JSON.parse(fs.readFileSync(sc, 'utf8')).nodes.n.evidenceMeta[file + ':1'].h, h12('consumer-proof'));
+  }
+});

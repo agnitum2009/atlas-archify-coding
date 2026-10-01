@@ -654,3 +654,28 @@ test('B3 derived hash umbrella cannot overwrite another registered project', () 
     assert.equal(fs.readFileSync(portal,'utf8'),'derived sentinel');
   } finally {fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test('portal artifact and thumbnail URLs resolve literal reserved filenames instead of fragments', (t) => {
+  const dir = tmpdir('portal-url-paths-');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  scaffoldRoot(dir);
+  const id = '中文#?%';
+  const htmlFile = path.join(dir, 'artifacts/demo/loops-260815', id + '.html');
+  fs.writeFileSync(htmlFile, '<html>Reserved filename target</html>');
+  const pngDir = path.join(dir, 'evidence/demo', id);
+  fs.mkdirSync(pngDir);
+  const pngFile = path.join(pngDir, id + '.visual-check.1x1.dark.png');
+  fs.writeFileSync(pngFile, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lL8AAAAASUVORK5CYII=', 'base64'));
+  const r = runPortal(['--atlas', dir, '--project', 'demo', '--init', '260815']);
+  assert.equal(r.status, 0, r.stderr);
+  const portal = path.join(dir, 'demo-add/demo-add-260815/index.html');
+  const urls = [...fs.readFileSync(portal, 'utf8').matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]);
+  for (const target of [htmlFile, pngFile]) {
+    const resolved = urls.map(relative => new URL(relative, 'file://' + portal))
+      .find(url => fileURLToPath(url) === target);
+    assert.ok(resolved, target);
+    assert.equal(resolved.hash, '');
+    assert.equal(resolved.search, '');
+    assert.deepEqual(fs.readFileSync(resolved), fs.readFileSync(target));
+  }
+});

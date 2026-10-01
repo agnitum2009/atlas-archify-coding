@@ -100,3 +100,22 @@ test('B2 不传 --replay：data 无 replays 段（向后兼容）', () => {
   assert.equal(r.receipt.data.replays, undefined, '未传 --replay 不出 replays 段');
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('report summaries retain deleted evidence and scoped ref identities without changing raw history', (t) => {
+  const dir = tmpDir();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const locator = '/fixture/deleted-proof.md:3', ref = 'map/component';
+  const history = [
+    { at: '2026-09-01T00:00:00Z', kind: 'evidence-remove', locator },
+    { at: '2026-09-01T00:00:01Z', kind: 'spec-ref-add', ref },
+    { at: '2026-09-01T00:00:02Z', kind: 'spec-ref-remove', ref },
+  ];
+  const sc = seedSidecar(dir, { n: { progress: 'planned', history } });
+  const before = fs.readFileSync(sc, 'utf8');
+  const r = run(['report', '--sidecar', sc, '--replay', 'n', '--no-trace']);
+  assert.equal(r.code, 0);
+  const events = r.receipt.data.replays[0].events;
+  assert.equal(events.find(e => e.kind === 'evidence-remove').summary.includes(locator), true);
+  for (const kind of ['spec-ref-add', 'spec-ref-remove']) assert.equal(events.find(e => e.kind === kind).summary.includes(ref), true);
+  assert.equal(fs.readFileSync(sc, 'utf8'), before);
+});

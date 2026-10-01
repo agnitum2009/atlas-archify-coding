@@ -160,3 +160,104 @@ test('O1 禁入来源：registry/atlas 来源的 dist 段与临时目录根被�
   assert.ok(rejected.some((r) => r.reason === 'ephemeral-tmp'), '临时目录须被拒并披露：' + JSON.stringify(rejected));
   fs.rmSync(atlas.dir, { recursive: true, force: true });
 });
+
+test('active root gates reject dangling file and directory symlinks but allow genuinely missing in-root files', (t) => {
+  const atlas = mkAtlas();
+  t.after(() => fs.rmSync(atlas.dir, { recursive: true, force: true }));
+  seedNode(atlas);
+  register(atlas, [{ project: 'demo', umbrella: 'demo-add', sourcePath: REPO_ROOT, sidecar: 'atlas-state.json' }]);
+  const fileLink = path.join(atlas.atlas, 'dangling.ts'), dirLink = path.join(atlas.atlas, 'dangling-dir');
+  fs.symlinkSync(path.join(atlas.outside, 'missing.ts'), fileLink);
+  fs.symlinkSync(path.join(atlas.outside, 'missing-dir'), dirLink);
+  const before = fs.readFileSync(atlas.sidecar, 'utf8');
+  for (const locator of [fileLink + ':1', path.join(dirLink, 'proof.ts') + ':1']) {
+    const r = run(['state', 'evidence-add', '--node', 'demo-n1', '--locator', locator,
+      '--allow-root', dirLink, '--sidecar', atlas.sidecar], atlas.dir);
+    assert.equal(r.code, 1, r.stdout);
+    assert.equal(r.receipt.diagnostics[0].rule, 'anchor_root_denied');
+    assert.equal(fs.readFileSync(atlas.sidecar, 'utf8'), before);
+  }
+  const missing = path.join(atlas.atlas, 'future.ts') + ':1';
+  const allowed = run(['state', 'evidence-add', '--node', 'demo-n1', '--locator', missing, '--sidecar', atlas.sidecar], atlas.dir);
+  assert.equal(allowed.code, 0, allowed.stdout);
+  assert.deepEqual(JSON.parse(fs.readFileSync(atlas.sidecar, 'utf8')).nodes['demo-n1'].evidence, [missing]);
+});
+
+test('every completion event rechecks retargeted evidence roots; a current explicit grant remains usable', (t) => {
+  for (const operation of ['set', 'transition', 'settle', 'import']) {
+    const atlas = mkAtlas();
+    t.after(() => fs.rmSync(atlas.dir, { recursive: true, force: true }));
+    seedNode(atlas);
+    if (operation !== 'import') {
+      const start = run(['state', 'set', '--node', 'demo-n1', '--axis', 'progress', '--value', 'in_progress',
+        '--reason', 'start', '--owner', 'o', '--sidecar', atlas.sidecar], atlas.dir);
+      assert.equal(start.code, 0, start.stdout);
+    }
+    register(atlas, [{ project: 'demo', umbrella: 'demo-add', sourcePath: REPO_ROOT, sidecar: 'atlas-state.json' }]);
+    const link = path.join(atlas.atlas, 'proof-link.ts'), locator = link + ':1';
+    fs.symlinkSync(path.join(atlas.atlas, 'c.ts'), link);
+    const add = run(['state', 'evidence-add', '--node', 'demo-n1', '--locator', locator, '--sidecar', atlas.sidecar], atlas.dir);
+    assert.equal(add.code, 0, add.stdout);
+    fs.unlinkSync(link);
+    fs.symlinkSync(path.join(atlas.outside, 'o.ts'), link);
+    const command = ['state', operation, '--node', 'demo-n1', '--reason', 'complete', '--owner', 'o', '--sidecar', atlas.sidecar];
+    if (operation === 'set') command.push('--axis', 'progress', '--value', 'verified');
+    if (operation === 'transition') command.push('--axis', 'progress', '--from', 'in_progress', '--to', 'verified');
+    if (operation === 'import') command.push('--locator', path.join(atlas.atlas, 'c.ts') + ':1');
+    const before = fs.readFileSync(atlas.sidecar, 'utf8');
+    const denied = run(command, atlas.dir);
+    assert.equal(denied.code, 1, denied.stdout);
+    assert.ok(denied.receipt.diagnostics.some(d => d.rule === 'anchor_root_denied'), denied.stdout);
+    assert.equal(fs.readFileSync(atlas.sidecar, 'utf8'), before);
+    const refresh = run(['state', 'evidence-add', '--node', 'demo-n1', '--locator', locator,
+      '--allow-root', atlas.outside, '--sidecar', atlas.sidecar], atlas.dir);
+    assert.equal(refresh.code, 0, refresh.stdout);
+    const granted = run([...command, '--allow-root', atlas.outside], atlas.dir);
+    assert.equal(granted.code, 0, granted.stdout);
+    const after = JSON.parse(fs.readFileSync(atlas.sidecar, 'utf8')).nodes['demo-n1'];
+    assert.equal(after.progress, 'verified');
+    if (operation === 'settle' || operation === 'import') assert.equal(after.ledger, 'settled');
+  }
+});
+
+test('a one-command outside-root grant does not authorize later truth completion', (t) => {
+  const atlas = mkAtlas();
+  t.after(() => fs.rmSync(atlas.dir, { recursive: true, force: true }));
+  seedNode(atlas);
+  register(atlas, [{ project: 'demo', umbrella: 'demo-add', sourcePath: REPO_ROOT, sidecar: 'atlas-state.json' }]);
+  const add = run(['state', 'evidence-add', '--node', 'demo-n1', '--locator', path.join(atlas.outside, 'o.ts') + ':1',
+    '--allow-root', atlas.outside, '--sidecar', atlas.sidecar], atlas.dir);
+  assert.equal(add.code, 0, add.stdout);
+  const pending = run(['state', 'set', '--node', 'demo-n1', '--axis', 'truth', '--value', 'pending_confirmation',
+    '--reason', 'review', '--owner', 'o', '--receipt', path.join(atlas.atlas, 'c.ts'), '--sidecar', atlas.sidecar], atlas.dir);
+  assert.equal(pending.code, 0, pending.stdout);
+  for (const value of ['effective', 'closed']) {
+    const command = ['state', 'set', '--node', 'demo-n1', '--axis', 'truth', '--value', value,
+      '--reason', 'approve', '--owner', 'o', '--receipt', path.join(atlas.atlas, 'c.ts'), '--sidecar', atlas.sidecar];
+    const before = fs.readFileSync(atlas.sidecar, 'utf8');
+    const denied = run(command, atlas.dir);
+    assert.equal(denied.code, 1, denied.stdout);
+    assert.ok(denied.receipt.diagnostics.some(d => d.rule === 'anchor_root_denied'));
+    assert.equal(fs.readFileSync(atlas.sidecar, 'utf8'), before);
+    const granted = run([...command, '--allow-root', atlas.outside], atlas.dir);
+    assert.equal(granted.code, 0, granted.stdout);
+    assert.equal(JSON.parse(fs.readFileSync(atlas.sidecar, 'utf8')).nodes['demo-n1'].truth, value);
+  }
+});
+
+test('completion preserves the documented legacy exemption rather than freezing grandfathered evidence', (t) => {
+  const atlas = mkAtlas();
+  t.after(() => fs.rmSync(atlas.dir, { recursive: true, force: true }));
+  seedNode(atlas);
+  assert.equal(run(['state', 'set', '--node', 'demo-n1', '--axis', 'progress', '--value', 'in_progress',
+    '--reason', 'start', '--owner', 'o', '--sidecar', atlas.sidecar], atlas.dir).code, 0);
+  assert.equal(run(['state', 'evidence-add', '--node', 'demo-n1', '--locator', path.join(atlas.outside, 'o.ts') + ':1',
+    '--sidecar', atlas.sidecar], atlas.dir).code, 0);
+  register(atlas, [{ project: 'demo', umbrella: 'demo-add', sourcePath: REPO_ROOT, sidecar: 'atlas-state.json' }]);
+  const completed = run(['state', 'settle', '--node', 'demo-n1', '--reason', 'legacy close', '--owner', 'o',
+    '--sidecar', atlas.sidecar], atlas.dir);
+  assert.equal(completed.code, 0, completed.stdout);
+  const after = JSON.parse(fs.readFileSync(atlas.sidecar, 'utf8')).nodes['demo-n1'];
+  assert.equal(after.progress, 'verified');
+  assert.equal(after.ledger, 'settled');
+});

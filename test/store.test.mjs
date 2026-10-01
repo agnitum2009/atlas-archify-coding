@@ -198,8 +198,10 @@ test('锁文件内容为 JSON {schemaVersion, pid, at, token}；持锁窗口内�
     const fs = require('node:fs');
     const realRename = fs.renameSync;
     fs.renameSync = (...a) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 800); realRename(...a); };
-    import(${JSON.stringify(STORE_URL)}).then(({ saveSidecar }) => {
-      saveSidecar(${JSON.stringify(p)}, { schemaVersion: 1, atlas: 'd1', nodes: { n1: { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [], history: [] } } });
+    import(${JSON.stringify(STORE_URL)}).then(({ saveSidecar, loadSidecar }) => {
+      const sidecar = loadSidecar(${JSON.stringify(p)});
+      sidecar.nodes.n1 = { owner: 'o', truth: 'candidate', progress: 'planned', ledger: 'clean', evidence: [], history: [] };
+      saveSidecar(${JSON.stringify(p)}, sidecar);
     }).catch((e) => { console.error(e); process.exit(1); });
   `]);
   let lockInfo = null;
@@ -382,21 +384,6 @@ test('提交前 tmp 写入失败：结构化 sidecar_write_failed（committed=fa
   fs.rmSync(path.dirname(p), { recursive: true, force: true });
 });
 
-test('原本无 revision 的对象：提交前失败后属性被 delete（不留 undefined）', () => {
-  const p = tmpSidecar();
-  writeRaw(p, fresh());
-  const sc = loadSidecar(p);
-  delete sc.revision;
-  fs.chmodSync(p, 0o644);
-  const realFchmod = fs.fchmodSync;
-  fs.fchmodSync = () => { const e = new Error('inject'); e.code = 'EACCES'; throw e; };
-  let err = null;
-  try { saveSidecar(p, sc); } catch (e) { err = e; }
-  fs.fchmodSync = realFchmod;
-  assert.ok(err);
-  assert.equal(Object.hasOwn(sc, 'revision'), false, '原无 revision ⇒ 删属性，不伪装「完全未变」以外的形态');
-  fs.rmSync(path.dirname(p), { recursive: true, force: true });
-});
 
 test('提交后目录 fsync 失败：sidecar_commit_unknown（committed=true/revision/durability），不伪装零写入', () => {
   const p = tmpSidecar();
@@ -481,4 +468,74 @@ test('断链 symlink：fail-loud sidecar_path_unresolvable（不按「新账本�
   assert.throws(() => loadSidecar(link), (err) => err.code === 'sidecar_path_unresolvable');
   assert.equal(fs.existsSync(path.join(dir, 'missing-target.json')), false, '不得凭空造出目标文件');
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('CAS distinguishes missing creation intent from existing revision zero, including legacy ledgers', (t) => {
+  const p = tmpSidecar();
+  t.after(() => fs.rmSync(path.dirname(p), { recursive: true, force: true }));
+  const creation = fresh();
+  creation.nodes.mine = { owner: 'o', progress: 'planned' };
+  for (const revision of [undefined, 0]) {
+    const competitor = { ...fresh(), nodes: { theirs: { owner: 'other', progress: 'planned' } } };
+    if (revision !== undefined) competitor.revision = revision;
+    writeRaw(p, competitor);
+    const before = fs.readFileSync(p, 'utf8');
+    assert.throws(() => saveSidecar(p, creation), { code: 'sidecar_conflict' });
+    assert.equal(fs.readFileSync(p, 'utf8'), before);
+    const existing = loadSidecar(p);
+    existing.nodes.additional = { owner: 'o', progress: 'planned' };
+    saveSidecar(p, existing);
+    assert.deepEqual(Object.keys(loadSidecar(p).nodes).sort(), ['additional', 'theirs']);
+    assert.equal(loadSidecar(p).revision, 1);
+  }
+  writeRaw(p, { ...fresh(), revision: 0 });
+  const readZero = loadSidecar(p);
+  fs.unlinkSync(p);
+  assert.throws(() => saveSidecar(p, readZero), { code: 'sidecar_conflict' });
+  assert.equal(fs.existsSync(p), false);
+  saveSidecar(p, creation);
+  assert.deepEqual(Object.keys(loadSidecar(p).nodes), ['mine']);
+  assert.equal(loadSidecar(p).revision, 1);
+});
+
+test('failed first publication preserves absence and the same creation intent can retry', (t) => {
+  const p = tmpSidecar();
+  t.after(() => fs.rmSync(path.dirname(p), { recursive: true, force: true }));
+  const creation = fresh();
+  creation.nodes.mine = { owner: 'o', progress: 'planned' };
+  const rename = fs.renameSync;
+  fs.renameSync = function(from, to) {
+    if (to === p) throw Object.assign(new Error('publish failed'), { code: 'EIO' });
+    return rename.call(this, from, to);
+  };
+  try {
+    assert.throws(() => saveSidecar(p, creation), { code: 'sidecar_write_failed', committed: false });
+  } finally { fs.renameSync = rename; }
+  assert.equal(fs.existsSync(p), false);
+  saveSidecar(p, creation);
+  assert.deepEqual(Object.keys(loadSidecar(p).nodes), ['mine']);
+  assert.equal(loadSidecar(p).revision, 1);
+});
+
+test('save before lock: unwritable parent is a classified uncommitted failure and preserves the caller', (t) => {
+  if (process.platform === 'win32' || process.getuid?.() === 0) {
+    t.skip('Needs POSIX non-root permission enforcement');
+    return;
+  }
+  const dir = path.dirname(tmpSidecar());
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const p = path.join(dir, 'child', 'state.json');
+  const sc = fresh();
+  const before = structuredClone(sc);
+  fs.chmodSync(dir, 0o555);
+  try {
+    assert.throws(() => saveSidecar(p, sc), (e) => e.code === 'sidecar_write_failed'
+      && e.committed === false && e.causeCode === 'EACCES' && e.revision === null);
+    assert.deepEqual(sc, before);
+    assert.equal(fs.existsSync(p), false);
+    assert.equal(fs.existsSync(p + '.lock'), false);
+    assert.deepEqual(fs.readdirSync(dir), []);
+  } finally {
+    fs.chmodSync(dir, 0o755);
+  }
 });

@@ -300,3 +300,40 @@ test('非账本实体声明：两端在声明内 → ungroundedDeclared；未声
   assert.equal(r3.receipt.data.ungroundedDeclared, 0);
   assert.equal(r3.receipt.data.nonAccountsDeclared, 0);
 });
+
+test('reverse SQL retains endpoint membership when anchor counts differ', { skip: !DatabaseSync }, (t) => {
+  const f = makeFixture();
+  t.after(() => fs.rmSync(f.dir, { recursive: true, force: true }));
+  const sc = JSON.parse(fs.readFileSync(f.sc, 'utf8'));
+  sc.nodes['comp-a'].evidence.push(path.join(f.repo, 'src/c.ts') + ':1');
+  fs.writeFileSync(f.sc, JSON.stringify(sc));
+  const spec = JSON.parse(fs.readFileSync(f.spec, 'utf8'));
+  spec.connections = [{ from: 'comp-a', to: 'comp-b', kind: 'imports' }];
+  fs.writeFileSync(f.spec, JSON.stringify(spec));
+  const reverse = run(['--spec', f.spec, '--sidecar', f.sc, '--repo', f.repo, '--json']);
+  assert.equal(reverse.code, 0, reverse.out);
+  assert.equal(reverse.receipt.data.reverseOnly, 1);
+  const db = new DatabaseSync(path.join(f.repo, '.codegraph/codegraph.db'));
+  db.exec("DELETE FROM edges; INSERT INTO edges (source,target,kind) VALUES ('n:a','n:c','imports')");
+  db.close();
+  const unrelated = run(['--spec', f.spec, '--sidecar', f.sc, '--repo', f.repo, '--json']);
+  assert.equal(unrelated.receipt.data.reverseOnly, 0);
+  assert.equal(unrelated.receipt.data.withoutEvidence, 1);
+});
+
+test('one SQL row fanning out to multiple owners discloses nomination truncation without exceeding cap', { skip: !DatabaseSync }, (t) => {
+  const f = makeFixture();
+  t.after(() => fs.rmSync(f.dir, { recursive: true, force: true }));
+  const sc = JSON.parse(fs.readFileSync(f.sc, 'utf8'));
+  for (const id of ['comp-b2', 'comp-b3']) sc.nodes[id] = { ...sc.nodes['comp-b'] };
+  fs.writeFileSync(f.sc, JSON.stringify(sc));
+  const spec = JSON.parse(fs.readFileSync(f.spec, 'utf8'));
+  spec.connections = [];
+  spec.components.push(...['comp-b2', 'comp-b3'].map(id => ({ ...spec.components[1], id })));
+  fs.writeFileSync(f.spec, JSON.stringify(spec));
+  const r = run(['--spec', f.spec, '--sidecar', f.sc, '--repo', f.repo, '--cap', '1', '--json']);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.receipt.data.withoutEdge, 1);
+  assert.equal(r.receipt.data.nominationTruncated.scannedRows, 1);
+  assert.equal(r.receipt.data.nominationTruncated.truncated, true);
+});

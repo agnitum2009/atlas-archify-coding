@@ -136,3 +136,24 @@ test('O2 未声称对齐的节点（in_progress/无 progress）不进 HEAD 判�
   assert.equal(r.receipt.data.evidenceHead.uncommitted, 0);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('HEAD checks use physical source identity through outside file and directory symlinks', (t) => {
+  const { dir, repo } = gitRepo();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const source = path.join(repo, 'src', 'a.ts'), fileAlias = path.join(dir, 'proof.ts'), dirAlias = path.join(dir, 'repo-alias');
+  fs.symlinkSync(source, fileAlias);
+  fs.symlinkSync(repo, dirAlias);
+  const aliases = [fileAlias, path.join(dirAlias, 'src', 'a.ts')];
+  const sc = seedSidecar(dir, Object.fromEntries(aliases.map((file, i) => ['alias-' + i, node([file + ':2'])])));
+  const good = run(['report', '--sidecar', sc, '--no-trace']);
+  assert.equal(good.code, 0, good.stdout);
+  assert.equal(good.receipt.data.evidenceHead.counts.ok, 2);
+  assert.equal(good.receipt.data.evidenceHead.noGit, 0);
+  fs.writeFileSync(source, 'line1\nuncommitted-edit\nline3\n');
+  const bad = run(['report', '--sidecar', sc, '--no-trace']);
+  assert.equal(bad.code, 1, bad.stdout);
+  assert.equal(bad.receipt.data.evidenceHead.contentMismatch, 2);
+  assert.equal(bad.receipt.data.evidenceHead.counts['content-mismatch'], 2);
+  assert.equal(bad.receipt.data.evidenceHead.noGit, 0);
+  assert.ok(bad.receipt.diagnostics.some(d => d.rule === 'a3-head-mismatch'));
+});

@@ -195,3 +195,80 @@ test('JS/TS 规格先去 ?query / #hash 再解析（报告仍用原规格）；#
   });
   assert.deepEqual(parse(repo, 'src/m.mjs'), { deps: ['src/a.mjs', 'src/b.ts'], unresolved: ['./gone.mjs?ops-tools'] });
 });
+
+test('cross-line quoted/template bodies never create imports, but nested template expressions remain real dependencies', (t) => {
+  const repo = repoWith(t, {
+    'src/fake.mjs': 'export const a = 1;\n',
+    'src/real-a.mjs': 'export const a = 1;\n',
+    'src/real-b.mjs': 'export const b = 1;\n',
+    'src/main.mjs': [
+      'const example = `',
+      "import { a } from './fake.mjs';",
+      "export { a } from './fake.mjs';",
+      "require('./fake.mjs'); import('./fake.mjs');",
+      '`;',
+      'const continued = "first\\',
+      "import './fake.mjs';\\",
+      '";',
+      'const nested = `require("./fake.mjs") ${`import("./fake.mjs") ${require("./real-b.mjs")}`}`;',
+      'const real = `text ${import("./real-a.mjs")}`;',
+    ].join('\n') + '\n',
+  });
+  const got = parse(repo, 'src/main.mjs');
+  assert.deepEqual(got.deps.sort(), ['src/real-a.mjs', 'src/real-b.mjs']);
+  assert.deepEqual(got.unresolved, []);
+});
+
+test('literal import syntax keeps comments, escapes, module.require and division distinct from non-code or object methods', (t) => {
+  const repo = repoWith(t, {
+    'packages/fake/package.json': JSON.stringify({ name: 'fake-pkg', main: 'index.mjs' }),
+    'packages/fake/index.mjs': 'export const a = 1;\n',
+    'src/real-a.mjs': 'export const a = 1;\n',
+    'src/real-b.mjs': 'export const b = 1;\n',
+    'src/real-c.mjs': 'export const c = 1;\n',
+    'src/main.mjs': [
+      '#!/usr/bin/env node require("fake-pkg")',
+      'import /* import "fake-pkg" */ { a } from /* comment */ "./real-a.mjs";',
+      'export { "a" as renamed } from "./real-a.mjs";',
+      'const regexp = /require("fake-pkg")/;',
+      'if (true) /import("fake-pkg")/.test("x");',
+      'const text = "/* require(\\\"fake-pkg\\\") */";',
+      'obj.require("fake-pkg");',
+      'const αrequire = x => x; αrequire("fake-pkg");',
+      'module /* comment */ . require("./real-b.mjs");',
+      'let x = 2; const ratio = x++ / require("./real-c.mjs");',
+      'import("./\\u0072eal-a.mjs", { with: { type: "json" } });',
+    ].join('\n') + '\n',
+  });
+  const got = parse(repo, 'src/main.mjs');
+  assert.deepEqual(got.deps.sort(), ['src/real-a.mjs', 'src/real-b.mjs', 'src/real-c.mjs']);
+  assert.deepEqual(got.unresolved, []);
+});
+
+test('JSX text and attributes are not code; expressions and typed TSX generic arrows preserve real imports', (t) => {
+  const repo = repoWith(t, {
+    'src/fake.ts': 'export const fake = 1;\n',
+    'src/real-a.ts': 'export const a = 1;\n',
+    'src/real-b.ts': 'export const b = 1;\n',
+    'src/main.tsx': [
+      'import { a } from "./real-a";',
+      'const view = <div title=\'import("./fake")\'>',
+      'import { fake } from "./fake"; require("./fake");',
+      '<span>{"require(\\"./fake\\")"}</span>',
+      '{import("./real-b")}',
+      '</div>;',
+      'const identity = <T extends object>(x: T): T => x;',
+    ].join('\n') + '\n',
+  });
+  const got = parse(repo, 'src/main.tsx');
+  assert.deepEqual(got.deps.sort(), ['src/real-a.ts', 'src/real-b.ts']);
+  assert.deepEqual(got.unresolved, []);
+});
+
+test('unclosed lexical contexts disclose unparsed instead of returning guessed dependency facts', (t) => {
+  const repo = repoWith(t, { 'src/a.mjs': 'export const a = 1;\n',
+    'src/b.mjs': 'import "./a.mjs";\nconst example = `\nrequire("./a.mjs");\n' });
+  const index = repoIndex(repo), file = path.join(repo, 'src/b.mjs');
+  const got = importsOf(file, readHeadFiles(repo, ['src/b.mjs']).get('src/b.mjs'), index);
+  assert.deepEqual(got, { deps: [], unresolved: [], unparsed: true });
+});
