@@ -3,6 +3,28 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.35.0] - 2026-10-02
+
+负责人裁定 AE-08/13/14 仅补 fail-loud 缺口；本版先推分支、开 PR，由本侧审阅合并，合并后再销三项债。不加命令/旗标/帮助行，不修改 AE-12/24/30。
+
+### Breaking (a) — 拒绝此前接受的输入
+
+- AE-08：重复带值参数仅对注册表 `repeatable: true` 者聚合；其余返回 `bad_args` / exit 1 并点名旗标，init 重复 `--title` / `--dir` 不产生文件。经数组消费点核对仅 `--spec`、`--replay`、`--allow-root` 保留可重复，单次传值和布尔旗标行为不变。旗标仍 50/50，帮助仍 ≤50 行。
+- AE-13：`check-codegraph-freshness.mjs` 的 `--warn-days` / `--fail-days` 必须为有限非负数，非数字/无穷/负数返回既有 `bad_args` / exit 2，不再假报 fresh。本脚本在 AAC 的 KEEP_SCRIPTS 投影清单内；不改 warn > fail 顺序规则。
+
+### Breaking (b) — 本版无此类变更
+
+- freshness 输入失败沿用脚本既有 exit 2，不顺手改为 CLI 的 exit 1；退出码统一须另行裁定。
+
+### Breaking (c) — 改变默认行为
+
+- AE-14 根预检：`unowned-oversize-scan.mjs --root` 不存在或不是目录时按既有输入守卫返回 `bad_args` / exit 1，不再返回假 `ok, scanned: 0`。
+
+### Added
+
+- AE-14 部分扫描披露：目录读取失败计入 `data.unreadableDirs`，`data.unreadableDirSamples` 最多保留 5 条相对根路径（根自身为 `.`）；仍 `status: ok` / exit 0，不升级为阻断门禁。除这两项授权字段外不改回执形状；该脚本及其新增测试均不投影 AAC。
+- 回归覆盖三项红→绿：全部不可重复带值旗标、init 零文件输出、非法/合法阈值、缺失/非目录根、真实 chmod 000 子目录、正常及空目录扫描。
+
 ## [0.34.1] - 2026-10-01
 
 0.32.1→0.34.0 差异审阅后的纪律补正（裁决回执 rulings/RULINGS-2026-10-01-audit-0.33-0.34.md）。代码行为零变化；不回退 0.34.0。
@@ -90,46 +112,9 @@ v3 生产路径加固。生产内核已切到 archify v3.0.1（裁决回执 ruli
 
 npm test 694 项 691 通过 0 失败 3 跳过（+5 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变。真内核实跑（本机 2.16.0 与 3.0.1）2/2 通过——v3 visual-check 回执溯源字段在真内核上逐项核对成立。
 
-## [0.32.0] - 2026-09-29
-
-接驳 archify v3，双版本兼容 2.16 / 3.x（设计 docs/superpowers/specs/2026-09-29-archify-v3-bridge-design.md；负责人裁定：双版本兼容、焦点卡仅 v3）。
-
-**依据**（2026-09-28/29 实测，本地 archify 3.0.1 克隆与 2.16.0 worktree）：v3 要求 `meta.output`（RELEASES 未载）——atlas 的 init 模板与
-compile 产物都没有，v3 下 gate 在 validate 闸全部失败；v3 退役 `meta.views`，atlas 的「当前焦点」章节静默消失；v3 官方验收链改为
-deliver → 严格溯源 check → 浏览器检查；3.0.1 起 deliver 自带联网更新检查。
-
-### Added
-
-- 内核契约族判定 `kernelProfile` / `kernelOf`（只读 bin 旁 package.json，先解析符号链接以覆盖 `npm i -g` / `npm link` 安装；major ≥ 3 → v3，其余与未知 → v2，`versionKnown` 如实标）。
-- compile：`meta.output` 缺则补 `<图名>.html`（portable；作者已写原样保留）；v3 内核下另加一张 atlas 自管说明卡「当前焦点（在途 n）」置 `cards` 首位
-  （只替换 atlas 生成的精确格式卡——amber 且标题「当前焦点（在途 N）」，作者卡即使同前缀也不动；2.x / 版本未知 / 无在途时不生成并清除残留）；回执 `injected.focusCard`、`injected.kernel`。init 模板补 `meta.output`。
-- gate：v3 闸链 validate → deliver → **check**（`--require-provenance`，核对 ok / file / provenance=current / 产物摘要 / deliveryReceiptId，
-  不符 `check-receipt`、非零 `check-failed`）→ visual_check（加 `--require-provenance`）；2.x 三闸不变。回执 `data.kernel`，v3 `results.check`；
-  gate-detail.jsonl 逐闸记录随实际闸链并带 `kernel`。gate 调 archify 的子进程一律 `ARCHIFY_UPDATE_CHECK_DISABLED=1`。
-- doctor：`archify-kernel` 的 detail 披露 `profile=v2|v3`。
-- `test/archify-real.test.mjs`：真内核集成测试（选跑；设 `ATLAS_REAL_ARCHIFY_V2` / `ATLAS_REAL_ARCHIFY_V3` 时执行）。
-
-### 已知差异（如实记录）
-
-- v3 上游移除了交互式引导章节，atlas 在 v3 下以焦点卡 + 节点 tag 承接，交互式章节不可恢复。
-- 焦点卡不在 2.x 生成：2.16 visual-check 禁首屏纵向溢出，2.16 自带示例加一张五行卡即 `viewer/viewport-overflow`。
-- 部分 lifecycle 图在 2.16 过不了 visual-check：本机 v2.16.0 标签下，内核自带的两个 lifecycle 示例与一张最小三状态图原样都纵向溢出
-  （与 atlas 无关、0.31 同样；v3 下同图通过）。**并非 lifecycle 必然过不了**——umax 的 2.16.0-dev.0 上 demo-b 的 8 状态 lifecycle 三闸全过
-  （2026-09-29 复测更正）：是否溢出取决于具体图的尺寸。
-
-### 非变更（明示拒绝）
-
-- 不接仓库证据（`sources` / `--repo-root`）与 compare；不改 diff；不改 2.x 闸链的调用与回执形状；不提高耦合基线（仍 2.14）。
-- 不改用 `finalize`（不产截图，改过去即丢现有视觉证据）；不单独加 `browser-check`（v3 的 visual-check 已含其全部测量）。
-- 不新增旗标（50/50 已满）、命令、错误码行；不安装 / 升级 archify。
-
-### 实证附记
-
-npm test 689 项 686 通过 0 失败 3 跳过（含整分支审阅修复 3 例）（1 异机、2 真内核选跑）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 141 文件幂等、隐私零命中；--help 49 行不变；投影后的公开树相关测试通过。真内核实跑（本机 2.16.0 worktree 与 3.0.1 克隆，WORKDIR 置 $HOME 下以避开 snap Chromium 的 /tmp 限制）：两版 2/2 通过——架构图全闸（v2 三闸、v3 四闸）、visualReview=pending、进度 tag、2.x 焦点章节、v3 焦点卡、lifecycle tag 注入（v3 全闸）、失败诊断原样带出。
-
 ---
 
-更早的 62 个版本（0.1.0 → 0.31.0）：
+更早的 63 个版本（0.1.0 → 0.32.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

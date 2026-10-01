@@ -26,6 +26,20 @@ function run(args) {
   return { code: res.status, receipt };
 }
 
+for (const flag of ['title', 'dir']) {
+  test('AE-08：init 重复 --' + flag + ' → exit 1 bad_args，零文件输出', (t) => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-init-repeat-'));
+    t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+    const args = ['init', '--dir', path.join(base, 'x'), '--title', 'A',
+      '--' + flag, flag === 'dir' ? path.join(base, 'y') : 'B'];
+    const r = run(args);
+    assert.equal(r.code, 1);
+    assert.equal(r.receipt.diagnostics[0].rule, 'bad_args');
+    assert.ok(r.receipt.diagnostics[0].evidence.includes('--' + flag));
+    assert.deepEqual(fs.readdirSync(base), []);
+  });
+}
+
 test('init 生成 v3 版式（七区 + 项目子目录 + projects.json 注册表）+ INDEX 注册 + 骨架 spec + sidecar；重复 init 拒绝', () => {
   const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-init-')), 'demo-atlas');
   const ok = run(['init', '--dir', dir, '--title', '演示图谱', '--diagram-type', 'architecture', '--diagram-id', 'demo-map']);

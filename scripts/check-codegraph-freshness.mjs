@@ -29,7 +29,12 @@ import { resolveAtlasContext, appendJsonl } from '../lib/atlas-data.mjs';
 
 const argv = process.argv.slice(2);
 const multi = (k) => { const out = []; for (let i = 0; i < argv.length; i++) if (argv[i] === k && argv[i + 1]) out.push(argv[i + 1]); return out; };
-const one = (k, d) => { const i = argv.indexOf(k); return i >= 0 && argv[i + 1] ? Number(argv[i + 1]) : d; };
+const one = (k, d) => {
+  const i = argv.indexOf(k);
+  const value = i >= 0 && argv[i + 1] ? Number(argv[i + 1]) : d;
+  if (!Number.isFinite(value) || value < 0) fail(k + ' 必须为有限非负数');
+  return value;
+};
 const JSON_OUT = argv.includes('--json');
 const sidecars = multi('--sidecar');
 const extraRepos = multi('--repo');

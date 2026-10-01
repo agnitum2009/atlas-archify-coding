@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.34.1",
+  "sourceVersion": "0.35.0",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "9f7c0f94ffe11544"
+      "sha256": "75aab61e12935a88"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "b3a33053faab4b31"
+      "sha256": "58f745ee91781f53"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -73,11 +73,11 @@
     },
     {
       "path": "lib/cli-options.mjs",
-      "sha256": "4f0807178e0d95d6"
+      "sha256": "ce9fbe88dbfc5d5f"
     },
     {
       "path": "lib/cli-util.mjs",
-      "sha256": "23367ca25ce3847c"
+      "sha256": "b695a6365b0f41c8"
     },
     {
       "path": "lib/cmd-compile.mjs",
@@ -225,7 +225,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "6753545038ca6258"
+      "sha256": "fb3bdbe620a5c4b2"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -237,11 +237,11 @@
     },
     {
       "path": "scripts/check-codegraph-freshness.mjs",
-      "sha256": "119c9d0ad79634ca"
+      "sha256": "7609ba9f52b00117"
     },
     {
       "path": "scripts/check-public-privacy.mjs",
-      "sha256": "f183c2e86288cba6"
+      "sha256": "eb2b954707d0f00c"
     },
     {
       "path": "scripts/reanchor-moved.mjs",
@@ -273,7 +273,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "053a4bc8b7e5e927"
+      "sha256": "9d0f7e7173976b68"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -329,7 +329,7 @@
     },
     {
       "path": "test/codegraph-freshness.test.mjs",
-      "sha256": "a782d0d15b3e3db7"
+      "sha256": "6aaf08f19517ecc9"
     },
     {
       "path": "test/compile-receipt.test.mjs",
@@ -385,7 +385,7 @@
     },
     {
       "path": "test/flag-guard.test.mjs",
-      "sha256": "fa69955b5d2f0aa9"
+      "sha256": "8f97b0f07ae8e892"
     },
     {
       "path": "test/gate-detail.test.mjs",
@@ -401,7 +401,7 @@
     },
     {
       "path": "test/init-cli.test.mjs",
-      "sha256": "873df8c074a2bf05"
+      "sha256": "4e83b7269cecf2ac"
     },
     {
       "path": "test/invariant-exhaustive.test.mjs",

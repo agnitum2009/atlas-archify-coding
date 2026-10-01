@@ -85,12 +85,25 @@ test('remove 布尔解析：裸旗标及旧 true/false 明确取值，其他布�
   assert.throws(() => parseArgs(['--remove', 'yes'], ['remove']), /无法识别的参数：yes/);
 });
 
-test('重复带值旗标保持聚合，单个值及布尔键名保持兼容', async () => {
+test('可重复带值旗标聚合，单次传值及重复布尔保持兼容', async () => {
   const { parseArgs } = await import('../lib/cli-util.mjs');
-  assert.deepEqual(parseArgs(['--spec', 'a', '--spec', 'b', '--replay', 'x', '--replay', 'y', '--node', 'n1', '--node', 'n2']), {
-    spec: ['a', 'b'], replay: ['x', 'y'], node: ['n1', 'n2'],
+  assert.deepEqual(parseArgs(['--spec', 'a', '--spec', 'b', '--replay', 'x', '--replay', 'y', '--allow-root', '/a', '--allow-root', '/b']), {
+    spec: ['a', 'b'], replay: ['x', 'y'], 'allow-root': ['/a', '/b'],
   });
-  assert.deepEqual(parseArgs(['--spec', 'a', '--with-backlog', '--no-trace']), { spec: 'a', withBacklog: true, noTrace: true });
+  assert.deepEqual(parseArgs(['--spec', 'a', '--with-backlog', '--with-backlog', '--no-trace']), { spec: 'a', withBacklog: true, noTrace: true });
+  assert.deepEqual(parseArgs(['--remove', 'true', '--remove', 'false']), { remove: false });
+});
+
+test('AE-08：注册表每个不可重复的带值旗标均拒绝重复并点名', async (t) => {
+  const { OPTIONS, FLAGS } = await import('../lib/cli-options.mjs');
+  const { parseArgs } = await import('../lib/cli-util.mjs');
+  for (const [flag, option] of Object.entries(OPTIONS)) {
+    if (option.type !== 'value' || option.repeatable) continue;
+    await t.test('--' + flag, () => {
+      assert.throws(() => parseArgs(['--' + flag, 'a', '--' + flag, 'b'], FLAGS[option.commands[0]]),
+        (error) => error.code === 'bad_args' && error.message.includes('--' + flag));
+    });
+  }
 });
 
 for (const form of [[], ['true'], ['false']]) {

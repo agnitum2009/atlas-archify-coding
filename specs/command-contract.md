@@ -21,7 +21,7 @@
 
 **废弃政策（两段式）**：标 deprecated（--help 标注 + 回执 warning 诊断——severity=warning 的 deprecated_command 诊断指明替代路径与移除版本，退出码与 data 不变）→ 存活一个 minor 周期 → 次 minor 删除，删除理由与替代路径入 RELEASES。首批已走完两段全程：evidence 顶层命令、lessons hit 子命令（0.9.0 标记 → v0.10.0 物理移除，deprecated_command 诊断码随之退役；理由与替代路径入 RELEASES [0.10.0] Breaking 节；判据与实测口径见 docs/archive/ADOPTION-BASELINE-2026-08-17.md）。
 
-**旗标白名单粒度**：lib/cli-options.mjs 统一声明命令范围、类型和解析键名，派生注册表 flags 与解析器布尔集合；按命令组并集校验。未知旗标或缺少必填参数 = failed/exit 1 bad_args。重复带值参数保留聚合；--remove 裸旗标为 true，兼容显式 true/false，其他布尔旗标不吞后续位置参数。
+**旗标白名单粒度**：lib/cli-options.mjs 统一声明命令范围、类型和解析键名，派生注册表 flags 与解析器布尔集合；按命令组并集校验。未知旗标或缺少必填参数 = failed/exit 1 bad_args。重复带值参数仅对注册表标记可重复者聚合，其余 bad_args；--remove 裸旗标为 true，兼容显式 true/false，其他布尔旗标不吞后续位置参数。
 
 **注入文本行数预算**（2026-08-17，与命令/旗标预算同一治理精神，Sculley 死分支处方同源）：SKILL.md 核心纪律条目 ≤ 10 条、单条 ≤ 6 行——「防注入块无限膨胀」的自我约束；超出须先退役一条或经开发规范程序上调，禁止静默膨胀。
 

@@ -98,6 +98,31 @@ test('用法守卫：无任何输入 → exit 2（不猜路径）', () => {
   assert.equal(r.receipt.diagnostics[0].rule, 'bad_args');
 });
 
+for (const flag of ['--warn-days', '--fail-days']) {
+  for (const value of ['nope', '-1', 'Infinity']) {
+    test('AE-13：' + flag + ' ' + value + ' → exit 2 bad_args', (t) => {
+      const { dir, repo } = makeRepo('invalid-threshold');
+      t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+      const r = run(['--repo', repo, '--json', flag, value]);
+      assert.equal(r.code, 2, r.out);
+      assert.equal(r.receipt.status, 'failed');
+      assert.equal(r.receipt.diagnostics[0].rule, 'bad_args');
+      assert.ok(r.receipt.diagnostics[0].evidence.includes(flag), r.out);
+    });
+  }
+}
+
+test('AE-13：有限非负阈值允许零和小数，仍按阈值判 stale/aging', (t) => {
+  const { dir, repo } = makeRepo('valid-threshold', { commitDaysAgo: 0, indexDaysAgo: 2 });
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const stale = run(['--repo', repo, '--json', '--warn-days', '0', '--fail-days', '1.5']);
+  assert.equal(stale.code, 1, stale.out);
+  assert.equal(stale.receipt.data.counts.stale, 1);
+  const aging = run(['--repo', repo, '--json', '--warn-days', '0.5', '--fail-days', '3']);
+  assert.equal(aging.code, 0, aging.out);
+  assert.equal(aging.receipt.data.counts.aging, 1);
+});
+
 // ---------- O4（2026-09-14 设计件 §2 O4）：判据换源 + JSONL append-only ----------
 
 // 造一个「看起来像 atlas」的目录：<atlas>/state/{projects.json, atlas-<project>.json}

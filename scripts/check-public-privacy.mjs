@@ -46,7 +46,7 @@ export const FORBIDDEN_PATHS = [
   // 属内部治理档——整体不投影（文件级脱敏不可靠，且回执的价值就在原样可读）。
   /^rulings\//,
   /^REVIEW\.md$/, /^CHANGELOG\.md$/, /^scripts\/(verify-deploy-injection|injection-terms|deploy-injection-path|verify-size-budgets|verify-doc-test-count|unowned-oversize-scan|export-public)\.mjs$/,
-  /^test\/(sync-generated|size-budgets-generated|deploy-injection|public-projection)\.test\.mjs$/,
+  /^test\/(sync-generated|size-budgets-generated|deploy-injection|public-projection|unowned-oversize-scan)\.test\.mjs$/,
 ];
 
 // 唯一自我豁免：本文件必须含它要猎的词，故无法自扫。豁免的可核性由导出器保证——
