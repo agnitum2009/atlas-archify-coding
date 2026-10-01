@@ -19,7 +19,7 @@ function run(args) {
   return { code: res.status, receipt, out: res.stdout + res.stderr };
 }
 
-function makeFixture() {
+function makeFixture({ index = true } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'edge-recon-'));
   const repo = path.join(dir, 'repo');
   fs.mkdirSync(path.join(repo, 'src'), { recursive: true });
@@ -28,7 +28,7 @@ function makeFixture() {
   fs.writeFileSync(path.join(repo, 'src', 'b.ts'), 'import { a } from "./a.ts";\nexport const b = a;\n');
   fs.writeFileSync(path.join(repo, 'src', 'c.ts'), 'export const c = 1;\n');
   // 非账本声明用例不依赖索引；低版本仍执行该用例，SQLite 专属断言各自明确 skip。
-  if (DatabaseSync) {
+  if (DatabaseSync && index) {
     // 最小同 schema 索引：nodes(files/symbols) + edges(a→b calls)
     const dbPath = path.join(repo, '.codegraph', 'codegraph.db');
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -336,4 +336,63 @@ test('one SQL row fanning out to multiple owners discloses nomination truncation
   assert.equal(r.receipt.data.withoutEdge, 1);
   assert.equal(r.receipt.data.nominationTruncated.scannedRows, 1);
   assert.equal(r.receipt.data.nominationTruncated.truncated, true);
+});
+
+for (const [diagramType, relationSet] of [['sequence', 'messages'], ['dataflow', 'flows'], ['lifecycle', 'transitions']]) {
+  test(`AE-12 ${diagramType}: disclose unsupported without findings or strict failure`, (t) => {
+    const f = makeFixture({ index: false });
+    t.after(() => fs.rmSync(f.dir, { recursive: true, force: true }));
+    for (const collections of [{}, { connections: [], edges: [] }]) {
+      fs.writeFileSync(f.spec, JSON.stringify({ diagram_type: diagramType, [relationSet]: [{ from: 'comp-a', to: 'comp-b' }], ...collections }));
+      const r = run(['--spec', f.spec, '--sidecar', f.sc, '--strict', '--json']);
+      assert.equal(r.code, 0, r.out);
+      assert.equal(r.receipt.status, 'ok');
+      assert.deepEqual(r.receipt.data.unsupported, [{ spec: f.spec, diagramType, relationSet }]);
+      assert.equal(r.receipt.data.note, undefined);
+      assert.equal(r.receipt.data.connections, 0);
+      assert.deepEqual(r.receipt.diagnostics, []);
+    }
+    fs.writeFileSync(f.spec, JSON.stringify({ diagram_type: diagramType, [relationSet]: [] }));
+    assert.deepEqual(run(['--spec', f.spec, '--sidecar', f.sc, '--json']).receipt.data.unsupported,
+      [{ spec: f.spec, diagramType, relationSet }]);
+  });
+}
+
+test('AE-12 multiple specs: ordered absolute dedup and strict still rejects existing findings', (t) => {
+  const f = makeFixture({ index: false });
+  t.after(() => fs.rmSync(f.dir, { recursive: true, force: true }));
+  const seq = path.join(f.dir, 'seq.json');
+  const flow = path.join(f.dir, 'flow.json');
+  fs.writeFileSync(seq, JSON.stringify({ diagram_type: 'sequence', messages: [] }));
+  fs.writeFileSync(flow, JSON.stringify({ diagram_type: 'dataflow', flows: [] }));
+  const r = run(['--spec', seq, '--spec', path.relative(process.cwd(), seq), '--spec', flow,
+    '--spec', f.spec, '--sidecar', f.sc, '--strict', '--json']);
+  assert.equal(r.code, 1, r.out);
+  assert.equal(r.receipt.status, 'ok');
+  assert.deepEqual(r.receipt.data.unsupported, [
+    { spec: seq, diagramType: 'sequence', relationSet: 'messages' },
+    { spec: flow, diagramType: 'dataflow', relationSet: 'flows' },
+  ]);
+  assert.equal(r.receipt.data.connections, 2);
+  assert.ok(r.receipt.diagnostics.some(d => d.rule === 'edge-no-index-unchecked'));
+});
+
+test('AE-12 original collections control disclosure; ordinary empty architecture keeps its note', (t) => {
+  const f = makeFixture({ index: false });
+  t.after(() => fs.rmSync(f.dir, { recursive: true, force: true }));
+  for (const field of ['connections', 'edges']) {
+    fs.writeFileSync(f.spec, JSON.stringify({ diagram_type: 'sequence', [field]: [{ from: 'comp-a', to: 'comp-b' }] }));
+    const r = run(['--spec', f.spec, '--sidecar', f.sc, '--json']);
+    assert.equal(r.receipt.data.unsupported, undefined);
+    assert.equal(r.receipt.data.connections, 1);
+    fs.writeFileSync(f.spec, JSON.stringify({ diagram_type: 'sequence', [field]: [{}] }));
+    assert.equal(run(['--spec', f.spec, '--sidecar', f.sc, '--json']).receipt.data.unsupported, undefined);
+  }
+  fs.writeFileSync(f.spec, JSON.stringify({ diagram_type: 'architecture', connections: [] }));
+  const seq = path.join(f.dir, 'seq.json');
+  fs.writeFileSync(seq, JSON.stringify({ diagram_type: 'sequence' }));
+  for (const extra of [[], ['--spec', seq]]) {
+    const r = run(['--spec', f.spec, ...extra, '--sidecar', f.sc, '--json']);
+    assert.ok(r.receipt.data.note?.includes('无对象'));
+  }
 });

@@ -109,6 +109,11 @@ function explicitKindOf(conn) {
 // ---------- 图与账 ----------
 const specAbs = new Set(specs.map((p) => path.resolve(p)));
 const connections = [];
+const unsupported = [];
+const unsupportedSpecs = new Set();
+const relationSets = new Map([['sequence', 'messages'], ['dataflow', 'flows'], ['lifecycle', 'transitions']]);
+const emptyRelationSet = (value) => value === undefined || (Array.isArray(value) && value.length === 0);
+let hasOrdinarySpec = false;
 let kindDeclaredTyped = 0;
 let kindDeclaredUnknown = 0;
 let kindUndeclared = 0;
@@ -118,6 +123,16 @@ for (const sp of specs) {
   // 2026-09-10 修（负责人责问的 worker 面缺口同批实捕）：workflow/sequence 型图用
   // `edges[]`（无 connections）——先前只读 connections，致 workflow 图的边全部不可见，
   // 反向报成“码有据而图未画”漏边（knifeseq e4 实测误报）。两形并入同一口径。
+  const relationSet = relationSets.get(d.diagram_type);
+  if (relationSet && emptyRelationSet(d.connections) && emptyRelationSet(d.edges)) {
+    const spec = path.resolve(sp);
+    if (!unsupportedSpecs.has(spec)) {
+      unsupportedSpecs.add(spec);
+      unsupported.push({ spec, diagramType: d.diagram_type, relationSet });
+    }
+  } else {
+    hasOrdinarySpec = true;
+  }
   for (const c of [...(d.connections || []), ...(d.edges || [])]) {
     if (!c || !c.from || !c.to) continue;
     const ek = explicitKindOf(c);
@@ -456,7 +471,8 @@ const data = {
       + 'specAnchored=锚为本次 spec 自身；noIndexAnchored=无索引仓且锚非 spec（真未检查）；withoutEvidence=同仓无该边；'
       + (leakScanTruncated ? '漏边扫描本轮被截断（nominationTruncated.truncated=true），未覆盖全部锚文件／节点提名对' : '漏边扫描未截断'),
   },
-  ...(connections.length === 0 ? { note: 'spec 无 connections——本报告是"无对象"，不是"全部有边"' } : {}),
+  ...(unsupported.length > 0 ? { unsupported } : {}),
+  ...(connections.length === 0 && hasOrdinarySpec ? { note: 'spec 无 connections——本报告是"无对象"，不是"全部有边"' } : {}),
 };
 const receipt = { schemaVersion: 1, command: 'reconcile-graph-edges', status: 'ok',
   data: { ...data },
@@ -467,6 +483,7 @@ else {
   console.log(`edge-reconcile ok（文件级提名，非语义证明）：连接 ${data.connections} · 方向+类型双证 ${typedDirectionalHits} · 文件级方向提名 ${directionalFileLevelHits} · 仅反向 ${reverseOnly} · 类型不符 ${kindMismatch} · 无端点 ${ungrounded}（已声明非账本实体 ${ungroundedDeclared}） · 同仓无据 ${withoutEvidence} · 跨仓边 ${crossRepo} · 图内自锚 ${specAnchored} · 无索引未检查 ${noIndexAnchored} · 漏边 ${withoutEdge}（归属不唯一 ${withoutEdgeMultiOwner}） · N/A 仓 ${naRepos.size}`);
   console.log(`  类型声明面：显式可映射 ${kindDeclaredTyped} · 显式不可映射 ${kindDeclaredUnknown} · 未声明 ${kindUndeclared}（未声明的连接不做类型判定）`);
   console.log(`  漏边分类（事实标註，不改提名口径）：${classStr}${leakScanTruncated ? ' ｜本轮漏边扫描已截断（行 cap=' + CAP * 4 + '／提名 cap=' + CAP + '）' : ''}`);
+  for (const item of unsupported) console.log(`  未支持关系对账：${item.spec} · ${item.diagramType}/${item.relationSet}`);
   for (const f of findings.slice(0, CAP * 2)) console.log(`  [${f.severity}] ${f.subject} ${f.evidence}`.trim());
   if (findings.length > CAP * 2) console.log(`  …另 ${findings.length - CAP * 2} 条（--cap 可调）`);
 }

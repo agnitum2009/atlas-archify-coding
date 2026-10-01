@@ -3,6 +3,23 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.35.1] - 2026-10-02
+
+设计 `ba6fc46` 获批后按 AE-12 → AE-30 → AE-24 实施；六项边界债闭环与裁决回执 §八 在本实现 PR 合并后另做。本版无 Breaking，不加命令/旗标/帮助行。
+
+### Added
+
+- AE-12：reconcile 对 sequence/messages、dataflow/flows、lifecycle/transitions 在原始 connections/edges 缺省或为空时披露 `data.unsupported` 数组，单份也是一元数组；项为 `{ spec, diagramType, relationSet }`，spec 为绝对路径，按输入顺序去重。只披露未支持，不映射这些关系；普通空 architecture 的 note 和既有 findings/strict 退出语义不变。
+
+### Fixed
+
+- AE-30：目录共享豁免清单新增 `ledgers[侧车文件名] = { at, receipt }`，A 的快照不再阻止 B；每账扫描一次且零条也标记。保留旧条目和未知字段，按规范化绝对文件路径追加去重；旧无 ledgers 文件逐账补扫，包括原创建者。
+- 快照逐路径 warning 通过共用命令回执 helper 输出；import 二次检查不覆盖首次 warning，后续校验/写账失败（含已提交但耐久未知）仍披露，不把 warning 混入阻断诊断。已标记不扫描、不重写；保留既有当前目标豁免 warning。不加锁、不承诺同目录并发或断电原子性，不扩大白名单。
+
+### Documentation
+
+- AE-24：契约明载 trace import 的单写者前提，并发不承诺幂等去重；同一事件串行导入。代码和测试未改，属于冻结限制说明，不是并发修复。
+
 ## [0.35.0] - 2026-10-02
 
 负责人裁定 AE-08/13/14 仅补 fail-loud 缺口；本版先推分支、开 PR，由本侧审阅合并，合并后再销三项债。不加命令/旗标/帮助行，不修改 AE-12/24/30。
@@ -93,28 +110,9 @@
 十项隔离真实 CLI/API 场景通过，含双进程 genesis 竞态；真实 trace order 验证示例无 M、实际 import 有 M、不可靠解析明确披露且不写侧车。原生 Archify 3.0.1 五类图四闸及 2.16.0-dev.0 架构图三闸共 6/6 通过；机器闸不代人工视觉批准。
 最终 `npm test`：716 项、714 通过、0 失败、2 跳过（未设置真内核测试环境变量；另已实跑上述六条原生图链）；受影响回归 61/61 通过。删除历史帮助文案/行数下降断言，不重钉旧措辞；既有命令/旗标/帮助及函数尺寸预算未放宽。
 
-## [0.32.1] - 2026-09-29
-
-v3 生产路径加固。生产内核已切到 archify v3.0.1（裁决回执 rulings/RULINGS-2026-09-29-archify-v3-switch.md：10 项目 143 图双内核普查、49 图修复、
-51 次生产 gate 均走四闸），0.32.0 暂缓的三项 v3 相关 Minor 随之转正。回执形状不变，纯加固。
-
-### Fixed
-
-- v3 的 visual-check 回执（`--require-provenance`）由 gate 自行核对 `provenance=current` 与 `deliveryReceiptId`=本轮 deliver `receiptId`，
-  不再只靠内核退出码——与 check 闸同口径；不符 reason=`visual-check-artifact-mismatch`。2.x 无此契约，不要求。
-- 侧车 gate 留痕（trace detail.result）带 `kernel`：侧车历史可区分一次 gate 走的是 v2 还是 v3（此前只有 gate-detail.jsonl 有）。
-
-### Added
-
-- 测试：v3 visual-check 溯源字段三种不符；v2 不要求溯源字段；v3 停在 deliver 时 gate-detail.jsonl 与侧车留痕都把 check / visual_check 记为 skip 并带 kernel。
-
-### 实证附记
-
-npm test 694 项 691 通过 0 失败 3 跳过（+5 例）；sync-generated --check / release-version / size-budgets 通过；export-public --selfcheck 幂等、隐私零命中；--help 行数不变。真内核实跑（本机 2.16.0 与 3.0.1）2/2 通过——v3 visual-check 回执溯源字段在真内核上逐项核对成立。
-
 ---
 
-更早的 63 个版本（0.1.0 → 0.32.0）：
+更早的 64 个版本（0.1.0 → 0.32.1）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

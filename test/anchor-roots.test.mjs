@@ -9,12 +9,14 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { ensureGrandfatheredExemptions, loadAnchorRootContext } from '../lib/anchor-roots.mjs';
 
 const BIN = new URL('../bin/atlas-engine.mjs', import.meta.url).pathname;
 const REPO_ROOT = path.resolve(path.dirname(BIN), '..');
 
-function run(args, cwd) {
-  const res = spawnSync(process.execPath, [BIN].concat(args), { encoding: 'utf8', cwd });
+function run(args, cwd, env = {}) {
+  const res = spawnSync(process.execPath, [BIN].concat(args), { encoding: 'utf8', cwd, env: { ...process.env, ...env } });
   let receipt = null;
   try { receipt = JSON.parse(res.stdout); } catch { /* 留空 */ }
   return { code: res.status, receipt, stdout: res.stdout, stderr: res.stderr };
@@ -260,4 +262,200 @@ test('completion preserves the documented legacy exemption rather than freezing 
   const after = JSON.parse(fs.readFileSync(atlas.sidecar, 'utf8')).nodes['demo-n1'];
   assert.equal(after.progress, 'verified');
   assert.equal(after.ledger, 'settled');
+});
+
+function snapshotFixture(t, evidence = true) {
+  const atlas = mkAtlas();
+  t.after(() => fs.rmSync(atlas.dir, { recursive: true, force: true }));
+  seedNode(atlas);
+  atlas.legacy = path.join(atlas.outside, 'o.ts');
+  atlas.inside = path.join(atlas.atlas, 'c.ts');
+  atlas.exemptions = path.join(atlas.stateDir, 'anchor-root-exemptions.json');
+  if (evidence) assert.equal(run(['state', 'evidence-add', '--node', 'demo-n1', '--locator',
+    atlas.legacy + ':1', '--sidecar', atlas.sidecar], atlas.dir).code, 0);
+  register(atlas, [{ project: 'demo', umbrella: 'demo-add', sourcePath: REPO_ROOT, sidecar: 'atlas-state.json' }]);
+  return atlas;
+}
+
+function snapshotAdd(atlas, locator = atlas.inside + ':1', sidecar = atlas.sidecar, env) {
+  return run(['state', 'evidence-add', '--node', 'demo-n1', '--locator', locator, '--sidecar', sidecar], atlas.dir, env);
+}
+
+function grandfathered(result) {
+  return (result.receipt.diagnostics || []).filter(d => d.rule === 'anchor_root_grandfathered').map(d => d.subject).sort();
+}
+
+function fileSha(file) {
+  return createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+test('AE-30 B after A snapshots its own legacy anchors, preserves A and deduplicates shared paths', (t) => {
+  const a = snapshotFixture(t);
+  const b = path.join(a.stateDir, 'atlas-b.json');
+  const other = path.join(a.outside, 'b.ts');
+  fs.writeFileSync(other, 'b\nb2\n');
+  const ledger = JSON.parse(fs.readFileSync(a.sidecar, 'utf8'));
+  ledger.nodes['demo-n1'].evidence = [other + ':1', other + ':2', a.legacy + ':1'];
+  fs.writeFileSync(b, JSON.stringify(ledger));
+  const first = snapshotAdd(a);
+  assert.equal(first.code, 0, first.stdout);
+  assert.deepEqual(grandfathered(first), [a.legacy]);
+  const old = JSON.parse(fs.readFileSync(a.exemptions, 'utf8'));
+  old.future = { preserve: true };
+  old.entries[0].extension = ['keep'];
+  old.entries.push(null, { opaque: true });
+  fs.writeFileSync(a.exemptions, JSON.stringify(old));
+  const second = snapshotAdd(a, other + ':1', b);
+  assert.equal(second.code, 0, second.stdout);
+  assert.equal(second.receipt.data.anchorRoot.exempted, true);
+  assert.deepEqual(grandfathered(second), [other, a.legacy].sort());
+  const doc = JSON.parse(fs.readFileSync(a.exemptions, 'utf8'));
+  assert.deepEqual(doc.entries.slice(0, old.entries.length), old.entries);
+  assert.deepEqual(doc.future, old.future);
+  assert.deepEqual(doc.ledgers['atlas-state.json'], old.ledgers['atlas-state.json']);
+  assert.equal(doc.entries.filter(e => e?.path === other).length, 1);
+  assert.equal(doc.ledgers['atlas-b.json'].at, doc.ledgers['atlas-b.json'].receipt.at);
+});
+
+test('AE-30 marked ledger never rescans, changes SHA or grandfathers later anchors through an alias', (t) => {
+  const a = snapshotFixture(t);
+  assert.equal(snapshotAdd(a).code, 0);
+  const sha = fileSha(a.exemptions);
+  let scans = 0;
+  const result = ensureGrandfatheredExemptions(a.sidecar, { get nodes() { scans++; return {}; } }, loadAnchorRootContext(a.sidecar));
+  assert.equal(scans, 0);
+  assert.equal(result.entries[0].path, a.legacy);
+  const later = path.join(a.outside, 'later.ts');
+  fs.writeFileSync(later, 'later\n');
+  const ledger = JSON.parse(fs.readFileSync(a.sidecar, 'utf8'));
+  ledger.nodes['demo-n1'].evidence.push(later + ':1');
+  fs.writeFileSync(a.sidecar, JSON.stringify(ledger));
+  const alias = path.join(a.stateDir, 'alias.json');
+  fs.symlinkSync(a.sidecar, alias);
+  const again = snapshotAdd(a, a.inside + ':1', alias);
+  assert.equal(again.code, 0, again.stdout);
+  assert.deepEqual(grandfathered(again), []);
+  const denied = snapshotAdd(a, later + ':1');
+  assert.equal(denied.code, 1, denied.stdout);
+  assert.ok(denied.receipt.diagnostics.some(d => d.rule === 'anchor_root_denied'));
+  assert.equal(fileSha(a.exemptions), sha);
+});
+
+test('AE-30 empty snapshot marks ledger and cannot absorb a later one-command grant', (t) => {
+  const a = snapshotFixture(t, false);
+  assert.equal(snapshotAdd(a).code, 0);
+  const doc = JSON.parse(fs.readFileSync(a.exemptions, 'utf8'));
+  assert.ok(Object.hasOwn(doc.ledgers, 'atlas-state.json'));
+  assert.deepEqual(doc.entries, []);
+  const sha = fileSha(a.exemptions);
+  const granted = run(['state', 'evidence-add', '--node', 'demo-n1', '--locator', a.legacy + ':1',
+    '--allow-root', a.outside, '--sidecar', a.sidecar], a.dir);
+  assert.equal(granted.code, 0, granted.stdout);
+  assert.equal(snapshotAdd(a, a.legacy + ':1').code, 1);
+  assert.equal(fileSha(a.exemptions), sha);
+});
+
+test('AE-30 legacy file rescans each ledger once, including creator, with per-path migration warnings', (t) => {
+  const a = snapshotFixture(t);
+  const receipt = { locator: 'lib/anchor-roots.mjs:1', commit: null, at: '2026-09-14T00:00:00.000Z' };
+  const legacy = { schemaVersion: 1, generatedAt: receipt.at, receipt, future: 7,
+    entries: [{ path: a.legacy, reason: 'original', receipt, extra: 'keep' }] };
+  fs.writeFileSync(a.exemptions, JSON.stringify(legacy));
+  const later = path.join(a.outside, 'injected.ts');
+  fs.writeFileSync(later, 'injected after old snapshot\n');
+  const ledger = JSON.parse(fs.readFileSync(a.sidecar, 'utf8'));
+  ledger.nodes['demo-n1'].evidence.push(later + ':1');
+  fs.writeFileSync(a.sidecar, JSON.stringify(ledger));
+  const b = path.join(a.stateDir, 'constructor');
+  fs.writeFileSync(b, JSON.stringify(ledger));
+  for (const sidecar of [b, a.sidecar]) {
+    const r = snapshotAdd(a, a.inside + ':1', sidecar);
+    assert.equal(r.code, 0, r.stdout);
+    assert.deepEqual(grandfathered(r), [later, a.legacy].sort());
+  }
+  const doc = JSON.parse(fs.readFileSync(a.exemptions, 'utf8'));
+  assert.deepEqual(doc.entries[0], legacy.entries[0]);
+  assert.deepEqual(doc.receipt, receipt);
+  assert.equal(doc.generatedAt, legacy.generatedAt);
+  assert.equal(doc.future, 7);
+  assert.equal(doc.entries.filter(e => e.path === later).length, 1);
+  assert.ok(Object.hasOwn(doc.ledgers, 'constructor'));
+  assert.ok(Object.hasOwn(doc.ledgers, 'atlas-state.json'));
+});
+
+for (const sub of ['set', 'transition', 'settle', 'import', 'evidence-reanchor']) {
+  test(`AE-30 ${sub} preserves snapshot warnings without turning them into policy errors`, (t) => {
+    const a = snapshotFixture(t);
+    const ledger = JSON.parse(fs.readFileSync(a.sidecar, 'utf8'));
+    if (['set', 'transition', 'settle'].includes(sub)) ledger.nodes['demo-n1'].progress = 'in_progress';
+    fs.writeFileSync(a.sidecar, JSON.stringify(ledger));
+    const extra = {
+      set: ['--axis', 'progress', '--value', 'verified'],
+      transition: ['--axis', 'progress', '--from', 'in_progress', '--to', 'verified'],
+      settle: [],
+      import: ['--locator', a.inside + ':1'],
+      'evidence-reanchor': ['--from', a.legacy + ':1', '--to', a.inside + ':1'],
+    }[sub];
+    const r = run(['state', sub, '--node', 'demo-n1', '--reason', 'snapshot', '--owner', 'o', ...extra, '--sidecar', a.sidecar], a.dir);
+    assert.equal(r.code, 0, r.stdout);
+    assert.equal(r.receipt.status, 'ok');
+    assert.deepEqual(grandfathered(r), [a.legacy]);
+    const after = JSON.parse(fs.readFileSync(a.sidecar, 'utf8')).nodes['demo-n1'];
+    if (['set', 'transition', 'settle', 'import'].includes(sub)) assert.equal(after.progress, 'verified');
+    if (sub === 'evidence-reanchor') assert.deepEqual(after.evidence, [a.inside + ':1']);
+  });
+}
+
+test('AE-30 failed new-locator validation still discloses snapshot but never grants that new locator', (t) => {
+  const a = snapshotFixture(t);
+  const outside = path.join(a.outside, 'new.ts');
+  fs.writeFileSync(outside, 'new\n');
+  const before = fileSha(a.sidecar);
+  const r = run(['state', 'import', '--node', 'demo-new', '--reason', 'new', '--owner', 'o',
+    '--locator', outside + ':1', '--sidecar', a.sidecar], a.dir);
+  assert.equal(r.code, 1, r.stdout);
+  assert.ok(r.receipt.diagnostics.some(d => d.rule === 'anchor_root_denied' && d.severity === 'error'));
+  assert.deepEqual(grandfathered(r), [a.legacy]);
+  assert.equal(fileSha(a.sidecar), before);
+  assert.deepEqual(JSON.parse(fs.readFileSync(a.exemptions, 'utf8')).entries.map(e => e.path), [a.legacy]);
+});
+
+test('AE-30 failed sidecar save retains snapshot warnings and the real lock error', (t) => {
+  const a = snapshotFixture(t);
+  const before = fileSha(a.sidecar);
+  fs.writeFileSync(a.sidecar + '.lock', JSON.stringify({ pid: process.pid, at: Date.now(), token: 'owned-by-test' }));
+  const r = snapshotAdd(a, a.inside + ':1', a.sidecar, { ATLAS_LOCK_TIMEOUT_MS: '0' });
+  assert.equal(r.code, 1, r.stdout);
+  assert.equal(r.receipt.status, 'failed');
+  assert.ok(r.receipt.diagnostics.some(d => d.rule === 'sidecar_locked'));
+  assert.deepEqual(grandfathered(r), [a.legacy]);
+  assert.equal(fileSha(a.sidecar), before);
+  assert.ok(Object.hasOwn(JSON.parse(fs.readFileSync(a.exemptions, 'utf8')).ledgers, 'atlas-state.json'));
+});
+
+for (const ledgers of [null, [], 'invalid', { 'atlas-state.json': null }, { 'atlas-state.json': { at: 'bad', receipt: {} } }]) {
+  test(`AE-30 malformed ledger markers fail closed: ${JSON.stringify(ledgers)}`, (t) => {
+    const a = snapshotFixture(t);
+    fs.writeFileSync(a.exemptions, JSON.stringify({ entries: [], ledgers }));
+    const before = [fileSha(a.exemptions), fileSha(a.sidecar)];
+    const r = snapshotAdd(a);
+    assert.equal(r.code, 1, r.stdout);
+    assert.ok(r.receipt.diagnostics.some(d => d.rule === 'anchor_roots_config_invalid'));
+    assert.deepEqual([fileSha(a.exemptions), fileSha(a.sidecar)], before);
+  });
+}
+
+test('AE-30 import second-check failure retains first snapshot disclosure without committing mutation', (t) => {
+  const a = snapshotFixture(t);
+  const ledger = JSON.parse(fs.readFileSync(a.sidecar, 'utf8'));
+  ledger.nodes['demo-n1'].evidence.push(a.inside + ':99');
+  fs.writeFileSync(a.sidecar, JSON.stringify(ledger));
+  const before = fileSha(a.sidecar);
+  const r = run(['state', 'import', '--node', 'demo-n1', '--reason', 'import', '--owner', 'o',
+    '--locator', a.inside + ':1', '--sidecar', a.sidecar], a.dir);
+  assert.equal(r.code, 1, r.stdout);
+  assert.ok(r.receipt.diagnostics.some(d => d.rule === 'evidence_unresolvable'));
+  assert.deepEqual(grandfathered(r), [a.legacy]);
+  assert.equal(fileSha(a.sidecar), before);
+  assert.ok(Object.hasOwn(JSON.parse(fs.readFileSync(a.exemptions, 'utf8')).ledgers, 'atlas-state.json'));
 });
