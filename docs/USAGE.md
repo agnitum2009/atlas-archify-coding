@@ -1,7 +1,7 @@
 # ADD 具体使用方法（USAGE）
 
 > 适用：任何 harness（demo-harness / pi / demo-host / 其他带 bash 能力的智能体）。
-> 前置：Node >= 18；gate 三闸另需 archify 内核——解析顺序 ARCHIFY_BIN（存在于磁盘才算）→ PATH 上的 archify → 内置回退路径（existsSync 才算）→ none（fail-closed，绝不伪装成功）；解析来源随 doctor/gate 回执以 source=env|path|fallback 披露。
+> 前置：Node >= 18；图件 gate（2.x 三闸、v3 四闸）另需 archify 内核——解析顺序 ARCHIFY_BIN（存在于磁盘才算）→ PATH 上的 archify → 内置回退路径（existsSync 才算）→ none（fail-closed，绝不伪装成功）；解析来源随 doctor/gate 回执以 source=env|path|fallback 披露。
 
 ## 一、三种接入方式
 
@@ -31,14 +31,14 @@
 | --- | --- | --- |
 | init | 生成 v3 版式图谱目录（七区 + 项目子目录 + projects.json 注册表，0.7.0 起直通 build-portal/doctor） | init --dir ./my-atlas --title '我的项目' --diagram-id main [--template minimal\|demo] |
 | state | 三轴状态机（A2/A3/A4 硬门禁） | state set --node s1 --axis progress --value in_progress --class task --reason 开工 --owner me |
-| diff | spec 差异 + 状态时间线 | diff state --sidecar atlas-state.json --since 2026-08-15T00:00:00Z |
+| diff | 按 JSON 路径/数组索引的 spec 结构差异 + 状态时间线，不按实体 id 识别移动 | diff state --sidecar atlas-state.json --since 2026-08-15T00:00:00Z |
 | compile | 状态注入 tag + 当前焦点章节 | compile --diagram spec/main.json --sidecar atlas-state.json --out compiled.json |
-| report | 销账回执 + A3 门禁 + A1 对账（--brief 只出计数+error 摘要） | report --sidecar atlas-state.json --slice s1 --code-sha abc --spec-sha def [--spec spec/main.json（可重复，传入即启用 A1 图码对账）] [--replay s1（可重复，内联时间线摘要）] [--brief] |
-| gate | 串行三闸（--out 推荐落 artifacts/<项目>/<模块>-<YYMMDD>/，直落项目根会出 gate_out_placement warning） | gate --diagram compiled.json --out artifacts/<项目>/<模块>-<YYMMDD>/out.html |
+| report | 完成声称、证据与 A1 图账绑定检查；不是业务验收器（--brief 只出计数+error 摘要） | report --sidecar atlas-state.json --slice s1 --code-sha abc --spec-sha def [--spec spec/main.json（可重复，传入即启用 A1）] [--replay s1（可重复，内联时间线摘要）] [--brief] |
+| gate | 图件串行闸链：2.x 三闸、v3 四闸（--out 推荐落 artifacts/<项目>/<模块>-<YYMMDD>/，直落项目根会出 gate_out_placement warning） | gate --diagram compiled.json --out artifacts/<项目>/<模块>-<YYMMDD>/out.html |
 | trace | 轨迹锚定/回放（list/replay 支持 --since 截窗） | trace add --kind decision --actor owner --note 裁定 --node s1；trace replay --node s1 [--since 2026-08-15T00:00:00Z] |
 | lessons | 经验池（list --recent/--rule 过滤；retire 归档；hits 只读保留） | lessons add --lesson '教训' --rule r1；lessons list [--recent 5] [--rule r1] [--all]；lessons retire --id lesson-x |
-| notice | 席位间主动通知（settle/block 自动投递） | notice list --seat 一线席位（未读）；notice ack --seat 一线席位 [--id notice-x]；notice add --kind note --node s1 --summary 文本 --from 一线席位 |
-| doctor | 环境自检（6 检查；--stats 账本侧派生度量；evidence-resolvability/ledger-size 为 warning 级不阻断） | doctor --sidecar atlas-state.json [--atlas <图谱目录>] [--stats] |
+| notice | 席位共享收件箱（settle/block/import 自动入箱；消费方拉取，无主动推送） | notice list --seat 一线席位（未读）；notice ack --seat 一线席位 [--id notice-x]；notice add --kind note --node s1 --summary 文本 --from 一线席位 |
+| doctor | 环境与账本诊断（--stats 账本侧派生度量；evidence-resolvability/ledger-size 为 warning 级不阻断） | doctor --sidecar atlas-state.json [--atlas <图谱目录>] [--stats] |
 
 > 门户生成器（scripts/build-portal.mjs，独立脚本非十命令之一，参数不入命令预算）：
 > `node scripts/build-portal.mjs --atlas <根> --project <名> [--source <源仓路径>] [--init <YYMMDD>]`
@@ -63,13 +63,15 @@ node "$ATLAS_ENGINE_BIN" state settle --node demo-task --reason 交付 --owner r
 ```
 <!-- atlas-example:end -->
 
-`verified` 表示执行已验证，`settled` 表示账务已销账；settle 同时写两轴及 history kind=settle。交付后按需 trace/report，并更新图谱、运行 gate 三闸。
+`verified` 是调用者的已验证声明，`settled` 表示账务已销账；settle 校验证据锚并同时写两轴及 history kind=settle，不执行或证明业务验收。交付后按需 trace/report，并更新图谱、运行图件 gate（2.x 三闸、v3 四闸）；机器 pass 不代人工视觉复核。
 
 读状态最短查询：`state get --node <id> --sidecar S`——回执含属主与三轴当前值，另带可选 `class`（节点有分类则原样列出；无该字段则整字段省略，不臆造默认值），读命令不写账；要按分类筛活帐用 `state active`。
 
 历史/迁移导入（非执行闭环，0.17.0 起）：`state import --node <id> --reason 历史导入 --owner <席> --locator <文件:行号> [--class declared|registry|container|task|debt|batch-gated|trigger-gated] [--source 旧系统] [--cutoff 日期] --sidecar S`——原子双写 verified+settled 并锚定证据，history kind=import 与 settle 永久可区分；只登记新节点或零执行史节点。同版起 ledger→settled 只能经 settle/import 事件写入（set 直达 = settled_requires_event），set progress→verified 无证据同拒（init 首写不豁免）。
 
-销账/阻塞成功会自动投递一条席位通知（notice，B3）：他席位 notice list --seat <名> 即见未读，notice ack --seat <名> 确认。
+销账/阻塞成功会自动入箱（notice，B3）：他席位主动调用 notice list --seat <名> 才读到未读，notice ack --seat <名> 登记确认；确认不等于执行了后续任务。
+
+report 消费边界：--slice 选择节点状态/history/证据检查，但 --spec 的图账绑定覆盖仍用全账；--verify 只附 JSON，不执行或解释验收成败，SHA 也是调用者提供的声明。brief 有 warning 时须读完整回执；豁免/未检查不算核验通过。纯只读观察用 --no-trace，避免默认留痕推进 revision。lessons-read 同样只是阅读声明，不证明理解或应用。
 
 ## 四、位置与共享物
 
