@@ -77,19 +77,20 @@ subject 保留普通点分路径；字面反斜杠、点号、# 分别转义，�
 
 用途：双 spec 差异 + 状态时间线。
 子命令：
-- diff spec --base <a.json> --head <b.json>：复用 archify Delta 语义（Before/Delta/After + 精确 ID）。
+- diff spec --base <a.json> --head <b.json>：按 JSON 路径比较结构值，数组按索引对齐；输出 before/after，不按图件 id 识别移动，也不判断业务语义差异。
 - diff state --sidecar <s.json> --since <ISO8601>：状态迁移时间线（谁在何时把什么改成了什么）；按解析后的时刻排序与含边界截窗，等价时区表示不改变入窗结果。
 输出（2026-08-15 按实测写实）：diff spec → { rows: [ { subject, kind: added|removed|changed, before, after } ], summary: { added, removed, changed } }；diff state → { count, since, rows }。不另设 receipt 字段：统一 JSON 信封（schemaVersion/command/status/data）本身即回执。
-约束：差异行必须带确定性 ID（无 ID 无法对比的实体 = warning）。
+约束：subject 是确定性、可区分转义字符的结构路径，不是实体身份；输入无需带图件 id，缺少 id 不另报 warning。
 
 ## 5. evidence（已于 v0.10.0 按两段式废弃政策移除；替代 = state evidence-add 写 / doctor 读；理由与实测口径见 RELEASES [0.10.0]）
 ## 6. report
 
-用途：销账回执汇总（一刀的机器证据）。
-输入：--slice <id>；聚合该切片的：图 diff 摘要、状态迁移清单、证据 lint 结果、外部验收器输出（可选 --verify-results <json>）；--spec <archify-spec.json>（可重复；传入即启用 A1 图码对账：声称对齐实相而无证据/证据失效 = error，账外/图外节点 = warning；未传 = 行为与无 A1 时完全一致）。图内节点 id 提取面：architecture 族 components + lifecycle 族 states（0.6.3 起，与 compile 同一解析入口解析图件 id → 账本节点）；--replay <节点id>（可重复，2026-08-15 清单 B2 replay 消费闭环）；--brief（2026-08-15 清单 A3 token 优化：只出计数摘要 + 全部 error 级诊断，见下）。
-输出：{ slice, shas: { code, spec }, state_changes: n, evidence: { valid, invalid }, gate?: 对象, a1?: { checkedNodes, errors, warnings, nonClaims }, replays?: [...] }
+用途：完成声称、证据与图账绑定的检查回执；不执行业务验收，也不自行证明任务已完成。
+输入：--slice <节点id> 选择该节点的状态、history 条数、证据与 HEAD 检查；省略则选全账。--verify <json> 只读取并附带外部结果，不执行验收器、不解释其成败；--code-sha/--spec-sha 只转录调用者提供的值。--spec <archify-spec.json> 可重复，启用 A1；a/b/c 检查所选节点，d 项绑定覆盖仍使用全账与全部传入图件（components/states），因此 --slice 不是整个回执的统一过滤器。--replay 独立指定摘要节点，可重复；lessons 仍为全账统计；--brief 仅压缩输出。
+输出（非 brief 成功）：{ slice, nodes: [{ node, owner, truth, progress, ledger, state_changes, evidence }], state_changes, shas, verify, lessons, evidenceHead, errors, warnings, a1?, replays? }。state_changes 是所选节点全部 history 条数总和，不是本次修改数，也不含自动图 diff；失败 data 的保留范围见下文。
 --replay（B2）：data 增 replays 段，内联各节点 replayNode 时间线**摘要**——每节点最多最近 10 条事件（防 token 膨胀；超出注 truncated: true 与 total 总数），每条只留 at/kind/source/一行要点 summary；evidence-remove 显示 locator，spec-ref 显示含图作用域的 ref，不把缺字段的历史伪写成 undefined→undefined；原始 replay 历史保留。节点不存在 = 该条目带 error 字段，不整体失败。
 --brief（A3，2026-08-15 清单）：data 只保留计数摘要 + 全部 error 级诊断，warning 级诊断与明细数组全文略去——nodes 降为节点数（receipts 计数 = state_changes 保留，状态迁移回执条数合计）、warnings 降为计数、errors 全文保留（仅 error 级；自动留痕降级 warning 只计 warnings、不混入 errors）、lessons 只留 { count }（规则数组略去）、shas/verify 略去；a1 小节仅计数且 nonClaims 降为条数（全文略去）；--replay 组合时 replays 每节点只出 { node, total }（未知节点带 error 不整体失败）。exit 码语义不变（error 仍 failed exit 1、纯 warning 仍 ok exit 0）；失败信封同样携带 brief 计数摘要（与成功路径同形）。与 --spec/--replay 可组合。
+消费边界：有 warning 时须读取完整报告复核；exit 0 不等于全覆盖或业务验收通过，classExempted / exempt / unchecked 不得计作 matched / 已核验。brief 不是完整证据包；纯观察性检查使用 --no-trace，避免默认留痕推进 revision。
 约束：缺失 sha = warning（不阻断）；HEAD 比对的 git 子进程受 ATLAS_GIT_TIMEOUT_MS（缺省 10000ms）约束，超时锚计入 evidenceHead.unchecked.timeout（未检查，verdict 不得为 verified）；no-git 免检按 evidenceHead.noGitReasons 计数（no-repo / git-unavailable:<code>）；**report 是证据读方，不采用写边纠错或同值豁免**。progress=verified 且无证据始终报 verified_requires_evidence；未传 --spec 时，其他完成声称（ledger=settled / truth∈{effective,closed}）零证据或携带不可解析锚 = error（evidence_missing / evidence_unresolvable）；传 --spec 时另按 A1 口径报 a1-missing-evidence / a1-evidence-broken，未声称对齐的 in_progress/blocked 无证据为 warning a1-weak-assertion。**存量清洗（0.17.0）**：ledger=settled 但 history 无 settle/import 事件为 warning import_unmarked（不阻断，与 --spec 无关）；历史导入事实用 state import，误直达用 state set --correction 修正，均须满足 §2 前态与守卫（0.21.1 压缩行数时误删本两句，0.22.0 恢复）。**失败信封（0.21.1）**：errors>0 时 data 非携带整个 report——a1（若启用）+ evidenceHead + **warnings 全文**（非 brief；--brief 仍为计数，与成功路径同形）——存量统计仪器（cross_axis_unlisted 等）恰在账本不健康时最需要可见，失败时吞明细会重演 0.4.0「藏明细」缺陷。
 HEAD 身份按 realpath 后的文件确定 Git 根与仓内路径（链接路径仍用于诊断）；仓外链接到仓内文件不构成 no-git 免检。无法取得真实目标或读取失败按 broken 披露。
 自动留痕（2026-08-15 清单 B1，语义变化明示）：report 原为只读命令，现运行后（成功与失败都记）默认向侧车追加一条 kind='command' 轨迹事件（detail={ command, params:{ slice, specs }, result:{ errors, warnings } }；--slice 传入时事件锚定该节点），CAS revision 随写推进；--no-trace 关闭；侧车缺失时 report 本身按原行为 failed（sidecar_missing），留痕保存失败（如 CAS 冲突/只读目录）降级为 diagnostics 一条 severity=warning（rule=trace_degraded），主结果照出不阻断。
@@ -102,7 +103,7 @@ nonClaims（显式声明的机器不可判项）：truth 轴业务生效性需�
 
 ## 7. gate
 
-用途：串行闸链（archify validate → deliver →〔v3：check --require-provenance〕→ visual-check），全绿才过。
+用途：图件串行闸链（archify validate → deliver →〔v3：check --require-provenance〕→ visual-check），全部机器闸通过才 pass；不验业务完成度或 ready-check，人工视觉复核仍为 pending。
 输入：--diagram <compiled.json> --out <out.html> [--sidecar <path>] [--no-trace]。**推荐落点（0.10.0，holdout #2 P0）**：--out 应落 `artifacts/<项目>/<模块>-<YYMMDD>/` 下；若 --out 父目录正好是某 atlas 的 `artifacts/<项目>/` 根（祖父目录名==artifacts 且图谱根下有 spec/<项目>/），gate 与 visual-check 生成物直落项目根会触发布局 P2（doctor --atlas 判 error——照官方快乐路径做会把自家 atlas 打成 failed）——gate 在写产物前判定该形状，回执 diagnostics 追加 warning 级诊断 **gate_out_placement**（消息给出建议路径 `artifacts/<项目>/<模块>-<YYMMDD>/`，日期取当天）；**不阻断、不改退出码、不自动移动文件**（移动用户指定的输出路径太越权）。
 流程：调用 archify CLI（耦合基线 v2.14.0，doctor 机器探测实际版本并提示低于基线）依次执行；0.32.0 起按内核契约族选链：2.x 三闸不变；v3（major≥3）在 deliver 后加溯源 check——exit 0 且 ok=true、file=本次产物、provenance=current、artifact 摘要与本轮交付一致、deliveryReceiptId=本轮 deliver receiptId，任一不符 reason=check-receipt，非零 reason=check-failed——visual-check 另加 --require-provenance，且 gate 自行核对其回执 provenance=current、deliveryReceiptId=本轮 deliver receiptId（0.32.1，不符 reason=visual-check-artifact-mismatch）；gate 调 archify 的子进程一律设 ARCHIFY_UPDATE_CHECK_DISABLED=1（无隐藏联网副作用）；任一非零退出即停止并汇总诊断（0.14.0 起失败尾附内核结构化诊断与处置建议摘要——validate/deliver 解析 diagnostics[]，visual-check 解析子项状态，0.14.1 修正三闸声称）。 成功须 validate 非空 checks 逐项 ok=true、composition.status=pass/summary.errors=0；deliver 的 checkCount 为正安全整数、checksPassed 同值，compositionStatus=pass/errors=0，不钉死检查数量。visualReview 必须 pending，artifact 的 path/bytes/sha256 与本次交付一致；mtime 须在 deliver 启止窗口两端各容忍1秒内，过旧/未来都拒绝。
 输出：{ validate: 回执, deliver: 回执, check: 回执（仅 v3）, visual_check: 回执, final: "pass"|"fail", kernel: { version, profile, versionKnown }|null }；fail 信封 data 附 lessonPrompt（2026-08-15 清单 B4，纯增字段）。
@@ -125,10 +126,10 @@ detail 引擎戳（2026-08-15 增长控制开发规范批一#1）：自动留痕
 
 ## 9. lessons（经验池，P3 增补）
 
-用途：经验条目入侧车（规则码 + 教训 + 来源锚点）。
+用途：经验条目登记、检索与退役（规则码 + 教训 + 来源锚点）；rule 是检索字段，不变成执行规则，不提供自动学习或自动应用。
 子命令：lessons add --lesson <text> [--rule <code>] [--source <id>]；lessons retire --id <lesson-id>（2026-08-15 清单 D3）；lessons list [--recent <N>] [--rule <code>] [--all]。
-约束：空 lesson 拒绝；开工必读纪律由 SKILL.md 承载（先 lessons list 再动手）。
-hits 命中计数（2026-08-15 清单 B4 防膨胀）：条目可选字段 hits（新条目缺省 0，旧条目无此字段按 0 处理，向后兼容）；lessons list 输出每条带 hits。**写入口 lessons hit 子命令已于 v0.10.0 物理移除**（两段式废弃第二阶段：0.9.0 标记 → v0.10.0 删除；理由 = 0/49 采用率且无任何消费者——无门禁依赖、无报表依赖，实测口径见 docs/archive/ADOPTION-BASELINE-2026-08-17.md；调用现 = exit 1 / rule=unknown_subcommand）——**hits 字段与既有数据保留为存量只读计数**，lib 层 hitLesson 保留供宿主程序调用；lessons retire 指向不存在条目 = failed（rule=lesson_not_found）。
+约束：空 lesson 拒绝；开工必读由 SKILL.md 约束席位（先 lessons list 再动手），CLI 不证明阅读、理解或应用；lessons-read 留痕只记录调用者声明。
+hits 为存量只读计数：新条目缺省 0，旧条目缺失按 0 读取，list 保留输出。lessons hit CLI 已于 v0.10.0 删除（当时采用率及废弃依据见 docs/archive/ADOPTION-BASELINE-2026-08-17.md），库级 hitLesson 亦于 v0.10.1 删除，不再提供运行时命中计数能力；旧数据保留。lessons retire 指向不存在条目 = failed（rule=lesson_not_found）。
 status 生命周期（D3，2026-08-15 清单；与 D2 侧车 schema 政策配套）：条目可选字段 status ∈ { active, retired }——新条目 active，旧条目无此字段按 active 处理（与 hits 同模式向后兼容）；lessons retire 置 retired，**幂等**（已 retired 再 retire 仍成功，回执 data.item 含当前状态），未知 id = failed（rule=lesson_not_found）；lessons list **缺省只列 active**，--all 才含 retired。
 A1 过滤（2026-08-15 清单）：lessons list --recent <N> 按解析后的 at 时刻倒序取最近 N 条（有效时刻优先、无效/未知日期末置按原文排序、等时刻稳定保留顺序；--recent 非正整数 = failed exit 1 rule=bad_args，消息带示例）、--rule <code> 精确匹配 rule 字段、两者可组合（先 rule 过滤再按时刻倒序截取）；缺省行为不变（无 retired 条目时即全量）；回执 data 增 total（经验池全量条数，含 retired，D3）与 filtered 布尔（返回列表是否被截断/过滤，= lessons.length < total）供调用方判断截断。
 输出：add → { item }；retire → { item }（含新 status）；list → { count, total, filtered, lessons }。
@@ -151,9 +152,9 @@ stats（--stats 时，data.stats，全部账本侧单源可算，杜绝手搓度
 约束：任一 error 级检查不通过 = status failed exit 1（failed 信封 diagnostics 只列 error 级不通过的检查；**0.7.0 起 failed 信封同时携带 data**——与成功路径同形，含 checks 全量与 data.layout.diagnostics 明细；此前失败路径丢 data，atlas-layout 明细自述「详见 data.layout.diagnostics」在失败时指向不存在位置，demo-b holdout 对抗实验缺陷2）；warning 级检查不通过不改变 exit 码（检查项仍在 data.checks 全量呈现，ok:false 可机器判读）；机器不可判定的规范条目逐条列入 unchecked 具名披露，不静默跳过。
 archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁盘才算）→ PATH 上的 archify → 内置回退路径（existsSync 才算）→ none。
 
-## 11. notice（席位间主动通知，2026-08-15 清单 B3）
+## 11. notice（席位共享收件箱，2026-08-15 清单 B3）
 
-用途：demo-harness 启示=通知是进 inbox 的一等数据非侧信道；补「共享账本+CAS=不互踩，但互相不知道」缺口——settle 后他席位不再等到下次 load 才知晓。
+用途：为共享账本事件保留可拉取、可确认的通知。settle/block/import 自动写入收件箱；其他席位须调用 notice list 或由宿主拉取，引擎不提供主动推送或监听服务。
 侧车 schema：根增可选 notices 数组（旧侧车缺省空，向后兼容，schemaVersion 保持 1；loadSidecar 缺省补 []，存在则必须为数组否则 sidecar_bad_shape）。条目形状：{ id, at, from, kind: settled|blocked|note, node, summary, readBy: [] }。
 自动投递：state settle / state block 成功时同次写入自动追加一条（from=--owner 值，kind=settled|blocked，summary 取 --reason，readBy 初始空；不占额外 revision）；state import 同法投递 kind=settled 且 summary 带 [import] 前缀（与执行闭环可区分）。
 子命令：
@@ -161,7 +162,7 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 - notice ack --seat <名> [--id <notice-id>] [--sidecar <path>]：把该席位记入 readBy；无 --id=全部未读确认；幂等（已确认不重复计）；回执 { seat, confirmed（本次新确认数）, ids }。
 - notice add --kind note --node <id> --summary <text> --from <名> [--sidecar <path>]：手动跨席位喊话；kind 硬校验只接受 note（settled|blocked 为 settle/block 自动投递专属，手动伪造 = bad_kind）。
 输出：list → { count, notices }；ack → { seat, confirmed, ids }；add → { notice }。
-约束：ack 缺 --seat = bad_seat；ack --id 指向不存在条目 = notice_not_found；空 summary 拒绝（empty_summary，与 empty_lesson 同例）；notice add 不校验 node 存在性（话题锚点不硬绑；trace add 的显式 node 则须存在）。revision 递增即触发他席位重读语义（B3 立案原义）。
+约束：ack 缺 --seat = bad_seat；ack --id 指向不存在条目 = notice_not_found；空 summary 拒绝（empty_summary，与 empty_lesson 同例）；notice add 不校验 node 存在性（话题锚点不硬绑；trace add 的显式 node 则须存在）。revision 增加只表示侧车版本变化，不自动触发他席位执行；ack 登记席位的确认声明，不证明真实阅读或后续处理。
 
 ## 附录 A 错误码（diagnostics.rule；本表由 lib/error-codes.mjs 经 scripts/sync-generated.mjs 生成，手改会被 CI --check 拦下，改码请改注册表后重跑同步）
 <!-- generated:error-codes:start -->

@@ -123,7 +123,7 @@
 ### 2.6 账务分类 class（CLI 可写轴，非第四执行生命周期轴）
 
 - class 答「这是什么」（声明/注册/容器/任务/债/门控），三轴答「真到哪、做到哪、账到哪」。它是节点属性、可由 CLI 写入（`state set --axis class`，`state transition` 同样受理 class 轴），但**不代表生命周期**：它走同一套迁移校验（值域校验 + 迁移表），只是现有七值之间全连接（含同值），故重分类一律放行——这是「分类可改」，不是「无校验」。
-- 七值词表 `declared / registry / container / task / debt / batch-gated / trigger-gated`（值域见 command-contract 附录 A `class_required` 行与 lib/state-machine.mjs）。**本节不新增选类规则**：分类由建号者据实声明，机器消费行为见下，不得仅据名称推断额外义务。
+- 七值词表 `declared / registry / container / task / debt / batch-gated / trigger-gated`（值域见 command-contract 附录 A `class_required` 行与 lib/state-machine.mjs）。**本节不新增选类规则**：分类由建号者据实声明，机器消费行为见下；单字段互斥不证明现实分类互斥。batch-gated/trigger-gated 不增加自动审批或触发机制，debt 也不自动改变 ledger，不得仅据名称推断额外能力或义务。
 - 两类消费者：① `state active` 默认视图 = class∈活帐类 {task, debt, batch-gated, trigger-gated} 且 progress∉{verified, cancelled}；**无 class 的未完成节点单列** unclassified[] 并计入 count（warning 不静默漏出；存量不追溯补分类）。② report --spec 的 A1：未绑定图件但**已声明 class** 的节点计 classExempted＝豁免，只表示不参与绑定核对，**既非 matched 也不代表已验证/已上图**。
 - 待销账视图与此正交：pendingSettlement 列 progress=verified 且 ledger=backlog 的节点，**不按 class 过滤**，也不等于全部可销账前态（见 command-contract §2）。
 - 写入边界（O3，2026-09-14）：**`state set` 的新建节点**首个写入必带 class（`--axis class --value …` 或 `--class <同类值>`，与本次轴写入同事件留痕；缺 = failed class_required）——同次写入而非两步建号，因为两步法会把后续首写从 A2 初始化例外变成轴值变更，改 A2 语义。`--class` 不改写已有分类（重分类走 `--axis class` 独立事件）；**`state import` 是既有例外**（`--class` 可选，省略保持无分类兼容且不覆盖已有分类）。

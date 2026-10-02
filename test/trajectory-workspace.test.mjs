@@ -69,6 +69,46 @@ test('多仓合并：跨仓按时间归并、仓内序不乱；跨多仓节点�
   assert.deepEqual(d.blindSpots.files, { count: 1, groups: [{ repo: '.', dir: '.', count: 1, sample: ['.gitignore'] }] });
 });
 
+test('多仓归并：跨仓交错按实际时刻，同刻保留仓序而非按路径整仓拼接', (t) => {
+  const root = tmp(t);
+  const map = {};
+  for (const [name, steps] of [
+    ['alpha', [['A1', '2026-04-01T10:00:00Z'], ['A2', '2026-04-01T10:30:00Z'], ['A3', '2026-04-01T12:00:00Z']]],
+    ['beta', [['B1', '2026-04-01T17:00:00+08:00'], ['B2', '2026-04-01T18:00:00+08:00'], ['B3', '2026-04-01T19:00:00+08:00']]],
+  ]) {
+    const repo = path.join(root, name);
+    fs.mkdirSync(repo);
+    git(repo, steps[0][1], 'init', '-q');
+    for (const [id, at] of steps) {
+      commitAt(repo, at, { [id + '.mjs']: 'export const value = 1;\n' }, id);
+      map[id] = [name + '/' + id + '.mjs'];
+    }
+  }
+  const sidecar = sidecarOf(root, map);
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: root, repos: withCommits(discoverRepos(root, sidecar)), events: [] });
+  assert.deepEqual(d.order.map((o) => o.node), ['B1', 'A1', 'B2', 'A2', 'B3', 'A3']);
+});
+
+test('多仓归并：仓内提交时钟回拨仍保留提交序，不作全局时间排序', (t) => {
+  const root = tmp(t);
+  const map = {};
+  for (const [name, steps] of [
+    ['alpha', [['A1', '2026-04-01T11:00:00Z'], ['A2', '2026-04-01T09:00:00Z']]],
+    ['beta', [['B1', '2026-04-01T10:00:00Z']]],
+  ]) {
+    const repo = path.join(root, name);
+    fs.mkdirSync(repo);
+    git(repo, steps[0][1], 'init', '-q');
+    for (const [id, at] of steps) {
+      commitAt(repo, at, { [id + '.mjs']: 'export const value = 1;\n' }, id);
+      map[id] = [name + '/' + id + '.mjs'];
+    }
+  }
+  const sidecar = sidecarOf(root, map);
+  const d = computeWorkspaceOrder({ sidecar, sourceRoot: root, repos: withCommits(discoverRepos(root, sidecar)), events: [] });
+  assert.deepEqual(d.order.map((o) => o.node), ['B1', 'A1', 'A2']);
+});
+
 test('非 git 工作区根：只有嵌套仓也合法；unowned 路径相对 sourcePath', (t) => {
   const root = tmp(t);
   const svc = path.join(root, 'svc');
