@@ -21,7 +21,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "091023f18c9bea9b"
+      "sha256": "aaac59076007909b"
     },
     {
       "path": "RELEASES.md",
@@ -54,6 +54,14 @@
     {
       "path": "docs/USAGE.md",
       "sha256": "1a89d341062daedc"
+    },
+    {
+      "path": "docs/assets/aac-overview-mobile.svg",
+      "sha256": "af171bd335e25444"
+    },
+    {
+      "path": "docs/assets/aac-overview.svg",
+      "sha256": "f8b611652813df4e"
     },
     {
       "path": "fixtures/atlas-seed/add-state-axes.json",
@@ -225,7 +233,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "93124ca339be8750"
+      "sha256": "91dce94b960dc5f7"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",

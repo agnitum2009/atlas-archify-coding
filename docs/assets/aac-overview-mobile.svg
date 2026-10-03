@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 1080" role="img" aria-labelledby="title desc">
+  <title id="title">aac：图谱、证据与账本</title>
+  <desc id="desc">窄屏结构示意。图谱声明和代码行证据关联到三轴账本；report 检查图账，compile 与 gate 校验并交付图件。状态只是示例。</desc>
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M28 0H0V28" fill="none" stroke="#274565" stroke-width="0.8" opacity="0.38"/>
+    </pattern>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M1 1.5L7 4.5L1 7.5" fill="none" stroke="#73DCCC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .body { font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .mono { font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace; }
+      .muted { fill: #AFC5DE; }
+      .card { fill: #153451; stroke: #467193; stroke-width: 2; }
+      .rule { fill: none; stroke: #73DCCC; stroke-width: 2.5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="680" height="1080" rx="30" fill="#0C233D"/>
+  <rect width="680" height="1080" rx="30" fill="url(#grid)"/>
+  <text class="mono" x="40" y="73" fill="#73DCCC" font-size="22" letter-spacing="1">AAC / ATLAS · ARCHIFY · CODING</text>
+  <text class="body" x="40" y="155" fill="#F1F7FD" font-size="51" font-weight="700">项目跑到一半，</text>
+  <text class="body" x="40" y="222" fill="#F1F7FD" font-size="51" font-weight="700">状态说得清。</text>
+  <path d="M40 242H325" stroke="#F4C66E" stroke-width="6" stroke-linecap="round"/>
+  <text class="body muted" x="40" y="296" font-size="26">让图谱、状态与代码证据</text>
+  <text class="body muted" x="40" y="334" font-size="26">在同一份账本里对得上。</text>
+  <path d="M40 361H640" stroke="#41627D"/>
+
+  <rect class="card" x="40" y="386" width="286" height="160" rx="16"/>
+  <text class="mono" x="62" y="423" fill="#73DCCC" font-size="21">L1 / SPEC</text>
+  <text class="body" x="62" y="467" fill="#F1F7FD" font-size="28" font-weight="700">图谱声明</text>
+  <text class="body muted" x="62" y="515" font-size="19">节点 · 关系 · 焦点</text>
+  <rect class="card" x="354" y="386" width="286" height="160" rx="16"/>
+  <text class="mono" x="376" y="423" fill="#F4C66E" font-size="21">EVIDENCE</text>
+  <text class="body" x="376" y="467" fill="#F1F7FD" font-size="28" font-weight="700">代码行证据</text>
+  <text class="mono muted" x="376" y="515" font-size="19">file:line + hash</text>
+  <path d="M182 546V579H340M498 546V579H340" fill="none" stroke="#73DCCC" stroke-width="2.5"/>
+  <path class="rule" d="M340 579V603"/>
+
+  <rect x="40" y="613" width="600" height="274" rx="18" fill="#173F57" stroke="#73DCCC" stroke-width="2.5"/>
+  <text class="mono" x="66" y="657" fill="#73DCCC" font-size="23">L2 / SIDECAR</text>
+  <text class="body" x="614" y="657" text-anchor="end" fill="#C5E7E2" font-size="24">三轴账本</text>
+  <path d="M40 677H640" stroke="#3B6D7A"/>
+  <text class="mono muted" x="66" y="722" font-size="23">truth</text>
+  <text class="mono muted" x="66" y="777" font-size="23">progress</text>
+  <text class="mono muted" x="66" y="832" font-size="23">ledger</text>
+  <rect x="380" y="691" width="230" height="38" rx="7" fill="#234B62"/>
+  <rect x="380" y="746" width="230" height="38" rx="7" fill="#284D68"/>
+  <rect x="380" y="801" width="230" height="38" rx="7" fill="#584A3C"/>
+  <text class="mono" x="495" y="718" fill="#CBE5F4" font-size="21" text-anchor="middle">candidate</text>
+  <text class="mono" x="495" y="773" fill="#9CC4FF" font-size="20" text-anchor="middle">in_progress</text>
+  <text class="mono" x="495" y="828" fill="#F4C66E" font-size="21" text-anchor="middle">backlog</text>
+  <text class="body muted" x="66" y="868" font-size="18">示例状态 · 迁移/证据/轨迹可追</text>
+
+  <path class="rule" d="M200 887V907H188V929"/>
+  <path class="rule" d="M480 887V907H496V929"/>
+  <rect class="card" x="40" y="935" width="286" height="106" rx="16"/>
+  <rect class="card" x="354" y="935" width="286" height="106" rx="16"/>
+  <text class="mono" x="62" y="975" fill="#73DCCC" font-size="23">report --spec</text>
+  <text class="body muted" x="62" y="1015" font-size="20">核对图账与证据</text>
+  <text class="mono" x="376" y="975" fill="#F4C66E" font-size="21">compile → gate</text>
+  <text class="body muted" x="376" y="1015" font-size="20">验图件 · 人工复核</text>
+</svg>

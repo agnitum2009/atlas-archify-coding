@@ -1,51 +1,68 @@
 # atlas-archify-coding (aac)
 
-**Atlas + Archify + Coding** —— 图谱驱动研发（**ADD**, Atlas-Driven Development）的可执行内核。
-零运行时依赖的 Node CLI（Node 18/20/22/24 均已验证），克隆即用：入口是 `bin/atlas-engine.mjs`，
-安装后 `atlas-engine` 与 `aac` 是同一个命令的两个名字。
+**项目跑到一半，谁也说不清现在是什么状态？**
 
-## 它解决什么
+<p align="center">
+  <picture>
+    <source media="(max-width: 600px)" srcset="docs/assets/aac-overview-mobile.svg" />
+    <img src="docs/assets/aac-overview.svg" alt="结构示意：图谱声明与代码行证据关联到三轴账本；report 检查图账，compile 和 gate 校验图件。图中状态不是运行结果。" width="1200" />
+  </picture>
+</p>
 
-项目开工到中后期，**进度掌控会丢失**：谁在做什么、哪条声称有证据、哪笔账没销、图与码何时分叉，
-全靠人记。aac 把这些变成**一份机器可校验的账本**：
+<p align="center"><strong>Atlas + Archify + Coding</strong> · 图谱驱动研发（ADD）的状态与证据工具。<br/>图是投影，代码是实相；让两者的差异有处可查。</p>
 
-- **三轴状态机**（真相 truth / 进度 progress / 账本 ledger）—— 状态怎么变由迁移表规定，非法跳转直接被拒；
-- **证据锚**（`文件:行` + 该行内容哈希）—— 声称"已完成/已验证"就必须挂锚；那行代码一改，锚立刻被标成
-  `drifted`（漂移），不用人盯；
-- **图与账交叉核对**（`report` / `gate`）—— 架构图谱（archify spec）里的节点与账本逐条比，"图上有、
-  账上还没销"这类不一致会被点名（该规则代号 A1）；
-- **门禁执法**（`gate` = validate → deliver → visual-check 三闸串行；`doctor` = 环境与账本健康自检）；
-- **经验池与轨迹**（`lessons` / `trace`）—— 踩过的坑和时间线是账本里的正式条目：可查询、可退役、可统计，
-  不是散在聊天记录里的口头经验。
+<p align="center"><a href="#workflow">看工作流</a> · <a href="#quickstart">开始使用</a> · <a href="#boundaries">能力边界</a></p>
 
-> **适用边界（请先读）**：aac 服务的是**已经开工、到中后期失去进度掌控**的项目。
-> 从零起的新项目不是它的场景 —— 因此它不做脚手架式生成、不做代码补全、也不替你判断业务优先级。
-> 如果你的痛点是"项目跑了一半没人说得清现在到底什么状态"，它是为这个写的。
+项目中后期，文档可能过时、轨迹留在聊天里、`已完成`缺证据。aac 把**节点状态、代码行证据、图账核对与执行轨迹**放进可查询的本地账本；需要人决定做什么，工具负责记录、检查并指出不一致。它是零运行时依赖的 Node CLI（Node >= 18），不是在线服务。
 
-## 60 秒上手
+## 你想确认什么
+
+| 问题 | 可核查的内容 | 命令入口 |
+| --- | --- | --- |
+| 谁在做，什么还没销账？ | `truth / progress / ledger` 三轴状态与活账；迁移违反规则会拒写 | `state get` · `state active` |
+| “已验证”依据在哪？ | `文件:行` 证据锚及内容哈希；`doctor` / `report` 可披露漂移与检查边界 | `state evidence-add` · `doctor` |
+| 图与账的完成声称是否一致？ | `report --spec` 对比 spec 节点与账本（A1）；不代业务验收 | `report --spec` |
+| 之前为什么这样推进？ | 手动锚定的轨迹、可回放时间线与经验条目 | `trace replay` · `lessons list` |
+| 图件能否交付？ | `compile` 注入状态与焦点；`gate` 串行校验图件并披露结果 | `compile` · `gate` |
+
+<a id="workflow"></a>
+## 工作流：图、账、证据各守其位
+
+```mermaid
+flowchart LR
+  S["图谱 spec<br/>人工维护"] --> R["report --spec<br/>检查图账声明"]
+  L["状态侧车<br/>三轴 · 证据 · 轨迹"] --> R
+  S --> C["compile<br/>注入状态与焦点"]
+  L --> C
+  C --> G["gate<br/>图件闸链"]
+  R --> H["人检查回执<br/>修正并反哺"]
+  G --> H
+  H --> S
+  H --> L
+```
+
+`state` 改账，`report` 查声明与证据，`gate` 验图件。**没有自动读心或自动捕获会话轨迹**：每次推进由调用者显式执行；`verified` 是有证据的验证声明，`settled` 是销账事件，不是机器替你完成业务验收。图件机器通过后仍须人工视觉复核。
+
+<a id="quickstart"></a>
+## 开始使用
 
 ```bash
 git clone https://github.com/agnitum2009/atlas-archify-coding.git && cd atlas-archify-coding
 node bin/atlas-engine.mjs --help
-node --test test/*.test.mjs            # 全部离线，用临时目录，不碰任何真实账本
+node bin/atlas-engine.mjs init --dir ./demo-atlas --title Demo --diagram-id main
+node bin/atlas-engine.mjs state set --node demo-task --axis progress --value in_progress --class task --reason 开工 --owner reviewer --sidecar ./demo-atlas/state/atlas-state.json
+node bin/atlas-engine.mjs state get --node demo-task --sidecar ./demo-atlas/state/atlas-state.json
 ```
 
-**关于图形内核 archify**：`gate` 与 `report --spec` 用它做图的校验与交付。本仓**不含** archify ——
-它是独立项目：<https://github.com/tt-a1i/archify>。装好后设 `ARCHIFY_BIN=/path/to/archify/bin/archify.mjs`
-或放进 PATH。找不到时相关命令直接失败（fail-closed）并说明原因，**不会给你一份假装通过的结论**；
-其余命令（账本、状态、证据、经验、轨迹）完全不需要 archify。
+这个示例只在新建的 `demo-atlas` 中登记并读取一个**进行中**节点，不声称已验证或销账。真正结案需先落可解析的证据锚，再调用 `state settle`；见 [完整一刀示例](docs/USAGE.md#三标准作业流一刀完整示例)。安装后 `aac` 与 `atlas-engine` 是同一 CLI 的两个名字。
 
-## 目录
+**图形内核单独安装。** `gate` 需要 [Archify](https://github.com/tt-a1i/archify)；本仓不内置它。将 `ARCHIFY_BIN` 指向其 `bin/archify.mjs`，或让 `archify` 位于 PATH。缺失时 `gate` 明确失败，不会伪报通过；`report --spec` 只读取 spec JSON，账本、状态、证据与轨迹命令也无需安装 Archify。内核 v2.x 为三闸，v3 加溯源 `check` 为四闸（validate → deliver →〔check〕→ visual-check）。
 
-- `specs/` —— 规范正本：`ADD-SPEC.md`（实体/关系/公理）· `command-contract.md`（命令契约与错误码附录 A）· `atlas-layout.md`（数据根版式）· `snapshot-policy.md`
-- `lib/` + `bin/` —— 实现（零依赖 ESM）；`test/` —— 契约级回归测试（把已定的行为钉住，防改着改着跑偏）
-- `docs/` —— `USAGE.md`（怎么用）· `QUICKSTART-NONCODER.md`（不写代码的人）· `DEFENSIVE.md`（防过拟合/防失真的十一条纪律）· `HISTORY.md`（完整版本沿革）
-- `scripts/` —— 门禁脚本（`sync-generated --check` 保证契约附录 A 与错误码注册表一致；`check-public-privacy` 保证公开面无内部残留）
+<a id="boundaries"></a>
+## 能力边界
 
-## 质量与约束
+- **适用**：已经开工、进度与证据逐渐失控的项目。`init` 只建图谱数据根，不生成业务代码，不判断优先级。
+- **事实与声明分开**：`report` 检查已登记的图账与证据，不推断未登记代码的业务完成度；`gate` 只验图件，不代人工审图。侧车是本地明文文件，写入以单写者为前提；不提供加密、多租户或并发执行调度。
+- **按需深入**：[命令与作业流](docs/USAGE.md) · [非程序员上手](docs/QUICKSTART-NONCODER.md) · [规范](specs/ADD-SPEC.md) · [版本记录](RELEASES.md) · [贡献说明](CONTRIBUTING.md)。
 
-- `npm test` 全绿；`sync-generated --check` 与 `check-public-privacy` 是每次提交的 CI 前置（不是建议，是门）。
-- 命令数、可选参数数、`--help` 行数有**上限门禁**（超了就红，见 `test/surface-consistency.test.mjs` 与 help 测试）；规范与文档的单件行数预算在 `specs/command-contract.md` 声明，由上游 CI 执行，本仓不自动检查。理由很实在：
-  **能力面一旦无约束增长，这个工具自己就变成了需要被掌控的东西** —— 而那正是它要解决的问题。
-- 已知边界：它假设你在可信环境单机使用，不做加密/访问控制/多租户；支持平台 Linux / macOS，Windows 未验证（详见 `SECURITY.md` 的信任模型）。
-- 许可证 MIT；贡献前请读 `CONTRIBUTING.md`（能力增删走"五问"评审，不是谁想到就能加）。
+MIT 许可。公开仓由上游机械投影；修改受投影管辖的文件请通过 PR，维护者先回流再投影，不会覆盖贡献者改动。
