@@ -3,6 +3,28 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.37.0] - 2026-10-08
+
+本体项目中立（负责人 2026-10-08 裁定：引擎不得知道任何项目的名字或形状；项目账本上的发现只问「引擎有没有做错或没说清」）。设计稿 docs/superpowers/specs/2026-10-08-0370-project-neutral-core-design.md。不写任何侧车。
+
+### Breaking (a) — 拒绝此前接受的输入
+
+- 图件 id ↔ 账本节点 id 的解析入口（lib/spec-id.mjs，report / compile / settle 共用）不再剥 `demo-b-` 项目前缀：归一化只折叠大小写，解析序为 精确同名 → 大小写归一唯一命中 → specRefs 显式认领。此前靠前缀命中的绑定升级后报 `a1-diagram-local-id`、compile 不注入；项目要这种绑定用 `state spec-ref --node <节点> --ref <图名>/<图件id>` 认领（A3 本有通道）。
+
+### Breaking (c) — 改变默认行为
+
+- archify 解析序改为 ARCHIFY_BIN → PATH → none：删除 lib/resolve-archify.mjs 的本机回退路径常量及 doctor 的 source=fallback 提示。未设 ARCHIFY_BIN 且 PATH 无 archify 的机器，gate 由静默走回退变为 `archify-missing` fail-closed；生产机用 ARCHIFY_BIN 不受影响。
+
+### Changed
+
+- lib/ 内 27 处「立法动机（demo-b 实测…）」类注释去项目名、保留日期与事实；error-codes 两处文案同改并重新生成契约附录 A；契约 §6/§10、USAGE 的解析顺序与归一化措辞同步。
+- scripts/export-public.mjs（内部件，未随本版发布）：删除已无对象的 doctor fallbackHint 锚规则与 P7 aac-cut 段；本体两份文件（spec-id、resolve-archify）的公开副本自此与私有副本逐字节相同，不再需要脱敏替换。
+
+### Added
+
+- 结构守卫：lib/ 与 bin/ 全文不得出现项目名或本机路径（demo-b / demo-a / odoo / demo-c / knifeseq / demo-ledger / <home>）；投影测试钉住 spec-id / resolve-archify 公开副本字节一致且无 `demo-b-` 痕迹。
+- test/spec-id.test.mjs：仅差大小写绑定、仅差前缀不绑定、前缀 + spec-ref 认领绑定三例。
+
 ## [0.36.0] - 2026-10-08
 
 ### Breaking (c) — 改变默认行为
@@ -70,23 +92,9 @@
 - AE-14 部分扫描披露：目录读取失败计入 `data.unreadableDirs`，`data.unreadableDirSamples` 最多保留 5 条相对根路径（根自身为 `.`）；仍 `status: ok` / exit 0，不升级为阻断门禁。除这两项授权字段外不改回执形状；该脚本及其新增测试均不投影 AAC。
 - 回归覆盖三项红→绿：全部不可重复带值旗标、init 零文件输出、非法/合法阈值、缺失/非目录根、真实 chmod 000 子目录、正常及空目录扫描。
 
-## [0.34.1] - 2026-10-01
-
-0.32.1→0.34.0 差异审阅后的纪律补正（裁决回执 rulings/RULINGS-2026-10-01-audit-0.33-0.34.md）。代码行为零变化；不回退 0.34.0。
-
-### Fixed
-
-- 恢复 0.34.0 删除的结构守卫测试（cmd-*.mjs 顶层函数 ≤120 行；lib 超长函数只能是白名单且不超上限）；`validateLayout` 367→362 行、`buildReport` 318→317 行收回白名单上限内（等价改写，无行为变化）。越限的正确处置是收函数，不是删守卫。
-- 恢复 0.34.0 删除而仍成立的测试：init INDEX 两条文案断言、「无参数 = --help」用法行断言、0.10.0 移除面断言（不再重钉历史行数，行数只由 ≤50 预算守）。
-- 补审计批裁决回执：权威链（审计来源、负责人 AE-23 单项例外、负责人合并授权）、仓内可还原的 31 项修复清单、6 项边界债的内容缺口及处置、0.34.0 审阅发现（实测：新 import 解析器在两真实仓上与旧实现逐文件一致；combined diff 语义核对；`gitCommits` 耗时 archify 70ms→1281ms 待 demo-b 实测）。
-
-### 不变
-
-- 不重做 0.33/0.34 任何修复；不改契约与回执形状；不放宽任何预算。
-
 ---
 
-更早的 66 个版本（0.1.0 → 0.34.0）：
+更早的 67 个版本（0.1.0 → 0.34.1）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

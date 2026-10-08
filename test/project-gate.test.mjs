@@ -70,7 +70,7 @@ test('④ prefixAllowed：精确等值/连字符前缀/拒绝他前缀', () => {
   assert.ok(prefixAllowed('demo-a-l1', ps));
   assert.ok(prefixAllowed('add-x', ps));
   assert.ok(!prefixAllowed('o13x', ps), '前缀后须跟连字符或恰为项目名');
-  assert.ok(!prefixAllowed('demo-b-x', ps));
+  assert.ok(!prefixAllowed('ext-x', ps));
 });
 
 test('⑤ seatAllowed：seats=null 全放行（条目未启用席位限制）', () => {
@@ -82,7 +82,7 @@ test('⑤ seatAllowed：seats=null 全放行（条目未启用席位限制）', 
 
 test('⑥ 新建节点前缀不符 → exit 1 rule=project_prefix_gate，侧车零写入', () => {
   const { sidecar } = tmpAtlas(sharedEntries(), {});
-  const res = run(['state', 'set', '--node', 'demo-b-pi-try', '--axis', 'progress', '--value', 'planned', '--reason', '越界探针', '--owner', 'pi', '--sidecar', sidecar, '--class', 'task']);
+  const res = run(['state', 'set', '--node', 'ext-pi-try', '--axis', 'progress', '--value', 'planned', '--reason', '越界探针', '--owner', 'pi', '--sidecar', sidecar, '--class', 'task']);
   assert.equal(res.code, 1);
   assert.equal(res.receipt.diagnostics[0].rule, 'project_prefix_gate');
   assert.match(res.receipt.diagnostics[0].evidence, /demo-a \| add/);
