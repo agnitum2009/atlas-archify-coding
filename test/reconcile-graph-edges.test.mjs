@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { buildReport } from '../lib/report.mjs';
 
 const SCRIPT = new URL('../scripts/reconcile-graph-edges.mjs', import.meta.url).pathname;
 let DatabaseSync = null;
@@ -300,6 +301,43 @@ test('非账本实体声明：两端在声明内 → ungroundedDeclared；未声
   assert.equal(r3.receipt.data.ungroundedDeclared, 0);
   assert.equal(r3.receipt.data.nonAccountsDeclared, 0);
 });
+
+for (const { name, groups, expected } of [
+  { name: 'A only', groups: { 'diagram-a': { ids: ['x', 'y'] } }, expected: [2, 0] },
+  { name: 'B only', groups: { 'diagram-b': { ids: ['x', 'y'] } }, expected: [0, 2] },
+  { name: 'both diagrams', groups: { 'diagram-a': { ids: ['x', 'y'] }, 'diagram-b': { ids: ['x', 'y'] } }, expected: [2, 2] },
+  { name: 'one endpoint per diagram', groups: { 'diagram-a': { ids: ['x'] }, 'diagram-b': { ids: ['y'] } }, expected: [1, 1] },
+  { name: 'unknown diagram', groups: { other: { ids: ['x', 'y'] } }, expected: [0, 0] },
+]) {
+  test(`nonAccounts scope agrees with report: ${name}`, (t) => {
+    const f = makeFixture({ index: false });
+    t.after(() => fs.rmSync(f.dir, { recursive: true, force: true }));
+    const declaration = path.join(f.dir, 'diagram-nonaccounts.json');
+    fs.writeFileSync(declaration, JSON.stringify({ schemaVersion: 1, nonAccounts: groups }));
+    const sidecar = JSON.parse(fs.readFileSync(f.sc, 'utf8'));
+    const specs = ['diagram-a', 'diagram-b'].map((name) => {
+      const file = path.join(f.dir, name + '.json');
+      const spec = { diagram_type: 'architecture', components: [{ id: 'x' }, { id: 'y' }],
+        connections: [{ id: name + '-xy', from: 'x', to: 'y' }] };
+      fs.writeFileSync(file, JSON.stringify(spec));
+      return { name, file, spec };
+    });
+    const result = run([...specs.flatMap(s => ['--spec', s.file]), '--sidecar', f.sc, '--json']);
+    assert.equal(result.code, 0, result.out);
+    const declaredEdges = expected.filter(count => count === 2).length;
+    assert.equal(result.receipt.data.ungroundedDeclared, declaredEdges);
+    assert.equal(result.receipt.data.ungrounded, 2 - declaredEdges);
+    assert.equal(result.receipt.data.nonAccountsDeclared, 2, 'count remains globally distinct IDs, not diagram groups');
+    for (const [i, { name, spec }] of specs.entries()) {
+      // Same declaration file and report fixture convention as nonaccounts.test.mjs.
+      const report = buildReport(sidecar, { specs: [spec], specNames: [name], root: f.dir, nonAccountsPath: declaration });
+      assert.equal(report.a1.nonAccountDeclared, expected[i]);
+      assert.equal(report.a1.diagramLocalIds, 2 - expected[i]);
+      const rule = expected[i] === 2 ? 'edge-ungrounded-declared' : 'edge-ungrounded';
+      assert.ok(result.receipt.diagnostics.some(d => d.subject === name + '-xy' && d.rule === rule));
+    }
+  });
+}
 
 test('reverse SQL retains endpoint membership when anchor counts differ', { skip: !DatabaseSync }, (t) => {
   const f = makeFixture();

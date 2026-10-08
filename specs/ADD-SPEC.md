@@ -161,7 +161,7 @@ realizes（实现）/ verifies（验证）/ derives（派生）/ blocks（阻塞
 
 外部边界：
 
-- archify（耦合基线 v2.14.0，运行时实测 v2.16.0-dev.0，MIT；doctor 机检实际版本）= 表达/校验/交付内核（validate/deliver/visual-check 三闸 + 结构化回执 + Delta）；atlas-engine 经 CLI 契约调用它，视觉复核不自动过关（visualReview 恒 pending）。
+- archify（耦合基线 v2.14.0；v2.16.0-dev.0 是 2026-09 历史基线，现行生产 v3.0.1 以 doctor 机检为准；MIT）= 表达/校验/交付内核（2.x：validate/deliver/visual-check 三闸；v3 另含 check 溯源闸；结构化回执 + Delta）；atlas-engine 经 CLI 契约调用它，视觉复核不自动过关（visualReview 恒 pending）。
 - codegraph 是读码提名工具；scripts/ 层通过 check-codegraph-freshness 核查索引新鲜度、reconcile-graph-edges 做边级对账。代码关系线索不等于业务真相；它不是状态治理内核的必需依赖。新鲜度脚本区分分母为空（N/A）、无索引（warning）与陈旧超阈值（warning 或失败），不把缺少覆盖说成已验证。
 - 互不侵入：atlas-engine 不改 archify schema；ADD 状态存于 sidecar（atlas-state.json），compile 时注入 archify 原生字段（component.tag / sources）。
 

@@ -289,6 +289,85 @@ function fileSha(file) {
   return createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
+for (const sub of ['set', 'transition', 'settle', 'import']) {
+  test(`R2 ${sub} discloses existing exemptions once per file without rewriting the snapshot`, (t) => {
+    const a = snapshotFixture(t);
+    fs.writeFileSync(a.legacy, 'outside atlas\nsecond anchor\n');
+    const ledger = JSON.parse(fs.readFileSync(a.sidecar, 'utf8'));
+    if (sub !== 'import') ledger.nodes['demo-n1'].progress = 'in_progress';
+    ledger.nodes['demo-n1'].evidence.push(a.legacy + ':2');
+    fs.writeFileSync(a.sidecar, JSON.stringify(ledger));
+    assert.equal(snapshotAdd(a).code, 0);
+    const sha = fileSha(a.exemptions);
+    const extra = {
+      set: ['--axis', 'progress', '--value', 'verified'],
+      transition: ['--axis', 'progress', '--from', 'in_progress', '--to', 'verified'],
+      settle: [],
+      import: ['--locator', a.inside + ':1'],
+    }[sub];
+    const r = run(['state', sub, '--node', 'demo-n1', '--reason', 'existing exemption', '--owner', 'o',
+      ...extra, '--sidecar', a.sidecar], a.dir);
+    assert.equal(r.code, 0, r.stdout);
+    assert.deepEqual(grandfathered(r), [a.legacy]);
+    assert.equal(r.receipt.diagnostics.find(d => d.rule === 'anchor_root_grandfathered').severity, 'warning');
+    const after = JSON.parse(fs.readFileSync(a.sidecar, 'utf8')).nodes['demo-n1'];
+    assert.equal(after.progress, 'verified');
+    assert.equal(after.ledger, ['settle', 'import'].includes(sub) ? 'settled' : 'clean');
+    assert.equal(fileSha(a.exemptions), sha);
+  });
+}
+
+test('R2 completion with root-authorized evidence does not claim an exemption', (t) => {
+  const a = snapshotFixture(t, false);
+  const ledger = JSON.parse(fs.readFileSync(a.sidecar, 'utf8'));
+  ledger.nodes['demo-n1'].progress = 'in_progress';
+  fs.writeFileSync(a.sidecar, JSON.stringify(ledger));
+  assert.equal(snapshotAdd(a).code, 0);
+  const sha = fileSha(a.exemptions);
+  const r = run(['state', 'settle', '--node', 'demo-n1', '--reason', 'inside root', '--owner', 'o',
+    '--sidecar', a.sidecar], a.dir);
+  assert.equal(r.code, 0, r.stdout);
+  assert.deepEqual(grandfathered(r), []);
+  assert.equal(JSON.parse(fs.readFileSync(a.sidecar, 'utf8')).nodes['demo-n1'].ledger, 'settled');
+  assert.equal(fileSha(a.exemptions), sha);
+});
+
+test('R2 failed save preserves the existing-exemption warning and original lock', (t) => {
+  const a = snapshotFixture(t);
+  const ledger = JSON.parse(fs.readFileSync(a.sidecar, 'utf8'));
+  ledger.nodes['demo-n1'].progress = 'in_progress';
+  fs.writeFileSync(a.sidecar, JSON.stringify(ledger));
+  assert.equal(snapshotAdd(a).code, 0);
+  const before = [fileSha(a.sidecar), fileSha(a.exemptions)];
+  fs.writeFileSync(a.sidecar + '.lock', JSON.stringify({ pid: process.pid, at: Date.now(), token: 'owned-by-test' }));
+  const lockSha = fileSha(a.sidecar + '.lock');
+  const r = run(['state', 'settle', '--node', 'demo-n1', '--reason', 'locked completion', '--owner', 'o',
+    '--sidecar', a.sidecar], a.dir, { ATLAS_LOCK_TIMEOUT_MS: '0' });
+  assert.equal(r.code, 1, r.stdout);
+  assert.ok(r.receipt.diagnostics.some(d => d.rule === 'sidecar_locked' && d.severity === 'error'));
+  assert.deepEqual(grandfathered(r), [a.legacy]);
+  assert.deepEqual([fileSha(a.sidecar), fileSha(a.exemptions)], before);
+  assert.equal(fileSha(a.sidecar + '.lock'), lockSha);
+});
+
+test('R2 first-snapshot disclosure survives usage-warning deduplication', (t) => {
+  const snapshotOnly = snapshotFixture(t);
+  const first = snapshotAdd(snapshotOnly);
+  assert.equal(first.code, 0, first.stdout);
+  const expected = first.receipt.diagnostics.find(d => d.rule === 'anchor_root_grandfathered');
+  const a = snapshotFixture(t);
+  const ledger = JSON.parse(fs.readFileSync(a.sidecar, 'utf8'));
+  ledger.nodes['demo-n1'].progress = 'in_progress';
+  fs.writeFileSync(a.sidecar, JSON.stringify(ledger));
+  const r = run(['state', 'settle', '--node', 'demo-n1', '--reason', 'snapshot and usage', '--owner', 'o',
+    '--sidecar', a.sidecar], a.dir);
+  assert.equal(r.code, 0, r.stdout);
+  assert.deepEqual(grandfathered(r), [a.legacy]);
+  const actual = r.receipt.diagnostics.find(d => d.rule === 'anchor_root_grandfathered');
+  assert.equal(actual.evidence, expected.evidence, 'usage must not overwrite the first-snapshot disclosure');
+  assert.ok(Object.hasOwn(JSON.parse(fs.readFileSync(a.exemptions, 'utf8')).ledgers, 'atlas-state.json'));
+});
+
 test('AE-30 B after A snapshots its own legacy anchors, preserves A and deduplicates shared paths', (t) => {
   const a = snapshotFixture(t);
   const b = path.join(a.stateDir, 'atlas-b.json');

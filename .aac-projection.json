@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.35.2",
+  "sourceVersion": "0.36.0",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "14952cc61b6a4c51"
+      "sha256": "a4ece08b95430c90"
     },
     {
       "path": "SECURITY.md",
@@ -37,7 +37,7 @@
     },
     {
       "path": "docs/CODEGRAPH-ARCHIFY-PIPELINE.md",
-      "sha256": "99342da56cab7125"
+      "sha256": "7958863ac0150717"
     },
     {
       "path": "docs/DEFENSIVE.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "67792ca4438a0e8f"
+      "sha256": "165ccd90396b54d7"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -53,7 +53,7 @@
     },
     {
       "path": "docs/USAGE.md",
-      "sha256": "1a89d341062daedc"
+      "sha256": "d27959545c891ff2"
     },
     {
       "path": "docs/assets/aac-overview-mobile.svg",
@@ -121,7 +121,7 @@
     },
     {
       "path": "lib/cmd-state.mjs",
-      "sha256": "4f7d7f7379f4df51"
+      "sha256": "d621a2006e6489a9"
     },
     {
       "path": "lib/cmd-trace.mjs",
@@ -233,7 +233,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "91dce94b960dc5f7"
+      "sha256": "83022ac07626e2e3"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -257,7 +257,7 @@
     },
     {
       "path": "scripts/reconcile-graph-edges.mjs",
-      "sha256": "0fc14d2a9d7493c1"
+      "sha256": "549cb9e41bcc60e4"
     },
     {
       "path": "scripts/sync-generated.mjs",
@@ -273,7 +273,7 @@
     },
     {
       "path": "specs/ADD-SPEC.md",
-      "sha256": "c2fdeb0da896bbda"
+      "sha256": "451903b2ff0cfdb5"
     },
     {
       "path": "specs/atlas-layout.md",
@@ -281,7 +281,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "58b112eeaca729b5"
+      "sha256": "1be782937493328a"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -293,7 +293,7 @@
     },
     {
       "path": "test/anchor-roots.test.mjs",
-      "sha256": "6872ecf8d767bb9e"
+      "sha256": "60afa444c906d03c"
     },
     {
       "path": "test/archify-adapt.test.mjs",
@@ -317,7 +317,7 @@
     },
     {
       "path": "test/auto-trace.test.mjs",
-      "sha256": "cd8a552a49beeda9"
+      "sha256": "e7eba91def9d14d0"
     },
     {
       "path": "test/build-portal.test.mjs",
@@ -461,7 +461,7 @@
     },
     {
       "path": "test/reconcile-graph-edges.test.mjs",
-      "sha256": "d219c7e9a9d6f853"
+      "sha256": "27afcb6927699c36"
     },
     {
       "path": "test/report-a1.test.mjs",

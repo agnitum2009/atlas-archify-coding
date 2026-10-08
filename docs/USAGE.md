@@ -52,6 +52,8 @@
 
 将 `ATLAS_ENGINE_BIN` 设为当前检出的 `bin/atlas-engine.mjs` 绝对路径；在空的临时工作目录执行以下原命令。首次节点必须指定分类；每条命令使用同一侧车。
 
+机制演示：验收件内容是合成的，只演示锚、迁移、销账的机器链路，不代表业务验收。
+
 <!-- atlas-example:start -->
 ```bash
 set -eu
@@ -62,6 +64,10 @@ node "$ATLAS_ENGINE_BIN" state evidence-add --node demo-task --locator "$PWD/dem
 node "$ATLAS_ENGINE_BIN" state settle --node demo-task --reason 交付 --owner reviewer --sidecar demo-atlas/state/atlas-state.json
 ```
 <!-- atlas-example:end -->
+
+正式流程：先由调用方执行并解释真实验收，再登记真实证据并使节点合法进入 `verified`。
+随后运行 `report --slice <id> --no-trace`，复核 `checked / exempt / unchecked` 后再 `settle`。
+有图件时运行 `compile / gate`；机器 pass 与人工视觉批准分开记录。
 
 `verified` 是调用者的已验证声明，`settled` 表示账务已销账；settle 校验证据锚并同时写两轴及 history kind=settle，不执行或证明业务验收。交付后按需 trace/report，并更新图谱、运行图件 gate（2.x 三闸、v3 四闸）；机器 pass 不代人工视觉复核。
 

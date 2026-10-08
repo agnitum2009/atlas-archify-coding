@@ -3,6 +3,23 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.36.0] - 2026-10-08
+
+### Breaking (c) — 改变默认行为
+
+- R1：reconcile 的 nonAccounts 按图作用域判断；图名与 report 一致（文件 basename 去 `.json`），只有该图同时声明两端点才计入 ungroundedDeclared，另一图同名 ID 不再获豁免。conn.spec 显示值、显式声明路径优先级、缺文件空集行为及 nonAccountsDeclared 的全局去重 ID 计数不变；不修改 report / spec-id。
+
+### Added
+
+- R2：set / transition / settle / import 的完成声称实际使用 grandfathered 豁免时，回执新增 anchor_root_grandfathered warning；按 rule+subject 去重，保留首次快照披露，保存失败仍带原错误与警告。warning 不进入策略阻断诊断，不重写已标记豁免清单；经负责人补充裁定，evidence-remove 保持既有删除语义，不扩大重验与拒绝范围。
+
+### Documentation
+
+- R3：收口 report 留痕契约：参数解析与输入文件读取失败（bad_args / bad_verify / bad_spec / 侧车不可用）不留痕，进入报告评估后的成功与规则失败都记；增加有效侧车下 bad_verify 不改变 revision/trace 的现状测试，report 实现不变。
+- R4：对齐 pi 部署门禁的词表/版本两段、skipped 与宿主加载边界；将 v2.16.0-dev.0 标为 2026-09 历史基线，生产 v3.0.1 以 doctor 为准；Codegraph 两边都有仅为文件级提名一致，AE-12 保持能力限制。compile 的校验归 gate 条款原已明确，保持不变；仓内三条注入通道同步口径。
+- U2：USAGE 的合成验收件标明仅演示机器链路；正式流程先解释真实验收，再登记证据并合法进入 verified，复核 report 的 checked/exempt/unchecked 后 settle；图件机器 pass 与人工视觉批准分开记录。
+- AAC 公开 README（2026-10-03 直推 0034dce / AAC 673f52c，随本版一并记账）：AAC 对外 README 改为桌面/窄屏专属图谱与账本 SVG 示意、图账闭环流程、问题与命令对照表及可运行起步示例；插图由内部投影白名单导出并列入 npm 文件清单。同步说明 gate v3 四闸、report --spec 无需 Archify 内核及人工验收边界；无 CLI 行为变更。公开仓继续只由本体投影生成。
+
 ## [0.35.2] - 2026-10-02
 
 ### Fixed
@@ -1717,4 +1734,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 70 个版本全量保留；派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 71 个版本全量保留；派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

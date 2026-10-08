@@ -3,6 +3,23 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.36.0] - 2026-10-08
+
+### Breaking (c) — 改变默认行为
+
+- R1：reconcile 的 nonAccounts 按图作用域判断；图名与 report 一致（文件 basename 去 `.json`），只有该图同时声明两端点才计入 ungroundedDeclared，另一图同名 ID 不再获豁免。conn.spec 显示值、显式声明路径优先级、缺文件空集行为及 nonAccountsDeclared 的全局去重 ID 计数不变；不修改 report / spec-id。
+
+### Added
+
+- R2：set / transition / settle / import 的完成声称实际使用 grandfathered 豁免时，回执新增 anchor_root_grandfathered warning；按 rule+subject 去重，保留首次快照披露，保存失败仍带原错误与警告。warning 不进入策略阻断诊断，不重写已标记豁免清单；经负责人补充裁定，evidence-remove 保持既有删除语义，不扩大重验与拒绝范围。
+
+### Documentation
+
+- R3：收口 report 留痕契约：参数解析与输入文件读取失败（bad_args / bad_verify / bad_spec / 侧车不可用）不留痕，进入报告评估后的成功与规则失败都记；增加有效侧车下 bad_verify 不改变 revision/trace 的现状测试，report 实现不变。
+- R4：对齐 pi 部署门禁的词表/版本两段、skipped 与宿主加载边界；将 v2.16.0-dev.0 标为 2026-09 历史基线，生产 v3.0.1 以 doctor 为准；Codegraph 两边都有仅为文件级提名一致，AE-12 保持能力限制。compile 的校验归 gate 条款原已明确，保持不变；仓内三条注入通道同步口径。
+- U2：USAGE 的合成验收件标明仅演示机器链路；正式流程先解释真实验收，再登记证据并合法进入 verified，复核 report 的 checked/exempt/unchecked 后 settle；图件机器 pass 与人工视觉批准分开记录。
+- AAC 公开 README（2026-10-03 直推 0034dce / AAC 673f52c，随本版一并记账）：AAC 对外 README 改为桌面/窄屏专属图谱与账本 SVG 示意、图账闭环流程、问题与命令对照表及可运行起步示例；插图由内部投影白名单导出并列入 npm 文件清单。同步说明 gate v3 四闸、report --spec 无需 Archify 内核及人工验收边界；无 CLI 行为变更。公开仓继续只由本体投影生成。
+
 ## [0.35.2] - 2026-10-02
 
 ### Fixed
@@ -67,35 +84,9 @@
 
 - 不重做 0.33/0.34 任何修复；不改契约与回执形状；不放宽任何预算。
 
-## [0.34.0] - 2026-10-01
-
-主 Agent 亲自重跑剩余 27 项；仅修当前 0.33.0 实际复现且符合现契约的 21 项。AE-08/12/13/14/24/30 保留边界债；不清洗生产数据、不改 Archify。2026-10-01 经负责人追加授权合并主线，并发布本体及 AAC 0.34.0 正式版本。
-
-### Breaking
-
-- (b) 保存前建目录失败由 internal / exit 2 归位 sidecar_write_failed / exit 1（AE-07），不是成功回执；未提交事实与调用者状态保持不变。
-- (a) 规则段落跨行句末不再误豁免超六行正文；预算扫描对该超限输入由通过转为失败（AE-35）。
-
-### Fixed
-
-- AE-07/09/10：保存建目录失败归位 sidecar_write_failed 并披露未提交；版本路径用 URL 解析；公开导出预检忽略文件占用父路径，在任何发布前拒绝。
-- AE-11/36：反向边核验按端点集合检查成员，锚数量不改变方向；候选截断披露包含多属主过滤。
-- AE-15/16：Git 轨迹纳入 merge 自创文件但不把继承的父分支文件冒充 merge 改动；NUL 分隔保真处理引号、制表符、换行、Unicode 及重命名。
-- AE-18/19/22：按解析时刻比较、排序和含边界截窗；等时刻稳定，无效日期末置。diff state 的 --since 帮助由 version 更正为 ISO8601。
-- AE-20/21/33：replay 摘要保留删除锚与 scoped spec-ref；notice 席位 trim 后一致读写；brief 失败报告 errors 仅含 error，留痕降级 warning 只计 warnings。
-- AE-23：经负责人单项许可，只补合法无 LF 末行追加时所需分隔；trace import 仍冻结，不扩并发/格式/提名能力，AE-24 未修。
-- AE-26/27/28/31/32：同项目全部 sourcePath 参与 SHA 候选；失败候选如实披露 unchecked 且不妨碍其他项目；漏项按全候选判定；每张图保留本图歧义；注册表冲突不再误造项目缺失 error，独立门户缺陷仍报错。
-- AE-35：技能纪律预算按段落实际正文行数核算，删除跨行找句末的截短豁免，超六行正文不再误放行。
-- AE-37：门户的产物、缩略图及期目录 href 逐路径段 URI 编码，保留真实文件名中的 #、?、% 与 Unicode，不把文件名误当 fragment/query。
-
-### Tests
-
-- 增补消费者回归覆盖错误码/零写入、Git 历史与字面文件名、时间边界、JSONL 顺序追加、候选核验、回执与门户 URL。
-- 移除绑定源码函数行数的实现断言，不重钉行数；命令、旗标、文本预算门禁保留原上限。
-
 ---
 
-更早的 65 个版本（0.1.0 → 0.33.0）：
+更早的 66 个版本（0.1.0 → 0.34.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

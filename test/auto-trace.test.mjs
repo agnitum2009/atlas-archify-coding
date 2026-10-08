@@ -1,4 +1,4 @@
-// B1 自动留痕牙齿（2026-08-15 清单）：gate/compile/report 运行后（成败均记）向侧车追加 kind='command' 事件；
+// B1 自动留痕牙齿（2026-08-15 清单）：gate/compile/report 执行阶段按各命令契约向侧车追加 kind='command' 事件；
 // --no-trace 关闭；留痕失败降级 warning 不阻断；state 写命令不自动记（history 已覆盖）。
 // 红线：全部用临时目录侧车，绝不触碰 <home>/demo-ledger/state/atlas-state.json。
 
@@ -145,6 +145,27 @@ test('B1 report：成功留痕（error/warning 计数 + --slice 锚定节点）�
   assert.equal(noTrace.code, 1);
   assert.equal(readSidecar(sidecar).trace.length, before, '--no-trace 不涨账');
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('B1 report rejects non-JSON verification input without changing revision or trace', (t) => {
+  const dir = tmpDir();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const sidecar = seedSidecar(dir);
+  const ledger = readSidecar(sidecar);
+  ledger.revision = 7;
+  ledger.trace = [];
+  fs.writeFileSync(sidecar, JSON.stringify(ledger));
+  const verify = path.join(dir, 'invalid-verify.json');
+  fs.writeFileSync(verify, '{ not json');
+  const before = fs.readFileSync(sidecar, 'utf8');
+  const result = run(['report', '--sidecar', sidecar, '--verify', verify]);
+  assert.equal(result.code, 1, result.stdout);
+  assert.equal(result.receipt.status, 'failed');
+  assert.ok(result.receipt.diagnostics.some(d => d.rule === 'bad_verify' && d.severity === 'error'));
+  const after = readSidecar(sidecar);
+  assert.equal(after.revision, ledger.revision);
+  assert.equal(after.trace.length, ledger.trace.length);
+  assert.equal(fs.readFileSync(sidecar, 'utf8'), before);
 });
 
 test('B1 降级：侧车目录只读时 report 主结果照出（exit 0）+ trace_degraded warning', () => {

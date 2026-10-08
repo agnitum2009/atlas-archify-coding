@@ -51,12 +51,19 @@ const NA_DEFAULT = (() => {
 })();
 const NONACCOUNTS_PATH = (() => { const i = argv.indexOf('--nonaccounts'); return i >= 0 && argv[i + 1] ? argv[i + 1] : NA_DEFAULT; })();
 const declaredNonAccounts = new Set();
+const nonAccountsByDiagram = new Map();
 if (NONACCOUNTS_PATH && fs.existsSync(NONACCOUNTS_PATH)) {
   const parsed = (() => { try { return JSON.parse(fs.readFileSync(NONACCOUNTS_PATH, 'utf8')); } catch { return null; } })();
   const groups = parsed && parsed.nonAccounts && typeof parsed.nonAccounts === 'object' ? parsed.nonAccounts : {};
   for (const key of Object.keys(groups)) {
     const g = groups[key];
-    for (const gid of (g && Array.isArray(g.ids) ? g.ids : [])) declaredNonAccounts.add(String(gid));
+    const ids = new Set();
+    for (const gid of (g && Array.isArray(g.ids) ? g.ids : [])) {
+      const id = String(gid);
+      ids.add(id);
+      declaredNonAccounts.add(id); // 回执统计仍为全局去重 ID 数，不参与作用域判定。
+    }
+    nonAccountsByDiagram.set(key, ids);
   }
 }
 
@@ -254,8 +261,9 @@ for (const conn of connections) {
   const af = anchoredFiles(conn.from);
   const bf = anchoredFiles(conn.to);
   if (!af || !bf || af.length === 0 || bf.length === 0) {
-    // 2026-09-14（A 批）：两端均在非账本实体声明内 ⇒ 属「码证据不适用」，与真缺账分列
-    if (declaredNonAccounts.has(conn.from) && declaredNonAccounts.has(conn.to)) {
+    // 两端均须在该图的声明内；图名与 report 一致，conn.spec 的显示值保持不变。
+    const declared = nonAccountsByDiagram.get(conn.spec.replace(/\.json$/, ''));
+    if (declared?.has(conn.from) && declared.has(conn.to)) {
       ungroundedDeclared += 1;
       unchecked.ungroundedDeclared += 1;
       findings.push({ rule: 'edge-ungrounded-declared', severity: 'warning', subject: conn.id || `${conn.from}→${conn.to}`,
