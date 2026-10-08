@@ -296,14 +296,21 @@ test('A1e：无 class 字段时行为与改动前一致（零豁免，全报）'
 });
 
 // A3（2026-09-10）：图件 id ↔ 账本节点 id 的收敛三法——归一化 / specRefs 认领 / 图内局部 id 单列
-test('A3：图件 id 与节点 id 仅差 demo-b- 前缀或大小写 ⇒ 归一化视为已入账', () => {
-  const sidecar = {
-    schemaVersion: 1,
-    nodes: { 'demo-b-contract-center': nodeOf({ class: 'task' }) },
-  };
+test('A3：图件 id 与节点 id 仅差大小写 ⇒ 归一化视为已入账（0.37.0 起归一化只剩大小写）', () => {
+  const sidecar = { schemaVersion: 1, nodes: { 'contract-center': nodeOf({ class: 'task' }) } };
   const r = buildReport(sidecar, { specs: [specOf(['Contract-Center'])], specNames: ['diagram-x'] });
   assert.equal(r.a1.diagramLocalIds, 0, JSON.stringify(r.a1));
   assert.equal(r.warnings.filter((w) => w.rule === 'a1-unaccounted-node').length, 0);
+});
+
+test('A3：图件 id 与节点 id 仅差项目前缀（含曾被特判的 demo-b-）⇒ 不再归一化绑定，报 a1-diagram-local-id；spec-ref 显式认领后绑定（0.37.0 Breaking）', () => {
+  const sidecar = { schemaVersion: 1, nodes: { 'demo-b-contract-center': nodeOf({ class: 'task' }) } };
+  const r = buildReport(sidecar, { specs: [specOf(['contract-center'])], specNames: ['diagram-x'] });
+  assert.equal(r.a1.diagramLocalIds, 1, JSON.stringify(r.a1));
+  assert.ok(r.warnings.some((w) => w.rule === 'a1-diagram-local-id' && w.subject === 'contract-center'));
+  const claimed = { schemaVersion: 1, nodes: { 'demo-b-contract-center': nodeOf({ class: 'task', specRefs: ['diagram-x/contract-center'] }) } };
+  const r2 = buildReport(claimed, { specs: [specOf(['contract-center'])], specNames: ['diagram-x'] });
+  assert.equal(r2.a1.diagramLocalIds, 0, JSON.stringify(r2.a1));
 });
 
 test('A3：节点用 specRefs 显式认领图件 id（含图内局部 id）⇒ 不再报', () => {

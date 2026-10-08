@@ -1,7 +1,7 @@
 # ADD 具体使用方法（USAGE）
 
 > 适用：任何 harness（demo-harness / pi / demo-host / 其他带 bash 能力的智能体）。
-> 前置：Node >= 18；图件 gate（2.x 三闸、v3 四闸）另需 archify 内核——解析顺序 ARCHIFY_BIN（存在于磁盘才算）→ PATH 上的 archify → 内置回退路径（existsSync 才算）→ none（fail-closed，绝不伪装成功）；解析来源随 doctor/gate 回执以 source=env|path|fallback 披露。
+> 前置：Node >= 18；图件 gate（2.x 三闸、v3 四闸）另需 archify 内核——解析顺序 ARCHIFY_BIN（存在于磁盘才算）→ PATH 上的 archify → none（fail-closed，绝不伪装成功；0.37.0 起无内置回退路径）；解析来源随 doctor/gate 回执以 source=env|path 披露。
 
 ## 一、三种接入方式
 

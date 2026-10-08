@@ -117,7 +117,7 @@ test('CLI doctor：锚全绿（含正常文本锚）时 evidence-resolvability o
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('runDoctor archify-kernel：fallback 来源出可移植 warning 提示；override/env/path 来源不出（0.8.0 泛化残债3）', () => {
+test('runDoctor archify-kernel：override/env/path 三种来源均披露 source=，无回退路径提示（0.37.0 起无本机回退）', () => {
   const dir = tmpDir();
   const stub = path.join(dir, 'archify-stub.mjs');
   fs.writeFileSync(stub, 'process.exit(0);\n');
@@ -155,7 +155,7 @@ test('runDoctor archify-kernel：fallback 来源出可移植 warning 提示；ov
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('runDoctor archify-kernel：无 env 且 PATH 无 archify 时——source=fallback 出提示、source=none 不出（条件断言，任机器确定性）', () => {
+test('runDoctor archify-kernel：无 env 且 PATH 无 archify 时 source=none、ok=false（0.37.0：解析序 ARCHIFY_BIN → PATH → none，无本机回退）', () => {
   const dir = tmpDir();
   const emptyBin = path.join(dir, 'empty-bin');
   fs.mkdirSync(emptyBin);
@@ -165,15 +165,9 @@ test('runDoctor archify-kernel：无 env 且 PATH 无 archify 时——source=fa
     delete process.env.ARCHIFY_BIN;
     process.env.PATH = emptyBin; // which archify 必不中
     const c = runDoctor({}).checks.find((x) => x.name === 'archify-kernel');
-    if (c.detail.includes('source=fallback')) {
-      assert.ok(c.detail.includes('回退路径'), 'fallback 来源必须出可移植提示：' + c.detail);
-      assert.ok(c.detail.includes('ARCHIFY_BIN'), c.detail);
-      assert.equal(c.ok, true, 'fallback 仍算内核可用（提示不改 ok 语义）');
-    } else {
-      assert.ok(c.detail.includes('source=none'), c.detail);
-      assert.ok(!c.detail.includes('回退路径'), c.detail);
-      assert.equal(c.ok, false, 'none = fail-closed');
-    }
+    assert.ok(c.detail.includes('source=none'), c.detail);
+    assert.ok(!c.detail.includes('回退路径'), c.detail);
+    assert.equal(c.ok, false, 'none = fail-closed');
   } finally {
     if (prevEnv === undefined) delete process.env.ARCHIFY_BIN;
     else process.env.ARCHIFY_BIN = prevEnv;

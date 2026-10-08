@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.36.0",
+  "sourceVersion": "0.37.0",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "a4ece08b95430c90"
+      "sha256": "ca3e6a358d7e03d7"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "165ccd90396b54d7"
+      "sha256": "1f43322b3563683e"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -53,7 +53,7 @@
     },
     {
       "path": "docs/USAGE.md",
-      "sha256": "d27959545c891ff2"
+      "sha256": "c13ecfdf0646690e"
     },
     {
       "path": "docs/assets/aac-overview-mobile.svg",
@@ -73,11 +73,11 @@
     },
     {
       "path": "lib/anchor-roots.mjs",
-      "sha256": "885482b46d7eee89"
+      "sha256": "6a2582c5df1e8799"
     },
     {
       "path": "lib/atlas-data.mjs",
-      "sha256": "794af526f633f329"
+      "sha256": "e2174abfb00d45df"
     },
     {
       "path": "lib/cli-options.mjs",
@@ -121,7 +121,7 @@
     },
     {
       "path": "lib/cmd-state.mjs",
-      "sha256": "d621a2006e6489a9"
+      "sha256": "77cb2eb492dfae12"
     },
     {
       "path": "lib/cmd-trace.mjs",
@@ -133,7 +133,7 @@
     },
     {
       "path": "lib/compile.mjs",
-      "sha256": "953ed9e74e24bc44"
+      "sha256": "349211ff82dec29b"
     },
     {
       "path": "lib/diff.mjs",
@@ -141,7 +141,7 @@
     },
     {
       "path": "lib/doctor.mjs",
-      "sha256": "3d4dc0197ba86099"
+      "sha256": "7b0585972f24cb7b"
     },
     {
       "path": "lib/envelope.mjs",
@@ -149,23 +149,23 @@
     },
     {
       "path": "lib/error-codes.mjs",
-      "sha256": "cc70555a7c6bbf5a"
+      "sha256": "9436ead4eb14ae9a"
     },
     {
       "path": "lib/evidence.mjs",
-      "sha256": "a1662a549cf9c6b9"
+      "sha256": "0693970a6fa61421"
     },
     {
       "path": "lib/gate.mjs",
-      "sha256": "a6e4f6ed705780c8"
+      "sha256": "910f2f3170a81eaa"
     },
     {
       "path": "lib/init.mjs",
-      "sha256": "e886c81aeaa4ecb1"
+      "sha256": "c56b242fbf3b52ac"
     },
     {
       "path": "lib/layout.mjs",
-      "sha256": "f54219e6c4e0a1ba"
+      "sha256": "d8a183f369c26b07"
     },
     {
       "path": "lib/lessons.mjs",
@@ -177,7 +177,7 @@
     },
     {
       "path": "lib/project-gate.mjs",
-      "sha256": "9931cb1b83e17cb3"
+      "sha256": "6f8498c609da163d"
     },
     {
       "path": "lib/projects-registry.mjs",
@@ -185,15 +185,15 @@
     },
     {
       "path": "lib/report.mjs",
-      "sha256": "3dd05a0509552508"
+      "sha256": "73e757cc64207630"
     },
     {
       "path": "lib/resolve-archify.mjs",
-      "sha256": "7939b3fd0263c38c"
+      "sha256": "8c373dcba3e6eed9"
     },
     {
       "path": "lib/spec-id.mjs",
-      "sha256": "308057403906e57d"
+      "sha256": "6c94739adcb8d7c4"
     },
     {
       "path": "lib/state-machine.mjs",
@@ -217,7 +217,7 @@
     },
     {
       "path": "lib/trajectory-workspace.mjs",
-      "sha256": "50af06476a0f6252"
+      "sha256": "7dd061634c4cff62"
     },
     {
       "path": "lib/trajectory.mjs",
@@ -233,7 +233,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "83022ac07626e2e3"
+      "sha256": "05f0b902672eb9d9"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -281,7 +281,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "1be782937493328a"
+      "sha256": "27c2102b1b3a891e"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -361,7 +361,7 @@
     },
     {
       "path": "test/doctor.test.mjs",
-      "sha256": "9eacb7ec719bc84c"
+      "sha256": "8f74200f52ccd171"
     },
     {
       "path": "test/error-codes.test.mjs",
@@ -441,7 +441,7 @@
     },
     {
       "path": "test/nonaccounts.test.mjs",
-      "sha256": "5d3d4e09a338c413"
+      "sha256": "7cb6bf31e2b94407"
     },
     {
       "path": "test/notice.test.mjs",
@@ -457,7 +457,7 @@
     },
     {
       "path": "test/project-gate.test.mjs",
-      "sha256": "1e74d5f79f687f76"
+      "sha256": "7433073e11a898b7"
     },
     {
       "path": "test/reconcile-graph-edges.test.mjs",
@@ -465,7 +465,7 @@
     },
     {
       "path": "test/report-a1.test.mjs",
-      "sha256": "7b51236c13b52436"
+      "sha256": "71283c0d45f08057"
     },
     {
       "path": "test/report-gate.test.mjs",
@@ -477,11 +477,11 @@
     },
     {
       "path": "test/resolve-archify.test.mjs",
-      "sha256": "6f780605d8de50b1"
+      "sha256": "935d27da2d675fae"
     },
     {
       "path": "test/ruling-2026-09-18-followup.test.mjs",
-      "sha256": "737b4d3b82717ee6"
+      "sha256": "0185063a5d2c1f94"
     },
     {
       "path": "test/ruling-2026-09-18.test.mjs",
@@ -494,6 +494,10 @@
     {
       "path": "test/settle-binding.test.mjs",
       "sha256": "df4f23c4fac3ad8f"
+    },
+    {
+      "path": "test/spec-id.test.mjs",
+      "sha256": "470c136cdadf43a6"
     },
     {
       "path": "test/state-cli.test.mjs",
@@ -529,7 +533,7 @@
     },
     {
       "path": "test/surface-consistency.test.mjs",
-      "sha256": "9dabcb5d80b124a7"
+      "sha256": "c2a785eb6beb5eb4"
     },
     {
       "path": "test/trace-identity.test.mjs",

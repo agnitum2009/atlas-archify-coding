@@ -151,7 +151,7 @@ test('resolveArchify：which 挂起时按超时回退（不无限阻塞）', (t)
   assert.ok(Date.now() - started < 15000, '主进程不应被 which 挂起拖死：' + (Date.now() - started) + 'ms');
   assert.equal(r.status, 0, r.stderr);
   const out = JSON.parse(r.stdout.trim());
-  assert.ok(['fallback', 'none'].includes(out.source), '超时后必须走回退链或 none（fail-closed）：' + out.source);
+  assert.equal(out.source, 'none', '超时后必须 none（fail-closed；0.37.0 起无本机回退）：' + out.source);
 });
 
 // ==================== 0.21.2：反向洞修复 + 补救消息归真（ds41x 席位独立复核实证） ====================

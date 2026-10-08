@@ -3,6 +3,28 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.37.0] - 2026-10-08
+
+本体项目中立（负责人 2026-10-08 裁定：引擎不得知道任何项目的名字或形状；项目账本上的发现只问「引擎有没有做错或没说清」）。设计稿 docs/superpowers/specs/2026-10-08-0370-project-neutral-core-design.md。不写任何侧车。
+
+### Breaking (a) — 拒绝此前接受的输入
+
+- 图件 id ↔ 账本节点 id 的解析入口（lib/spec-id.mjs，report / compile / settle 共用）不再剥 `demo-b-` 项目前缀：归一化只折叠大小写，解析序为 精确同名 → 大小写归一唯一命中 → specRefs 显式认领。此前靠前缀命中的绑定升级后报 `a1-diagram-local-id`、compile 不注入；项目要这种绑定用 `state spec-ref --node <节点> --ref <图名>/<图件id>` 认领（A3 本有通道）。
+
+### Breaking (c) — 改变默认行为
+
+- archify 解析序改为 ARCHIFY_BIN → PATH → none：删除 lib/resolve-archify.mjs 的本机回退路径常量及 doctor 的 source=fallback 提示。未设 ARCHIFY_BIN 且 PATH 无 archify 的机器，gate 由静默走回退变为 `archify-missing` fail-closed；生产机用 ARCHIFY_BIN 不受影响。
+
+### Changed
+
+- lib/ 内 27 处「立法动机（demo-b 实测…）」类注释去项目名、保留日期与事实；error-codes 两处文案同改并重新生成契约附录 A；契约 §6/§10、USAGE 的解析顺序与归一化措辞同步。
+- scripts/export-public.mjs（内部件，未随本版发布）：删除已无对象的 doctor fallbackHint 锚规则与 P7 aac-cut 段；本体两份文件（spec-id、resolve-archify）的公开副本自此与私有副本逐字节相同，不再需要脱敏替换。
+
+### Added
+
+- 结构守卫：lib/ 与 bin/ 全文不得出现项目名或本机路径（demo-b / demo-a / odoo / demo-c / knifeseq / demo-ledger / <home>）；投影测试钉住 spec-id / resolve-archify 公开副本字节一致且无 `demo-b-` 痕迹。
+- test/spec-id.test.mjs：仅差大小写绑定、仅差前缀不绑定、前缀 + spec-ref 认领绑定三例。
+
 ## [0.36.0] - 2026-10-08
 
 ### Breaking (c) — 改变默认行为
@@ -1734,4 +1756,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 71 个版本全量保留；派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 72 个版本全量保留；派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

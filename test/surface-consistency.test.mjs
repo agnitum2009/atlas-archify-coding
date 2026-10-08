@@ -88,3 +88,17 @@ test('结构守卫：cmd-*.mjs 的每个 import 在非注释代码中都被使�
   }
   assert.deepEqual(unused, []);
 });
+
+test('结构守卫：本体项目中立——lib/ 与 bin/ 不得出现任何项目名或本机路径（0.37.0）', () => {
+  // 负责人 2026-10-08 裁定：本体不得知道项目叫什么；实测项目名只能写在 docs/rulings/RELEASES 或 scripts/ 适配层。
+  const banned = /\bn14\b|\bo13\b|\bodoo\b|demo-c|knifeseq|demo-ledger|\/home\/umax/;
+  const hits = [];
+  for (const dir of ['lib', 'bin']) {
+    for (const f of fs.readdirSync(path.join(ROOT, dir)).filter((n) => n.endsWith('.mjs'))) {
+      fs.readFileSync(path.join(ROOT, dir, f), 'utf8').split('\n').forEach((line, i) => {
+        if (banned.test(line)) hits.push(dir + '/' + f + ':' + (i + 1));
+      });
+    }
+  }
+  assert.deepEqual(hits, []);
+});

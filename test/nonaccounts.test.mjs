@@ -19,8 +19,8 @@ function nodeOf(over) {
 
 test('A1 非账本实体声明：无声明文件时行为不变（local id 照报）', () => {
   const dir = tmpDir();
-  const sidecar = { schemaVersion: 1, atlas: null, nodes: { 'demo-b-real': nodeOf({}) } };
-  const spec = { diagram_type: 'architecture', components: [{ id: 'demo-b-real' }, { id: 'local-label' }] };
+  const sidecar = { schemaVersion: 1, atlas: null, nodes: { 'real-node': nodeOf({}) } };
+  const spec = { diagram_type: 'architecture', components: [{ id: 'real-node' }, { id: 'local-label' }] };
   const r = buildReport(sidecar, { specs: [spec], root: dir });
   assert.equal(r.a1.diagramLocalIds, 1);
   assert.equal(r.a1.nonAccountDeclared, 0);
@@ -28,8 +28,8 @@ test('A1 非账本实体声明：无声明文件时行为不变（local id 照�
 
 test('A1 非账本实体声明：命中声明的 id 计入 nonAccountDeclared，不再计入 diagramLocalIds', () => {
   const dir = tmpDir();
-  const sidecar = { schemaVersion: 1, atlas: null, nodes: { 'demo-b-real': nodeOf({}) } };
-  const spec = { diagram_type: 'architecture', components: [{ id: 'demo-b-real' }, { id: 'local-label' }] };
+  const sidecar = { schemaVersion: 1, atlas: null, nodes: { 'real-node': nodeOf({}) } };
+  const spec = { diagram_type: 'architecture', components: [{ id: 'real-node' }, { id: 'local-label' }] };
   const decl = { schemaVersion: 1, nonAccounts: { 'test-diagram': { ids: ['local-label'], reason: 'fixture' } } };
   const declPath = path.join(dir, 'diagram-nonaccounts.json');
   fs.writeFileSync(declPath, JSON.stringify(decl) + '\n');
@@ -41,8 +41,8 @@ test('A1 非账本实体声明：命中声明的 id 计入 nonAccountDeclared，
 
 test('A1 非账本实体声明**按图作用域**：A 图声明不豁免 B 图的同名局部 id（缺陷4 跨图误豁免）', () => {
   const dir = tmpDir();
-  const sidecar = { schemaVersion: 1, nodes: { 'demo-b-real': nodeOf({}) } };
-  const specA = { diagram_type: 'architecture', components: [{ id: 'demo-b-real' }, { id: 'shared-label' }] };
+  const sidecar = { schemaVersion: 1, nodes: { 'real-node': nodeOf({}) } };
+  const specA = { diagram_type: 'architecture', components: [{ id: 'real-node' }, { id: 'shared-label' }] };
   const specB = { diagram_type: 'architecture', components: [{ id: 'shared-label' }] };
   const declPath = path.join(dir, 'diagram-nonaccounts.json');
   // 只在 A 图（键 = 图名）声明 shared-label
@@ -57,8 +57,8 @@ test('A1 非账本实体声明**按图作用域**：A 图声明不豁免 B 图�
 
 test('A1 非账本实体声明：图名未知（未传 specNames）时**不豁免**且如实披露（旧实现会全图豁免）', () => {
   const dir = tmpDir();
-  const sidecar = { schemaVersion: 1, nodes: { 'demo-b-real': nodeOf({}) } };
-  const spec = { diagram_type: 'architecture', components: [{ id: 'demo-b-real' }, { id: 'local-label' }] };
+  const sidecar = { schemaVersion: 1, nodes: { 'real-node': nodeOf({}) } };
+  const spec = { diagram_type: 'architecture', components: [{ id: 'real-node' }, { id: 'local-label' }] };
   const declPath = path.join(dir, 'diagram-nonaccounts.json');
   fs.writeFileSync(declPath, JSON.stringify({ schemaVersion: 1, nonAccounts: { 'some-diagram': { ids: ['local-label'], reason: 'fixture' } } }) + '\n');
   const r = buildReport(sidecar, { specs: [spec], root: dir, nonAccountsPath: declPath });
@@ -71,8 +71,8 @@ test('A1 非账本实体声明：图名未知（未传 specNames）时**不豁�
 
 test('A1 非账本实体声明：声明文件损坏时降级为空集（不抛错、行为同无声明）', () => {
   const dir = tmpDir();
-  const sidecar = { schemaVersion: 1, atlas: null, nodes: { 'demo-b-real': nodeOf({}) } };
-  const spec = { diagram_type: 'architecture', components: [{ id: 'demo-b-real' }, { id: 'local-label' }] };
+  const sidecar = { schemaVersion: 1, atlas: null, nodes: { 'real-node': nodeOf({}) } };
+  const spec = { diagram_type: 'architecture', components: [{ id: 'real-node' }, { id: 'local-label' }] };
   const declPath = path.join(dir, 'diagram-nonaccounts.json');
   fs.writeFileSync(declPath, '{ not json');
   const r = buildReport(sidecar, { specs: [spec], root: dir, nonAccountsPath: declPath });
