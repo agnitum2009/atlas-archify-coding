@@ -533,7 +533,7 @@
     },
     {
       "path": "test/surface-consistency.test.mjs",
-      "sha256": "c2a785eb6beb5eb4"
+      "sha256": "52d0376dd63528c4"
     },
     {
       "path": "test/trace-identity.test.mjs",

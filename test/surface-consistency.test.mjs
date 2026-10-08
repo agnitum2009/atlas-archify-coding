@@ -91,7 +91,8 @@ test('结构守卫：cmd-*.mjs 的每个 import 在非注释代码中都被使�
 
 test('结构守卫：本体项目中立——lib/ 与 bin/ 不得出现任何项目名或本机路径（0.37.0）', () => {
   // 负责人 2026-10-08 裁定：本体不得知道项目叫什么；实测项目名只能写在 docs/rulings/RELEASES 或 scripts/ 适配层。
-  const banned = /\bn14\b|\bo13\b|\bodoo\b|demo-c|knifeseq|demo-ledger|\/home\/umax/;
+  // 字面量用字符类拆开：公开投影的替换表会改写 demo-b/demo-a 等字面量（变成 demo-b/demo-a），拆开后守卫在公开副本里仍是同一条规则。
+  const banned = /\bn[1]4\b|\bo[1]3\b|\bod[o]o\b|econ[t]ract|knife[s]eq|add-arc[h]ify|\/home\/u[m]ax/;
   const hits = [];
   for (const dir of ['lib', 'bin']) {
     for (const f of fs.readdirSync(path.join(ROOT, dir)).filter((n) => n.endsWith('.mjs'))) {
