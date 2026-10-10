@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.37.2",
+  "sourceVersion": "0.37.3",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "c75a72a04546d92e"
+      "sha256": "d14728c61231f3d2"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "ea9596ebb38336bf"
+      "sha256": "3359e99adac313ac"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -129,7 +129,7 @@
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "66373e313fdaa011"
+      "sha256": "722f111fab1728ff"
     },
     {
       "path": "lib/compile.mjs",
@@ -157,7 +157,7 @@
     },
     {
       "path": "lib/gate.mjs",
-      "sha256": "910f2f3170a81eaa"
+      "sha256": "5833f6aa1df1359a"
     },
     {
       "path": "lib/init.mjs",
@@ -185,7 +185,7 @@
     },
     {
       "path": "lib/report.mjs",
-      "sha256": "73e757cc64207630"
+      "sha256": "55e24ed5a1c3c354"
     },
     {
       "path": "lib/resolve-archify.mjs",
@@ -233,7 +233,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "79218e921a3abe48"
+      "sha256": "9e1d8b0932806eb2"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -281,7 +281,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "21a74eb2859af643"
+      "sha256": "4b95172586abb3b9"
     },
     {
       "path": "specs/snapshot-policy.md",

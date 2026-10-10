@@ -99,7 +99,7 @@ A1 适用前提（2026-08-17 治理型项目 holdout 对抗实验成文；适用
 口径（report --spec）：正向面（账本节点→图）——已绑定者计 coverage.matched；未绑定但**已声明 class** 者计 classExempted（**豁免 ≠ matched**：只表示该节点不参与绑定核对，不代表已核对、已上图或已验证）；未绑定且未分类者报 a1-unmatched-account（kind='meta' 先跳过并计入 metaExempted，不算 unmatched）。反向面（图件 id→账本）——候选三源 = 精确同名、**既有归一化**（前缀/大小写，仅用于匹配、不改 id）、节点 specRefs 认领（限图 ref 在图名未知时不消解）；恰一个不同节点才绑定，多于一个不绑定并报 a1-ambiguous-id（每张图分别披露自己的候选，不被另一图同 id 覆盖），三源皆未命中才报 a1-diagram-local-id（解析器见 lib/spec-id.mjs）。分母 = ledgerNodes - metaExempted，如实给数；nonClaims 与 a1 数据小节见下。
 非账本实体声明（2026-09-11 P4）：report 读 `<侧车同目录>/diagram-nonaccounts.json`（形状 `{ schemaVersion, note?, nonAccounts: { <图名>: { ids: [...], reason } } }`），命中 id 计入 `a1.nonAccountDeclared` 且不再报 a1-diagram-local-id。与 `specRefs` 分工：**specRefs=某节点认领该图件 id**；**本声明=该图件 id 非账本实体**（架构构件/图内局部标签）。无文件或文件坏 = 空集（零破坏）。
 a1 数据小节：{ specs, checkedNodes, specComponentIds, errors, warnings, metaExempted, classExempted, diagramLocalIds, nonAccountDeclared, nonClaims }；report 失败时 failed 信封仍携带 data.a1（不伪装成功）。
-nonClaims（显式声明的机器不可判项）：truth 轴业务生效性需负责人回执；证据仅静态 lint（文件存在 + 行号在界），不验证证据内容与代码语义一致；锚行哈希只证行内容未变（ok/drifted 三态判定），不证行内容对节点声称的语义支撑（锁口② 2026-08-16）；图账交叉按 id 解析绑定（精确同名 / 大小写归一化 / specRefs 认领（0.37.0 起项目前缀等 id 形状差异不归一化，由 state spec-ref 显式认领）），不判语义等价或别名；A1 图账交叉仅在图件 id 能解析到唯一账本节点时有信号（适用前提见上，0.7.0 增）；boundary/connection 拓扑正确性不在对账范围；meta 节点豁免图账交叉（仅 d 项，a/b/c 照查）。
+nonClaims（显式声明的机器不可判项）：truth 轴业务生效性机器不可判（truth 推进只核对本地回执文件存在，不自证）；证据仅静态 lint（文件存在 + 行号在界），不验证证据内容与代码语义一致；锚行哈希只证行内容未变（ok/drifted 三态判定），不证行内容对节点声称的语义支撑（锁口② 2026-08-16）；图账交叉按 id 解析绑定（精确同名 / 大小写归一化 / specRefs 认领（0.37.0 起项目前缀等 id 形状差异不归一化，由 state spec-ref 显式认领）），不判语义等价或别名；A1 图账交叉仅在图件 id 能解析到唯一账本节点时有信号（适用前提见上，0.7.0 增）；boundary/connection 拓扑正确性不在对账范围；meta 节点豁免图账交叉（仅 d 项，a/b/c 照查）。
 
 ## 7. gate
 
