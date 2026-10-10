@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.37.1",
+  "sourceVersion": "0.37.2",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -21,11 +21,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "aaac59076007909b"
+      "sha256": "753c8587702a92b1"
     },
     {
       "path": "RELEASES.md",
-      "sha256": "342eb31a7d799a02"
+      "sha256": "c75a72a04546d92e"
     },
     {
       "path": "SECURITY.md",
@@ -45,7 +45,7 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "0d88058e7a024f4d"
+      "sha256": "ea9596ebb38336bf"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
@@ -129,7 +129,7 @@
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "4e8702a4b73f3db5"
+      "sha256": "66373e313fdaa011"
     },
     {
       "path": "lib/compile.mjs",
@@ -233,7 +233,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "b5487f43cf9f28f5"
+      "sha256": "79218e921a3abe48"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",

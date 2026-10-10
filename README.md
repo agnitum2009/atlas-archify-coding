@@ -9,7 +9,7 @@
   </picture>
 </p>
 
-<p align="center"><strong>Atlas + Archify + Coding</strong> · 图谱驱动研发（ADD）的状态与证据工具。<br/>图是投影，代码是实相；让两者的差异有处可查。</p>
+<p align="center"><strong>Atlas + Archify + Coding</strong> · 图谱驱动研发（ADD）L2 状态机层工具。<br/>图是投影，代码是实相；让两者的差异有处可查。</p>
 
 <p align="center"><a href="#workflow">看工作流</a> · <a href="#quickstart">开始使用</a> · <a href="#boundaries">能力边界</a></p>
 
