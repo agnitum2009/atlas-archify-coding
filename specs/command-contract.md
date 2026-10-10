@@ -10,7 +10,7 @@
 
 **预算硬顶**：命令数 ≤11、全仓唯一旗标 ≤50；占用数由 `test/surface-consistency.test.mjs` 从注册表断言。trace order 回执顶层字段 ≤11（0.29.1 立预算锁于 18；0.30.0 盲区披露收敛为 blindSpots 后下调到 11；占用数由 `test/trajectory-cli.test.mjs` 以 §8 字段表对照实测回执断言）。新增能力仍须过下列准入五问；超限必须显式换入或退役，不随本批修复提高预算。
 
-**本体边界（负责人裁定 2026-08-17，前置于下列五问）**：ADD 的问题域 = **已开工、中后期失去进度掌控的项目**（「开了头不知道如何收」）。**从零开始的项目不是本工具的场景**——这类工具已极多，兼顾会让本体累贅，什么都做反而做不好。故 **第 0 问：这个能力服务的是「中后期项目重获进度掌控」，还是「更好地开一个新项目」？后者一律拒**，不进入下列五问。空目录上 init 链实测可跑但属场景外，不予修补（防被当成未修债反复捡起）。
+**本体边界（负责人裁定 2026-08-17，前置于下列五问）**：本组件的问题域 = **已开工、中后期失去进度掌控的项目**（「开了头不知道如何收」）。**从零开始的项目不是本工具的场景**——这类工具已极多，兼顾会让本体累贅，什么都做反而做不好。故 **第 0 问：这个能力服务的是「中后期项目重获进度掌控」，还是「更好地开一个新项目」？后者一律拒**，不进入下列五问。空目录上 init 链实测可跑但属场景外，不予修补（防被当成未修债反复捡起）。
 
 **能力准入五问**（过了第 0 问才问；新命令/新旗标/新能力入内核前逐条回答，任一不过即拒）：
 1. 它是否改变「什么被判为真」？（是 = 内核变更，需裁定+版本+契约+测试四件套）
@@ -176,7 +176,7 @@ archify 解析顺序（lib/resolve-archify.mjs）：ARCHIFY_BIN（存在于磁�
 | sidecar_bad_revision | store.mjs：revision 非非负整数 | 1（load 路径） | sidecar 数据损坏，fail-loud |
 | unknown_template | init：--template 非 minimal\|demo | 1 | 未知模板不静默降级到缺省（用户输入校验失败，非 internal） |
 | bad_spec | report：--spec 文件不可读或非 JSON | 1 | spec 输入坏 |
-| receipt_required | state set/transition：truth 轴前进写入未携带 --receipt（--correction 不免除本门禁，2026-08-15 裁定④） | 1 | 真相轴推进需负责人本地回执文件（开发规范：Owner 真相需目标本地回执，机器不自证）；补救 = 补 --receipt <回执文件路径>（建议归位 <图谱目录>/rulings/receipts/，软约定） |
+| receipt_required | state set/transition：truth 轴前进写入未携带 --receipt（--correction 不免除本门禁，2026-08-15 裁定④） | 1 | 真相轴推进需本地回执文件（机器只核对文件存在，不自证）；补救 = 补 --receipt <回执文件路径>（建议归位 <图谱目录>/rulings/receipts/，软约定） |
 | receipt_not_found | state set/transition：--receipt 文件不存在 | 1 | 提供现存普通文件；机器不校验业务语义 |
 | receipt_not_file | state set/transition：--receipt 不是普通文件（如目录） | 1 | 提供普通文件或指向它的链接 |
 | receipt_unreadable | state set/transition：无法检查回执文件状态 | 1 | 检查文件权限/路径；不作为缺失回执放行 |

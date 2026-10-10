@@ -3,6 +3,17 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.37.1] - 2026-10-10
+
+specs 收窄为组件契约：只规定本组件的状态机、证据、回执、关系标签与存储（负责人 2026-10-10 裁定）。纯文档与诊断文案修改，命令、字段、退出码与校验行为不变。
+
+### Changed
+
+- specs/ADD-SPEC.md：标题与开头改为组件契约的适用范围；§一 改称组件数据词表；A5 与 §2.5 注明本组件只在 truth 推进时检查回执文件存在；§三 注明侧车不存边、只有 anchors 有实现，想法池的 supersedes 晋升链同注；问题域一句改为「本组件」。command-contract 本体边界同改。
+- truth 推进缺回执的诊断文案（lib/truth-receipt.mjs、lib/error-codes.mjs，命令契约附录 A 重新生成）改为「真相轴推进需本地回执文件（机器只核对文件存在，不自证）」；对应测试同改。
+- --help 首行、package 描述与两份技能的身份说明改为「ADD 状态与证据账本组件」，技能帮助块重新生成。
+- docs/USAGE.md、docs/QUICKSTART-NONCODER.md 改为描述本组件；USAGE 的完整契约指向 specs/ADD-SPEC.md，相应删去一条已无对象的投影锚点规则。
+
 ## [0.37.0] - 2026-10-08
 
 本体项目中立（负责人 2026-10-08 裁定：引擎不得知道任何项目的名字或形状；项目账本上的发现只问「引擎有没有做错或没说清」）。设计稿 docs/superpowers/specs/2026-10-08-0370-project-neutral-core-design.md。不写任何侧车。
@@ -70,31 +81,9 @@
 
 - AE-24：契约明载 trace import 的单写者前提，并发不承诺幂等去重；同一事件串行导入。代码和测试未改，属于冻结限制说明，不是并发修复。
 
-## [0.35.0] - 2026-10-02
-
-负责人裁定 AE-08/13/14 仅补 fail-loud 缺口；本版先推分支、开 PR，由本侧审阅合并，合并后再销三项债。不加命令/旗标/帮助行，不修改 AE-12/24/30。
-
-### Breaking (a) — 拒绝此前接受的输入
-
-- AE-08：重复带值参数仅对注册表 `repeatable: true` 者聚合；其余返回 `bad_args` / exit 1 并点名旗标，init 重复 `--title` / `--dir` 不产生文件。经数组消费点核对仅 `--spec`、`--replay`、`--allow-root` 保留可重复，单次传值和布尔旗标行为不变。旗标仍 50/50，帮助仍 ≤50 行。
-- AE-13：`check-codegraph-freshness.mjs` 的 `--warn-days` / `--fail-days` 必须为有限非负数，非数字/无穷/负数返回既有 `bad_args` / exit 2，不再假报 fresh。本脚本在 AAC 的 KEEP_SCRIPTS 投影清单内；不改 warn > fail 顺序规则。
-
-### Breaking (b) — 本版无此类变更
-
-- freshness 输入失败沿用脚本既有 exit 2，不顺手改为 CLI 的 exit 1；退出码统一须另行裁定。
-
-### Breaking (c) — 改变默认行为
-
-- AE-14 根预检：`unowned-oversize-scan.mjs --root` 不存在或不是目录时按既有输入守卫返回 `bad_args` / exit 1，不再返回假 `ok, scanned: 0`。
-
-### Added
-
-- AE-14 部分扫描披露：目录读取失败计入 `data.unreadableDirs`，`data.unreadableDirSamples` 最多保留 5 条相对根路径（根自身为 `.`）；仍 `status: ok` / exit 0，不升级为阻断门禁。除这两项授权字段外不改回执形状；该脚本及其新增测试均不投影 AAC。
-- 回归覆盖三项红→绿：全部不可重复带值旗标、init 零文件输出、非法/合法阈值、缺失/非目录根、真实 chmod 000 子目录、正常及空目录扫描。
-
 ---
 
-更早的 67 个版本（0.1.0 → 0.34.1）：
+更早的 68 个版本（0.1.0 → 0.35.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

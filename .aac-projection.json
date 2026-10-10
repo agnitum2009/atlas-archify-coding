@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generator": "export-public",
-  "sourceVersion": "0.37.0",
+  "sourceVersion": "0.37.1",
   "files": [
     {
       "path": ".github/workflows/ci.yml",
@@ -25,7 +25,7 @@
     },
     {
       "path": "RELEASES.md",
-      "sha256": "ca3e6a358d7e03d7"
+      "sha256": "342eb31a7d799a02"
     },
     {
       "path": "SECURITY.md",
@@ -45,15 +45,15 @@
     },
     {
       "path": "docs/HISTORY.md",
-      "sha256": "1f43322b3563683e"
+      "sha256": "0d88058e7a024f4d"
     },
     {
       "path": "docs/QUICKSTART-NONCODER.md",
-      "sha256": "dee83d02087db88b"
+      "sha256": "279da543d34c8fee"
     },
     {
       "path": "docs/USAGE.md",
-      "sha256": "c13ecfdf0646690e"
+      "sha256": "f5e3f421035a23b4"
     },
     {
       "path": "docs/assets/aac-overview-mobile.svg",
@@ -129,7 +129,7 @@
     },
     {
       "path": "lib/commands.mjs",
-      "sha256": "66373e313fdaa011"
+      "sha256": "4e8702a4b73f3db5"
     },
     {
       "path": "lib/compile.mjs",
@@ -149,7 +149,7 @@
     },
     {
       "path": "lib/error-codes.mjs",
-      "sha256": "9436ead4eb14ae9a"
+      "sha256": "15cdb5397d4dcac9"
     },
     {
       "path": "lib/evidence.mjs",
@@ -225,7 +225,7 @@
     },
     {
       "path": "lib/truth-receipt.mjs",
-      "sha256": "43342fffe41a32b9"
+      "sha256": "8de68f25adac81d2"
     },
     {
       "path": "lib/version.mjs",
@@ -233,7 +233,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "05f0b902672eb9d9"
+      "sha256": "b5487f43cf9f28f5"
     },
     {
       "path": "scripts/backfill-evidence-hashes.mjs",
@@ -273,7 +273,7 @@
     },
     {
       "path": "specs/ADD-SPEC.md",
-      "sha256": "451903b2ff0cfdb5"
+      "sha256": "8173844a0e88dcbc"
     },
     {
       "path": "specs/atlas-layout.md",
@@ -281,7 +281,7 @@
     },
     {
       "path": "specs/command-contract.md",
-      "sha256": "27c2102b1b3a891e"
+      "sha256": "21a74eb2859af643"
     },
     {
       "path": "specs/snapshot-policy.md",
@@ -569,7 +569,7 @@
     },
     {
       "path": "test/truth-receipt.test.mjs",
-      "sha256": "4f574aa1ffbbab30"
+      "sha256": "46cc7fb78aac2fc9"
     },
     {
       "path": "test/usage-flow.test.mjs",

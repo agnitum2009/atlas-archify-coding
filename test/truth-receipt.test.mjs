@@ -80,7 +80,7 @@ test('① transition truth 前进无 --receipt → exit 1 receipt_required，节
   assert.equal(res.code, 1);
   assert.equal(res.receipt.status, 'failed');
   assert.equal(res.receipt.diagnostics[0].rule, 'receipt_required');
-  assert.match(res.receipt.diagnostics[0].evidence, /真相轴推进需负责人本地回执文件（开发规范：Owner 真相需目标本地回执，机器不自证）/);
+  assert.match(res.receipt.diagnostics[0].evidence, /真相轴推进需本地回执文件（机器只核对文件存在，不自证）/);
 
   const side = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
   assert.equal(side.nodes.n1.truth, 'candidate');

@@ -17,7 +17,7 @@
 1. 系统提示已注入 ADD 块：<宿主注入块>（备份 .bak-add-20260815）。
 2. 无需安装：CLI 直用即达。命令入口：
    node <repo>/bin/atlas-engine.mjs <命令>
-3. 完整指南：见 specs/ADD-SPEC.md 与各项目侧 handoff 指南。
+3. 完整契约：见 specs/ADD-SPEC.md 与各项目侧 handoff 指南。
 
 ### C. 任意 harness：bash + CLI（通用）
 
@@ -84,7 +84,7 @@ report 消费边界：--slice 选择节点状态/history/证据检查，但 --sp
 - 侧车（共用、写锁内置）：<数据根>/state/atlas-state.json（本机示例路径 <home>/demo-ledger）
 - 活样图集：<数据根>（spec/artifacts/evidence/data/state/rulings/history 七区；本机示例路径 <home>/demo-ledger）
 - 仓库：<repo>（本机）
-- 设计文档五件：本仓 specs/ 为正本（设计案/市场全景/可行性/四概念/方法论基座的历史存档在早期项目根仓）
+- 组件规范以本仓 specs/ 为准；早期设计文档五件（设计案/市场全景/可行性/四概念/方法论基座）是历史存档，在早期项目根仓
 
 ## 五、常见坑（已入经验池）
 
