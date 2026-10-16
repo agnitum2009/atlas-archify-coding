@@ -3,6 +3,16 @@
 > 本仓是上游实现仓的**派生投影**（规则表见生成器），条目保留能力级变更；主体名、内部档名与本机路径已中性化。
 > 本页只列最近 5 个版本；**完整沿革一行不删**，在 [docs/HISTORY.md](docs/HISTORY.md)。
 
+## [0.37.4] - 2026-10-16
+
+gate 回执透传内核诊断与复核信号。纯增可选字段，命令、退出码、既有字段语义与 visualReview 边界不变。
+
+### Added
+
+- gate：validate / deliver / check 非零退出时，该闸回执带 `kernelDiagnostics`（内核 diagnostics[] 前 8 条的 code/severity/subject/message；无 code 不计；解析失败为 []），CLI fail 信封以 `data.kernelDiagnostics` 暴露（不适用为 null，内核非零但无可解析诊断为 []）。此前失败尾只摘第一条且截 180 字，上层无法按 code+subject 逐条追踪修复轮次（编排层的修复上限规则需要逐条身份）。
+- gate：v3 check 通过时 `check.receipt.review` 转述内核 `composition` 的复核信号（resolvedCrossovers / routesOverSuggestedBends / routesOverSuggestedStretch）、`routeReview`（crossings / detours / crowdedSides 各 ≤8 条，`truncated` 标记）与 leadingSpace / sequenceColumnSpace 的 `reviewSuggested`。archify 3.x 的 `finalize` 据此生成 visualReviewRecommendation；gate 此前只留溯源三字段，人工 visualReview 没有清单可对。只转述不判定。
+- gate-detail.jsonl：每条增 `kernelDiagnostics`（失败闸的码列表或 null）与 `review`（上述对象或 null），观察期可按内核码分类拦截。
+
 ## [0.37.3] - 2026-10-10
 
 修正两处陈旧文案。纯文案修改，命令、字段、退出码与校验行为不变。
@@ -53,26 +63,9 @@ specs 收窄为组件契约：只规定本组件的状态机、证据、回执�
 - 结构守卫：lib/ 与 bin/ 全文不得出现项目名或本机路径（demo-b / demo-a / odoo / demo-c / knifeseq / demo-ledger / <home>）；投影测试钉住 spec-id / resolve-archify 公开副本字节一致且无 `demo-b-` 痕迹。
 - test/spec-id.test.mjs：仅差大小写绑定、仅差前缀不绑定、前缀 + spec-ref 认领绑定三例。
 
-## [0.36.0] - 2026-10-08
-
-### Breaking (c) — 改变默认行为
-
-- R1：reconcile 的 nonAccounts 按图作用域判断；图名与 report 一致（文件 basename 去 `.json`），只有该图同时声明两端点才计入 ungroundedDeclared，另一图同名 ID 不再获豁免。conn.spec 显示值、显式声明路径优先级、缺文件空集行为及 nonAccountsDeclared 的全局去重 ID 计数不变；不修改 report / spec-id。
-
-### Added
-
-- R2：set / transition / settle / import 的完成声称实际使用 grandfathered 豁免时，回执新增 anchor_root_grandfathered warning；按 rule+subject 去重，保留首次快照披露，保存失败仍带原错误与警告。warning 不进入策略阻断诊断，不重写已标记豁免清单；经负责人补充裁定，evidence-remove 保持既有删除语义，不扩大重验与拒绝范围。
-
-### Documentation
-
-- R3：收口 report 留痕契约：参数解析与输入文件读取失败（bad_args / bad_verify / bad_spec / 侧车不可用）不留痕，进入报告评估后的成功与规则失败都记；增加有效侧车下 bad_verify 不改变 revision/trace 的现状测试，report 实现不变。
-- R4：对齐 pi 部署门禁的词表/版本两段、skipped 与宿主加载边界；将 v2.16.0-dev.0 标为 2026-09 历史基线，生产 v3.0.1 以 doctor 为准；Codegraph 两边都有仅为文件级提名一致，AE-12 保持能力限制。compile 的校验归 gate 条款原已明确，保持不变；仓内三条注入通道同步口径。
-- U2：USAGE 的合成验收件标明仅演示机器链路；正式流程先解释真实验收，再登记证据并合法进入 verified，复核 report 的 checked/exempt/unchecked 后 settle；图件机器 pass 与人工视觉批准分开记录。
-- AAC 公开 README（2026-10-03 直推 0034dce / AAC 673f52c，随本版一并记账）：AAC 对外 README 改为桌面/窄屏专属图谱与账本 SVG 示意、图账闭环流程、问题与命令对照表及可运行起步示例；插图由内部投影白名单导出并列入 npm 文件清单。同步说明 gate v3 四闸、report --spec 无需 Archify 内核及人工验收边界；无 CLI 行为变更。公开仓继续只由本体投影生成。
-
 ---
 
-更早的 70 个版本（0.1.0 → 0.35.2）：
+更早的 71 个版本（0.1.0 → 0.36.0）：
 见 [docs/HISTORY.md](docs/HISTORY.md)。
 
 

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runGate, gateNamesFor } from '../lib/gate.mjs';
+import { runGate, gateNamesFor, failedStageKernelDiagnostics } from '../lib/gate.mjs';
 import { spawnSync } from 'node:child_process';
 import { writeFakeArchifyV3 } from './fake-archify.mjs';
 
@@ -131,4 +131,102 @@ test('0.32.1 v3 停在 deliver：gate-detail.jsonl 与侧车留痕都把 check /
   const trace = JSON.parse(fs.readFileSync(sidecar, 'utf8')).trace.pop();
   assert.deepEqual(trace.detail.result.kernel, { version: '3.0.1', profile: 'v3', versionKnown: true });
   assert.deepEqual([trace.detail.result.gateDetail.check.status, trace.detail.result.gateDetail.visual_check.status], ['skip', 'skip']);
+});
+
+// 0.37.4：失败闸内核诊断结构化带出；v3 check 复核信号转述（纯增字段）。
+test('0.37.4 validate 非零：results.validate.kernelDiagnostics 带前 8 条 code/subject，缺 code 的不计', (t) => {
+  const diags = Array.from({ length: 10 }, (_, i) => ({ code: 'composition/label-gap', severity: 'error', subject: { path: '/connections/' + i }, message: 'gap ' + i, supportedFixes: ['x'] }));
+  diags.push({ message: 'no code here' });
+  const f = setup(t, { validateExit: 1, extraValidate: '{ diagnostics: ' + JSON.stringify(diags) + ' }' });
+  const r = runGate(f.spec, f.out, f.bin);
+  assert.deepEqual([r.final, r.stage, r.reason], ['fail', 'validate', 'validate-failed']);
+  const kd = r.results.validate.kernelDiagnostics;
+  assert.equal(kd.length, 8, '有界：最多 8 条');
+  assert.deepEqual(kd[0], { code: 'composition/label-gap', severity: 'error', subject: { path: '/connections/0' }, message: 'gap 0' });
+  assert.ok(kd.every((d) => d.code), '无 code 的诊断不带出');
+  assert.equal(r.results.deliver, undefined);
+});
+
+test('0.37.4 check 非零：results.check.kernelDiagnostics 带出；通过时 receipt.review 转述 composition 信号', (t) => {
+  const f1 = setup(t, { checkExit: 1, extraCheck: "{ diagnostics: [{ code: 'delivery/provenance-mismatch', message: 'm' }] }" });
+  const r1 = runGate(f1.spec, f1.out, f1.bin);
+  assert.deepEqual(r1.results.check.kernelDiagnostics.map((d) => d.code), ['delivery/provenance-mismatch']);
+  const composition = {
+    metrics: { resolvedCrossovers: 2, routesOverSuggestedBends: 1, routesOverSuggestedStretch: 0, maxBends: 3 },
+    routeReview: { crossings: Array.from({ length: 9 }, (_, i) => ({ left: { from: 'a', to: 'b' + i } })), detours: [] },
+    leadingSpace: { reviewSuggested: true, emptyTopPx: 200 },
+  };
+  const f2 = setup(t, { extraCheck: '{ composition: ' + JSON.stringify(composition) + ' }' });
+  const r2 = runGate(f2.spec, f2.out, f2.bin);
+  assert.equal(r2.final, 'pass', r2.tail);
+  const review = r2.results.check.receipt.review;
+  assert.deepEqual(review.signals, { resolvedCrossovers: 2, routesOverSuggestedBends: 1, routesOverSuggestedStretch: 0 }, '只转述三项复核信号');
+  assert.equal(review.routeReview.crossings.length, 8);
+  assert.equal(review.routeReview.truncated, true);
+  assert.deepEqual(review.routeReview.detours, []);
+  assert.equal(review.leadingSpaceReviewSuggested, true);
+  assert.equal(review.sequenceColumnSpaceReviewSuggested, null);
+  assert.equal(r2.visualReview, 'pending', '转述信号不改人工复核边界');
+  const f3 = setup(t);
+  const r3 = runGate(f3.spec, f3.out, f3.bin);
+  assert.deepEqual(r3.results.check.receipt.review, { signals: {}, routeReview: null, leadingSpaceReviewSuggested: null, sequenceColumnSpaceReviewSuggested: null }, '空 composition → 空信号而非缺字段');
+});
+
+test('0.37.4 CLI：validate 失败 → fail 信封 data.kernelDiagnostics 与 gate-detail.kernelDiagnostics 带内核码；通过 → gate-detail.review 带信号', (t) => {
+  const mk = (extra) => {
+    const atlas = fs.mkdtempSync(path.join(os.tmpdir(), 'gate-v3-kd-'));
+    t.after(() => fs.rmSync(atlas, { recursive: true, force: true }));
+    fs.mkdirSync(path.join(atlas, 'state'), { recursive: true });
+    fs.mkdirSync(path.join(atlas, 'spec', 'demo'), { recursive: true });
+    const spec = path.join(atlas, 'spec', 'demo', 'demo.json');
+    fs.writeFileSync(spec, JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'x', output: 'out.html' }, components: [] }));
+    fs.writeFileSync(path.join(atlas, 'state', 'projects.json'), JSON.stringify({ schemaVersion: 1, projects: [{ project: 'demo', umbrella: 'demo-add', sidecar: 'atlas-demo.json' }] }));
+    const sidecar = path.join(atlas, 'state', 'atlas-demo.json');
+    fs.writeFileSync(sidecar, JSON.stringify({ schemaVersion: 1, revision: 0, nodes: {} }, null, 2) + '\n');
+    const bin = writeFakeArchifyV3(path.join(atlas, 'skill'), extra);
+    const cliBin = new URL('../bin/atlas-engine.mjs', import.meta.url).pathname;
+    const r = spawnSync(process.execPath, [cliBin, 'gate', '--diagram', spec, '--out', path.join(atlas, 'out.html'), '--sidecar', sidecar],
+      { encoding: 'utf8', env: { ...process.env, ARCHIFY_BIN: bin } });
+    const entry = JSON.parse(fs.readFileSync(path.join(atlas, 'data', 'demo', 'gate-detail.jsonl'), 'utf8').trim().split('\n').pop());
+    return { r, entry, receipt: JSON.parse(r.stdout) };
+  };
+  const failed = mk({ validateExit: 1, extraValidate: "{ diagnostics: [{ code: 'schema/enum', subject: { path: '/components/0/type', identity: 'api' }, message: 'must be equal to one of the allowed values' }] }" });
+  assert.equal(failed.r.status, 1, failed.r.stdout);
+  assert.equal(failed.receipt.diagnostics[0].rule, 'gate_validate-failed', '既有规则码不变');
+  assert.deepEqual(failed.receipt.data.kernelDiagnostics, [{ code: 'schema/enum', severity: null, subject: { path: '/components/0/type', identity: 'api' }, message: 'must be equal to one of the allowed values' }]);
+  assert.deepEqual(failed.entry.kernelDiagnostics, ['schema/enum']);
+  assert.equal(failed.entry.review, null);
+  const passed = mk({ extraCheck: "{ composition: { metrics: { resolvedCrossovers: 1 }, routeReview: { crossings: [{ sharedNode: 'api' }], detours: [] } } }" });
+  assert.equal(passed.r.status, 0, passed.r.stdout);
+  assert.equal(passed.receipt.data.kernelDiagnostics, undefined, '通过时无该字段');
+  assert.equal(passed.entry.kernelDiagnostics, null);
+  assert.deepEqual(passed.entry.review.signals, { resolvedCrossovers: 1 });
+  assert.deepEqual(passed.entry.review.routeReview.crossings, [{ sharedNode: 'api' }]);
+  assert.equal(passed.receipt.data.visualReview, 'pending');
+});
+
+test('0.37.4 边界：deliver 非零带 kernelDiagnostics；无可解析诊断为 []；archify-missing 与 visual-check 失败为 null；crowdedSides 透传', (t) => {
+  const f1 = setup(t, { extraDeliver: "{ ok: false, diagnostics: [{ code: 'delivery/lock-stale', evidence: { lock: 'x' } }] }" });
+  // extraDeliver 只改回执不改退出码：走 deliver-receipt 分支，不适用 → 无 kernelDiagnostics
+  const r1 = runGate(f1.spec, f1.out, f1.bin);
+  assert.deepEqual([r1.stage, r1.reason], ['deliver', 'deliver-receipt']);
+  assert.equal(failedStageKernelDiagnostics(r1), null, '回执契约不符不是内核非零退出');
+  const f2 = setup(t, { validateExit: 1 });
+  const r2 = runGate(f2.spec, f2.out, f2.bin);
+  assert.deepEqual(r2.results.validate.kernelDiagnostics, [], '内核非零但无诊断 → []');
+  assert.deepEqual(failedStageKernelDiagnostics(r2), []);
+  const f3 = setup(t, { validateExit: 1, extraValidate: "{ diagnostics: [{ code: 'composition/label-gap', evidence: { minimumPx: 21 } }] }" });
+  const r3 = runGate(f3.spec, f3.out, f3.bin);
+  assert.equal(r3.results.validate.kernelDiagnostics[0].message, '', 'evidence 为对象时不落成 [object Object]');
+  const missing = runGate(f3.spec, f3.out, path.join(f3.dir, 'nope.mjs'));
+  assert.equal(missing.stage, 'archify-missing');
+  assert.equal(failedStageKernelDiagnostics(missing), null);
+  const f4 = setup(t, { visualStatus: 'fail' });
+  const r4 = runGate(f4.spec, f4.out, f4.bin);
+  assert.equal(r4.stage, 'visual-check');
+  assert.equal(failedStageKernelDiagnostics(r4), null);
+  const f5 = setup(t, { extraCheck: "{ composition: { metrics: { resolvedCrossovers: '3' }, routeReview: { crossings: [], detours: [], crowdedSides: [{ node: 'api', side: 'left' }] } } }" });
+  const r5 = runGate(f5.spec, f5.out, f5.bin);
+  assert.deepEqual(r5.results.check.receipt.review.signals, {}, '非有限数值不转述');
+  assert.deepEqual(r5.results.check.receipt.review.routeReview.crowdedSides, [{ node: 'api', side: 'left' }]);
 });

@@ -51,7 +51,7 @@ test('结构守卫：commands.mjs ≤150 行且只含注册表；cmd-*.mjs 不 i
 test('结构守卫：cmd-*.mjs 顶层函数 ≤120 行；lib 其余超长函数只能是白名单且不超上限', () => {
   // 白名单 = 0.23.1 拆分时的存量上帝函数及其行数（只减不增；拆掉一个就删一条）。
   // 0.34.0 曾因 validateLayout +3 行、buildReport +1 行越限而把本守卫整条删除；0.34.1 恢复守卫并把函数收回上限内。
-  const CEILING = { validateLayout: 364, buildReport: 317, runDoctor: 276, runGateChain: 171 };
+  const CEILING = { validateLayout: 364, buildReport: 317, runDoctor: 276, runGateChain: 159 };
   const lib = path.join(ROOT, 'lib');
   const over = [];
   for (const f of fs.readdirSync(lib).filter((n) => n.endsWith('.mjs'))) {

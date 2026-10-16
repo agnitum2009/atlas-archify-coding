@@ -3,6 +3,16 @@
 > 与 [RELEASES.md](../RELEASES.md) 同源派生：**这里保留全部版本条目**，首屏可读性由 RELEASES 承担。
 > 之所以两处派生而非两处维护：唯一真相在上游实现仓，本页每次投影整体重生成，不在本仓手工维护。
 
+## [0.37.4] - 2026-10-16
+
+gate 回执透传内核诊断与复核信号。纯增可选字段，命令、退出码、既有字段语义与 visualReview 边界不变。
+
+### Added
+
+- gate：validate / deliver / check 非零退出时，该闸回执带 `kernelDiagnostics`（内核 diagnostics[] 前 8 条的 code/severity/subject/message；无 code 不计；解析失败为 []），CLI fail 信封以 `data.kernelDiagnostics` 暴露（不适用为 null，内核非零但无可解析诊断为 []）。此前失败尾只摘第一条且截 180 字，上层无法按 code+subject 逐条追踪修复轮次（编排层的修复上限规则需要逐条身份）。
+- gate：v3 check 通过时 `check.receipt.review` 转述内核 `composition` 的复核信号（resolvedCrossovers / routesOverSuggestedBends / routesOverSuggestedStretch）、`routeReview`（crossings / detours / crowdedSides 各 ≤8 条，`truncated` 标记）与 leadingSpace / sequenceColumnSpace 的 `reviewSuggested`。archify 3.x 的 `finalize` 据此生成 visualReviewRecommendation；gate 此前只留溯源三字段，人工 visualReview 没有清单可对。只转述不判定。
+- gate-detail.jsonl：每条增 `kernelDiagnostics`（失败闸的码列表或 null）与 `review`（上述对象或 null），观察期可按内核码分类拦截。
+
 ## [0.37.3] - 2026-10-10
 
 修正两处陈旧文案。纯文案修改，命令、字段、退出码与校验行为不变。
@@ -1784,4 +1794,4 @@ plan-tree 引入链的收尾批：清三处陈旧/死重 + 立搁置记录。纯
 
 
 <!-- 生成物：请勿在公开版直接编辑本文件；要改历史叙述请提 issue，由上游同步。 -->
-<!-- 75 个版本全量保留；派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->
+<!-- 76 个版本全量保留；派生时丢弃 18 行（内部治理叙事 / 公开面不可证的数字断言）。 -->

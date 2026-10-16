@@ -15,6 +15,7 @@ export function fakeArchifySource(opts = {}) {
     visualExit = 1,
     extraDeliver = '{}',
     extraValidate = '{}',
+    validateExit = 0,
     extraVisual = '{}',
     extraCheck = '{}',
     checkExit = 0,
@@ -42,8 +43,9 @@ if (${JSON.stringify(probe)}) fs.appendFileSync(${JSON.stringify(probe)}, JSON.s
 if (cmd === 'validate') {
   const receipt = { schemaVersion: 1, ok: true, command: 'validate', type: argv[1], input: specPath, checks: [{ name: 'composition', ok: true }], composition: { profile: 'showcase', status: 'pass', summary: { errors: 0, warnings: 0 } } };
   Object.assign(receipt, ${extraValidate});
+  if (${validateExit} !== 0) receipt.ok = false;
   console.log(JSON.stringify(receipt));
-  process.exit(0);
+  process.exit(${validateExit});
 }
 if (cmd === 'deliver') {
   const html = '<html><body>ok</body></html>';
